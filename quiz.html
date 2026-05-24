@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Claude Builder Cert — Quiz</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --panel-2: #1f2630;
+    --border: #2a313c;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #d68f3a;
+    --green: #3fb950;
+    --red: #f85149;
+    --blue: #58a6ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+  header h1 .accent { color: var(--accent); }
+  .stats {
+    display: flex;
+    gap: 16px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .stats b { color: var(--text); font-weight: 600; }
+  .stats .ok { color: var(--green); }
+  .stats .bad { color: var(--red); }
+
+  main {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .controls label {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .controls select, .controls button {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .controls button:hover { background: #2a313c; }
+  .controls button.danger { color: var(--red); }
+  .controls .spacer { flex: 1; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin-bottom: 16px;
+  }
+  .qmeta {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .tag {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.3px;
+  }
+  .tag.topic { color: var(--blue); }
+  .qtext {
+    font-size: 15px;
+    margin-bottom: 14px;
+  }
+  .qtext code {
+    background: var(--panel-2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: #ffb86c;
+  }
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.1s;
+    font-size: 14px;
+  }
+  .choice:hover { background: #242b35; }
+  .choice input { margin-top: 3px; }
+  .choice.correct {
+    background: rgba(63, 185, 80, 0.12);
+    border-color: var(--green);
+  }
+  .choice.wrong {
+    background: rgba(248, 81, 73, 0.10);
+    border-color: var(--red);
+  }
+  .choice.locked { cursor: default; }
+  .actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .actions button {
+    background: var(--accent);
+    color: #0e1116;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .actions button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .actions button.secondary {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .explanation {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: var(--panel-2);
+    border-left: 3px solid var(--blue);
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--text);
+    display: none;
+  }
+  .explanation.show { display: block; }
+  .explanation b { color: var(--blue); }
+  .explanation code {
+    background: #0e1116;
+    padding: 2px 5px;
+    border-radius: 3px;
+    color: #ffb86c;
+  }
+  .verdict {
+    font-size: 13px;
+    font-weight: 600;
+    margin-left: auto;
+  }
+  .verdict.ok { color: var(--green); }
+  .verdict.bad { color: var(--red); }
+
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  footer {
+    max-width: 860px;
+    margin: 40px auto 24px;
+    padding: 0 24px;
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Claude Builder Cert — <span class="accent">Quiz</span></h1>
+  <div class="stats">
+    <span><b id="stat-answered">0</b>/<b id="stat-total">0</b> answered</span>
+    <span class="ok"><b id="stat-correct">0</b> correct</span>
+    <span class="bad"><b id="stat-wrong">0</b> wrong</span>
+    <span><b id="stat-pct">0%</b></span>
+  </div>
+</header>
+
+<main>
+  <div class="controls">
+    <label>Block:
+      <select id="filter-block">
+        <option value="">All</option>
+      </select>
+    </label>
+    <label>Topic:
+      <select id="filter-topic">
+        <option value="">All</option>
+      </select>
+    </label>
+    <label>Show:
+      <select id="filter-status">
+        <option value="">All</option>
+        <option value="unanswered">Unanswered</option>
+        <option value="wrong">Got wrong</option>
+        <option value="correct">Got correct</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="shuffle" /> Shuffle</label>
+    <div class="spacer"></div>
+    <button id="reset" class="danger">Reset progress</button>
+  </div>
+
+  <div id="quiz"></div>
+</main>
+
+<footer>
+  Progress saved locally in your browser. Cheatsheet: <code>~/claude-cert-prep/cheatsheet.md</code>
+</footer>
+
+<script>
+const QUESTIONS = [
+  // ===== Block 1: Foundations =====
+  {
+    id: "b1-q1",
+    block: "1 — Foundations",
+    topic: "Messages API",
+    q: "You send <code>messages=[{\"role\": \"assistant\", \"content\": \"Hello\"}]</code> as the only message. What happens?",
+    choices: [
+      "Claude responds normally — assistant-first is allowed",
+      "API error — first message must have role 'user'",
+      "Claude continues the assistant turn (prefill)",
+      "API error — system prompt is required first"
+    ],
+    answer: 1,
+    explain: "The first message in <code>messages</code> must be <b>role: 'user'</b> (after any top-level system prompt). Assistant-first is invalid. (Note: you CAN end with an assistant message — that's called <b>prefill</b> — but you can't start with one.)"
+  },
+  {
+    id: "b1-q2",
+    block: "1 — Foundations",
+    topic: "Stop reasons",
+    q: "What's the difference between <code>stop_reason: 'end_turn'</code> and <code>stop_reason: 'stop_sequence'</code>?",
+    choices: [
+      "Both mean Claude finished naturally — they're aliases",
+      "'end_turn' = Claude decided to stop; 'stop_sequence' = output hit a string in your <code>stop_sequences</code> param",
+      "'end_turn' = max_tokens reached; 'stop_sequence' = Claude finished naturally",
+      "'stop_sequence' is only used in streaming mode"
+    ],
+    answer: 1,
+    explain: "<b>end_turn</b> = Claude naturally finished its response. <b>stop_sequence</b> = the output emitted one of the strings you passed in the <code>stop_sequences</code> parameter, so generation halted early. You also check <code>response.stop_sequence</code> to see which one matched."
+  },
+  {
+    id: "b1-q3",
+    block: "1 — Foundations",
+    topic: "Token usage",
+    q: "Which usage field tells you how many tokens were read FROM the prompt cache (cache hit)?",
+    choices: [
+      "<code>input_tokens</code>",
+      "<code>cache_creation_input_tokens</code>",
+      "<code>cache_read_input_tokens</code>",
+      "<code>cached_tokens</code>"
+    ],
+    answer: 2,
+    explain: "<b>cache_read_input_tokens</b> = tokens served from cache (billed at ~10% of normal input cost). <b>cache_creation_input_tokens</b> = tokens written to cache on a miss (billed at ~125% to seed it). Regular <code>input_tokens</code> = non-cached input."
+  },
+  {
+    id: "b1-q4",
+    block: "1 — Foundations",
+    topic: "Required params",
+    q: "True or False: omitting <code>max_tokens</code> defaults to the model's max context window.",
+    choices: [
+      "True",
+      "False — it's a required field and the request will error"
+    ],
+    answer: 1,
+    explain: "<code>max_tokens</code> is <b>required</b> in the Messages API. There's no default. This trips up developers coming from OpenAI's API where it's optional. The value caps the OUTPUT length, not input."
+  },
+  {
+    id: "b1-q5",
+    block: "1 — Foundations",
+    topic: "Determinism",
+    q: "You want deterministic, repeatable output for a classifier. What temperature do you set?",
+    choices: [
+      "<code>1.0</code> (the default)",
+      "<code>0.0</code>",
+      "<code>0.5</code>",
+      "Temperature doesn't affect determinism — use <code>top_p=0</code>"
+    ],
+    answer: 1,
+    explain: "<b>temperature=0.0</b> is the closest you get to deterministic output (greedy sampling — always pick the highest-probability token). Note: it's <b>near-deterministic</b>, not perfectly so — there can still be tiny variation from GPU non-determinism, but it's the right answer for classification."
+  },
+  {
+    id: "b1-q6",
+    block: "1 — Foundations",
+    topic: "Model selection",
+    q: "Which is the correct, full model ID for the current Haiku?",
+    choices: [
+      "<code>claude-haiku-4-5</code>",
+      "<code>claude-haiku-4.5</code>",
+      "<code>claude-haiku-4-5-20251001</code>",
+      "<code>claude-4-5-haiku</code>"
+    ],
+    answer: 2,
+    explain: "Full ID is <code>claude-haiku-4-5-20251001</code> with the dated suffix. Opus 4.7 is <code>claude-opus-4-7</code>; Sonnet 4.6 is <code>claude-sonnet-4-6</code>. Know the exact strings — typos in model IDs cause 404s, not silent fallback."
+  },
+  {
+    id: "b1-q7",
+    block: "1 — Foundations",
+    topic: "Messages API",
+    q: "Where does the system prompt go in the Messages API?",
+    choices: [
+      "As the first message with <code>role: 'system'</code>",
+      "As a top-level <code>system</code> field on the request",
+      "Inside the first user message wrapped in <code>&lt;system&gt;</code> tags",
+      "As a parameter named <code>system_prompt</code>"
+    ],
+    answer: 1,
+    explain: "Top-level <code>system</code> field — NOT a message with role 'system' (that's OpenAI's convention). The <code>messages</code> array only contains user/assistant turns."
+  }
+];
+
+// ----- state -----
+const STORAGE_KEY = "claude-cert-quiz-v1";
+let progress = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+// progress[questionId] = { chosen: <int>, correct: <bool> }
+
+function saveProgress() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function populateFilters() {
+  const blocks = [...new Set(QUESTIONS.map(q => q.block))].sort();
+  const topics = [...new Set(QUESTIONS.map(q => q.topic))].sort();
+  const bSel = document.getElementById("filter-block");
+  const tSel = document.getElementById("filter-topic");
+  blocks.forEach(b => {
+    const o = document.createElement("option");
+    o.value = b; o.textContent = b;
+    bSel.appendChild(o);
+  });
+  topics.forEach(t => {
+    const o = document.createElement("option");
+    o.value = t; o.textContent = t;
+    tSel.appendChild(o);
+  });
+}
+
+function getFiltered() {
+  const block = document.getElementById("filter-block").value;
+  const topic = document.getElementById("filter-topic").value;
+  const status = document.getElementById("filter-status").value;
+  const shuf = document.getElementById("shuffle").checked;
+
+  let list = QUESTIONS.filter(q => {
+    if (block && q.block !== block) return false;
+    if (topic && q.topic !== topic) return false;
+    const p = progress[q.id];
+    if (status === "unanswered" && p) return false;
+    if (status === "wrong" && (!p || p.correct)) return false;
+    if (status === "correct" && (!p || !p.correct)) return false;
+    return true;
+  });
+
+  return shuf ? shuffle(list) : list;
+}
+
+function renderStats() {
+  const total = QUESTIONS.length;
+  const answered = Object.keys(progress).length;
+  const correct = Object.values(progress).filter(p => p.correct).length;
+  const wrong = answered - correct;
+  const pct = answered ? Math.round(100 * correct / answered) : 0;
+  document.getElementById("stat-total").textContent = total;
+  document.getElementById("stat-answered").textContent = answered;
+  document.getElementById("stat-correct").textContent = correct;
+  document.getElementById("stat-wrong").textContent = wrong;
+  document.getElementById("stat-pct").textContent = pct + "%";
+}
+
+function renderQuestion(q, idx) {
+  const card = document.createElement("div");
+  card.className = "card";
+  const p = progress[q.id];
+  const locked = !!p;
+
+  card.innerHTML = `
+    <div class="qmeta">
+      <span class="tag">${q.block}</span>
+      <span class="tag topic">${q.topic}</span>
+      <span>Q${idx + 1}</span>
+      ${locked ? `<span class="verdict ${p.correct ? 'ok' : 'bad'}">${p.correct ? '✓ Correct' : '✗ Wrong'}</span>` : ""}
+    </div>
+    <div class="qtext">${q.q}</div>
+    <div class="choices">
+      ${q.choices.map((c, i) => {
+        let cls = "choice";
+        if (locked) {
+          cls += " locked";
+          if (i === q.answer) cls += " correct";
+          else if (i === p.chosen) cls += " wrong";
+        }
+        return `
+          <label class="${cls}">
+            <input type="radio" name="${q.id}" value="${i}" ${locked ? "disabled" : ""} ${p && p.chosen === i ? "checked" : ""} />
+            <span>${c}</span>
+          </label>`;
+      }).join("")}
+    </div>
+    <div class="actions">
+      <button data-action="submit" data-qid="${q.id}" ${locked ? "disabled" : ""}>${locked ? "Answered" : "Submit"}</button>
+      <button class="secondary" data-action="reveal" data-qid="${q.id}">${locked ? "Hide explanation" : "Reveal answer"}</button>
+      ${locked ? `<button class="secondary" data-action="retry" data-qid="${q.id}">Retry</button>` : ""}
+    </div>
+    <div class="explanation ${locked ? 'show' : ''}" id="exp-${q.id}">
+      <b>Answer:</b> ${q.choices[q.answer].replace(/<[^>]+>/g, '')} <br/>
+      ${q.explain}
+    </div>
+  `;
+  return card;
+}
+
+function render() {
+  const list = getFiltered();
+  const root = document.getElementById("quiz");
+  root.innerHTML = "";
+  if (!list.length) {
+    root.innerHTML = `<div class="empty">No questions match these filters.</div>`;
+  } else {
+    list.forEach((q, i) => root.appendChild(renderQuestion(q, i)));
+  }
+  renderStats();
+}
+
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const qid = btn.dataset.qid;
+  const q = QUESTIONS.find(x => x.id === qid);
+  if (!q) return;
+
+  if (action === "submit") {
+    const checked = document.querySelector(`input[name="${qid}"]:checked`);
+    if (!checked) { alert("Pick an answer first."); return; }
+    const chosen = parseInt(checked.value, 10);
+    const correct = chosen === q.answer;
+    progress[qid] = { chosen, correct };
+    saveProgress();
+    render();
+  } else if (action === "reveal") {
+    const exp = document.getElementById(`exp-${qid}`);
+    exp.classList.toggle("show");
+  } else if (action === "retry") {
+    delete progress[qid];
+    saveProgress();
+    render();
+  }
+});
+
+document.getElementById("filter-block").addEventListener("change", render);
+document.getElementById("filter-topic").addEventListener("change", render);
+document.getElementById("filter-status").addEventListener("change", render);
+document.getElementById("shuffle").addEventListener("change", render);
+document.getElementById("reset").addEventListener("click", () => {
+  if (confirm("Reset ALL progress?")) {
+    progress = {};
+    saveProgress();
+    render();
+  }
+});
+
+populateFilters();
+render();
+</script>
+</body>
+</html>
