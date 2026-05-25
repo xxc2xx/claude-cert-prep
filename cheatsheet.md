@@ -208,5 +208,57 @@ Combine with `stop_sequences=["</answer>"]` for clean truncation.
 [<question>...</question>]   ← last thing before generation
 ```
 
+### FAQ — concept questions from prep
+
+#### What's an XML tag vs JSON?
+
+XML = markup that wraps free-form text in named tags. JSON = structured data (keys/values/arrays).
+
+```xml
+<document>Raw text with "quotes" and newlines.</document>
+```
+
+```json
+{"document": "Raw text with \"quotes\" and newlines."}
+```
+
+Use **XML for prompt input** (Claude reads it). Use **JSON for output** (your code parses it). XML wins for input because (a) no escaping required, (b) visually scannable, (c) Claude was heavily trained on it.
+
+#### Do I have to write the "assistant" prefill every time?
+
+Only in API code, and only once. Not in Claude.ai, not in Claude Code.
+
+| Surface | Prefill? |
+|---|---|
+| Claude.ai web/app | Never — not exposed |
+| Claude Code CLI | Never — not exposed |
+| API | Once per request as a single line in `messages` — written once in a reusable function |
+
+#### Do I have to upload the document for every question?
+
+Depends on surface:
+
+| Surface | Doc lifecycle |
+|---|---|
+| Claude.ai | Attach once via paperclip at start of conversation; follow-ups see it free |
+| Claude Code | File lives in repo; Claude reads on demand via `Read` tool |
+| API | Sent every request — UNLESS you use **prompt caching** (mark doc with cache breakpoint once → 10% cost on reads) |
+
+The "doc top, question bottom" rule is about ORDER **within one prompt**, not how often you upload.
+
+#### Where do I set a persona/system prompt so I don't retype it?
+
+| Surface | Where persona lives |
+|---|---|
+| Claude.ai | **Projects → Custom instructions.** One project = one persona, applies to every chat in it. |
+| Claude Code | **`CLAUDE.md`** in repo root. Auto-loaded every session. |
+| API | The `system="..."` field in your code, written once in your client wrapper |
+
+Good persona prompts are specific: role + behavioral adjectives + output structure.
+
+> "You are a meticulous debugging assistant. For every code change you propose: (1) re-read affected functions, (2) state assumptions about the data, (3) list one thing that could go wrong with your fix."
+
+Bad: "You are a helpful AI."
+
 ---
 
