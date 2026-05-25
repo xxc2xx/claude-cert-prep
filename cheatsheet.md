@@ -260,6 +260,49 @@ Good persona prompts are specific: role + behavioral adjectives + output structu
 
 Bad: "You are a helpful AI."
 
+#### Is the XML-tags preference Claude-specific?
+
+All major LLMs (Claude, GPT, Gemini) parse both XML and JSON. But:
+
+| | Claude | GPT | Gemini |
+|---|---|---|---|
+| **Recommended structure** | XML tags | Markdown headers | Markdown/XML |
+| **Specifically tuned for** | XML | Mixed | Mixed |
+
+**Why XML wins for prompt input:**
+1. **No escaping.** Wrapping `She said "hi"` in `<document>` needs zero escapes. JSON would force `\"hi\"`.
+2. **Semantic boundaries.** `<document>` tells Claude "reference material, not instruction."
+3. **Anthropic specifically tuned Claude on XML.** It's not just "easier to read" — it's a model-training choice.
+
+Use XML to **wrap text input**. Use JSON to **structure data input/output**. They aren't competing — different jobs.
+
+#### Claude.ai vs Claude Code vs API — fundamentals
+
+Mental model: the API is the engine. Claude.ai and Claude Code are products built on top of it.
+
+```
+                Anthropic API (the engine)
+                          │
+        ┌─────────────────┼─────────────────┐
+   Claude.ai          Claude Code        Your code
+   (website)            (CLI)         (Python/JS app)
+```
+
+| | Claude.ai | Claude Code | API |
+|---|---|---|---|
+| Surface | Web/mobile app | Terminal | Your own code |
+| System prompt | Hidden (or via Projects) | `CLAUDE.md` | `system="..."` param |
+| Model choice | UI dropdown | Auto/configurable | `model="..."` param |
+| `max_tokens` | Hidden | Hidden | YOU set |
+| Tool use | Built-in only | Built-in (Read, Edit, Bash...) | YOU define + handle |
+| Files | Paperclip upload | Reads local FS | Base64 / Files API |
+| Prompt caching | Automatic | Automatic | YOU control breakpoints |
+| Cost | Subscription | Subscription | Pay per token |
+
+**Why this matters for the Builder cert:** the cert tests the **API mindset**. `max_tokens`, prefill, tool use, caching — all hidden in Claude.ai/Claude Code. A "builder" drops one level down and writes code calling `client.messages.create(...)`.
+
+Analogy from BI work: Claude.ai ≈ published Power BI report (polished UI). Claude Code ≈ Power BI Desktop (technical user). API ≈ Fabric semantic model / DAX underneath (programmatic engine).
+
 ---
 
 ## Block 3 — Advanced features
