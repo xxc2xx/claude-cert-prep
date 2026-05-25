@@ -303,6 +303,27 @@ Mental model: the API is the engine. Claude.ai and Claude Code are products buil
 
 Analogy from BI work: Claude.ai ≈ published Power BI report (polished UI). Claude Code ≈ Power BI Desktop (technical user). API ≈ Fabric semantic model / DAX underneath (programmatic engine).
 
+#### Does prompting replace Python? (the "is the gap filled" question)
+
+**The middle two layers compressed. The top and bottom didn't.**
+
+```
+Human judgment (what to build, what's true)     ← always human
+Business logic (extract, classify, summarize)   ← NEW: prompts replaced code here
+Orchestration (error handling, glue, state)     ← still code (Claude writes it)
+Infrastructure (DBs, networks, APIs)            ← still engineers
+```
+
+**Tasks where prompts replaced Python:** extraction from documents, classification, summarization, analysis briefs, structured generation. Pre-LLM these needed regex + pandas + spaCy + sklearn.
+
+**Tasks where code still wins:**
+1. **Reliability/determinism** — finance, healthcare, compliance need tested deterministic logic
+2. **Scale/cost** — millions of calls = real money; regex is free
+3. **Speed** — API = seconds; code = microseconds
+4. **Evaluation** — you still need domain expertise to recognize good output
+
+**Career framing (for Head-of-Analytics-with-AI-tilt pitch):** the syntax barrier is gone, so domain expertise (e.g. SEA+PAC retail) gates the work, not coding ability. Compete with analysts who can't yet think in prompts/APIs, not with engineers.
+
 ---
 
 ## Block 3 — Advanced features
