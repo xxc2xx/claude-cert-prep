@@ -461,6 +461,118 @@ const QUESTIONS = [
     ],
     answer: 1,
     explain: "Specific roles + behavioral adjectives + output structure beat generic prompts. 'Senior security engineer' anchors the perspective; 'thorough, skeptical' shape behavior; the (1)(2)(3) structure forces consistent output. Vague prompts ('helpful AI', 'smartest in the world') give vague behavior."
+  },
+
+  // ===== Block 3: Advanced features =====
+  {
+    id: "b3-q1",
+    block: "3 — Advanced",
+    topic: "Tool use loop",
+    q: "Claude returns <code>stop_reason: 'tool_use'</code>. What do you do next?",
+    choices: [
+      "Claude has already executed the tool — just read the result from response.content",
+      "Execute the tool yourself, then send the result back as a <code>tool_result</code> content block in a new user message",
+      "Re-call the API with <code>tool_choice: 'any'</code> to actually trigger execution",
+      "Wait for a webhook from Anthropic with the tool output"
+    ],
+    answer: 1,
+    explain: "Claude NEVER executes tools — it only requests them. You read the <code>tool_use</code> content block (name + input), run your actual function, then send the result back in a new user message as a <code>tool_result</code> content block referencing the <code>tool_use_id</code>. Claude then continues with the answer."
+  },
+  {
+    id: "b3-q2",
+    block: "3 — Advanced",
+    topic: "Tool use messages",
+    q: "What role does the message containing a <code>tool_result</code> block have?",
+    choices: [
+      "<code>tool</code> — there's a dedicated role for tool results",
+      "<code>assistant</code> — since it's continuing Claude's reasoning",
+      "<code>user</code> — tool_result is a content block within a regular user message",
+      "<code>system</code> — tools count as instructions"
+    ],
+    answer: 2,
+    explain: "<code>tool_result</code> is a CONTENT BLOCK type, not a message role. The wrapping message is role <code>user</code>. This trips up developers who expect a 'tool' role like in OpenAI's API."
+  },
+  {
+    id: "b3-q3",
+    block: "3 — Advanced",
+    topic: "tool_choice",
+    q: "You want to force Claude to call SOME tool (any of them) on this turn — not respond with plain text. What <code>tool_choice</code> do you set?",
+    choices: [
+      "<code>{\"type\": \"auto\"}</code>",
+      "<code>{\"type\": \"any\"}</code>",
+      "<code>{\"type\": \"required\"}</code>",
+      "<code>{\"type\": \"tool\", \"name\": \"*\"}</code>"
+    ],
+    answer: 1,
+    explain: "<code>any</code> = must use some tool. <code>auto</code> (default) = Claude decides. <code>{\"type\": \"tool\", \"name\": \"X\"}</code> = must use tool X specifically. <code>none</code> = no tools. There is no <code>required</code> value."
+  },
+  {
+    id: "b3-q4",
+    block: "3 — Advanced",
+    topic: "Prompt caching",
+    q: "How do you mark content as a prompt-cache breakpoint?",
+    choices: [
+      "Pass <code>cache=True</code> on the request",
+      "Set <code>\"cache_control\": {\"type\": \"ephemeral\"}</code> on the content block you want to cache through",
+      "Call <code>client.cache.create()</code> beforehand and pass a cache ID",
+      "Add <code>&lt;cache&gt;</code> XML tags around the content"
+    ],
+    answer: 1,
+    explain: "Add <code>cache_control</code> to the content block where you want the breakpoint. Everything FROM THE START OF THE PROMPT UP TO AND INCLUDING that block becomes the cache key. Default TTL is 5 min; pass <code>\"ttl\": \"1h\"</code> for 1-hour cache. Max 4 breakpoints per request."
+  },
+  {
+    id: "b3-q5",
+    block: "3 — Advanced",
+    topic: "Prompt caching",
+    q: "Which is the WORST thing to cache?",
+    choices: [
+      "A 10,000-token system prompt with detailed persona and rules",
+      "A 50-page PDF you're answering questions about",
+      "Your user's unique question (changes every turn)",
+      "The tool definitions array"
+    ],
+    answer: 2,
+    explain: "The user question changes every request — there's nothing to cache. Cache content that REPEATS across requests: system prompts, tool defs, long documents, few-shot examples. The user's actual ask should be the LAST thing in the prompt, AFTER all breakpoints, so it's the only part that recomputes."
+  },
+  {
+    id: "b3-q6",
+    block: "3 — Advanced",
+    topic: "Extended thinking",
+    q: "True or False: <code>budget_tokens</code> in the thinking parameter sets the EXACT number of thinking tokens Claude will use.",
+    choices: [
+      "True — it's a precise allocation",
+      "False — it's a MAXIMUM; Claude uses less for easier problems"
+    ],
+    answer: 1,
+    explain: "<code>budget_tokens</code> is a CAP, not a target. Claude might think for far fewer tokens if the problem is easy. Set generously for hard reasoning (10000-32000) and modestly for medium tasks (1000-3000). You're billed for actual thinking tokens used, not the budget."
+  },
+  {
+    id: "b3-q7",
+    block: "3 — Advanced",
+    topic: "Vision",
+    q: "What's the optimal max-side resolution for images sent to Claude's vision?",
+    choices: [
+      "512 px — anything bigger gets compressed",
+      "1568 px on the long edge — bigger gets resized down with no quality gain",
+      "4096 px — Claude uses the full resolution",
+      "It scales infinitely — send the original"
+    ],
+    answer: 1,
+    explain: "~1568 px on the long edge is the documented sweet spot. Larger images get internally resized — you waste tokens uploading pixels Claude won't use. Also: max 5 MB per image, formats JPEG/PNG/GIF/WebP, up to 100 images per request in 1M-context models."
+  },
+  {
+    id: "b3-q8",
+    block: "3 — Advanced",
+    topic: "Batch API",
+    q: "What's the discount on the Batch API and what's the SLA?",
+    choices: [
+      "25% discount, 1-hour SLA",
+      "50% discount, 24-hour SLA (often much faster)",
+      "75% discount, 7-day SLA",
+      "No discount, but unlimited parallelism"
+    ],
+    answer: 1,
+    explain: "Batch API = 50% discount on tokens, processed within 24 hours (often <1h). Up to 100,000 requests per batch. Each request needs a <code>custom_id</code> to match results back. Use for evals, backfills, bulk classification — NOT real-time chat."
   }
 ];
 

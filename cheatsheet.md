@@ -262,3 +262,115 @@ Bad: "You are a helpful AI."
 
 ---
 
+## Block 3 — Advanced features
+
+### Tool use — the 4-step loop
+
+1. **Define** tools with `name`, `description`, `input_schema` (JSON Schema).
+2. **Call** Claude with `tools=[...]`. If Claude wants to use one, `stop_reason="tool_use"` and content has `tool_use` block (id, name, input).
+3. **Execute** the tool yourself (Claude never runs code). Get a result.
+4. **Return** result as `tool_result` content block in next `user` message, referencing `tool_use_id`.
+
+Loop until `stop_reason="end_turn"`.
+
+```python
+{"role": "user", "content": [
+    {"type": "tool_result", "tool_use_id": "<id from claude>", "content": "<result>"}
+]}
+```
+
+#### `tool_choice` options
+| Value | Behavior |
+|---|---|
+| `{"type": "auto"}` (default) | Claude decides whether to use any tool |
+| `{"type": "any"}` | Must use SOME tool |
+| `{"type": "tool", "name": "X"}` | Must use tool X |
+| `{"type": "none"}` | No tools this turn |
+
+#### Parallel tool use
+Multiple `tool_use` blocks in one response → execute all → return all `tool_result` blocks in ONE user message.
+
+#### Tool use gotchas
+- `tool_result` is a **content block** with role `user`, not a top-level role.
+- `tool_use_id` must match exactly.
+- Errors: return `{"type": "tool_result", "tool_use_id": "...", "content": "Error: ...", "is_error": true}`.
+- Send back **full assistant content**, not just the tool_use block.
+
+### Prompt caching
+
+Mark a chunk with `"cache_control": {"type": "ephemeral"}`. Same prefix on next call within TTL → read at ~10% cost.
+
+```python
+system=[{
+    "type": "text",
+    "text": LONG_INSTRUCTIONS,
+    "cache_control": {"type": "ephemeral"}            # 5 min default
+    # or: "cache_control": {"type": "ephemeral", "ttl": "1h"}
+}]
+```
+
+| Concern | Value |
+|---|---|
+| Default TTL | 5 minutes |
+| Extended TTL | 1 hour (`"ttl": "1h"`) |
+| Min cacheable | ~1024 tokens (Opus/Sonnet), ~2048 (Haiku) |
+| Breakpoints per request | Max 4 |
+| Cache key | Full prefix up to & including the breakpoint |
+| Write cost | ~1.25× input |
+| Read cost | ~0.10× input |
+| Track hits | `response.usage.cache_read_input_tokens` |
+
+**What to cache:** system prompt, tool defs, long documents, few-shot examples. **Not** the user's question.
+
+### Extended thinking — beyond basics
+
+- `thinking={"type": "enabled", "budget_tokens": N}` — N is a MAX, not a target.
+- Models can think *between* tool calls in agent loops (**interleaved thinking**).
+- Response content includes `thinking` blocks before text/tool_use blocks.
+- Only Opus 4.x / Sonnet 4.x.
+
+### Vision
+
+```python
+{"type": "image", "source": {
+    "type": "base64",
+    "media_type": "image/png",
+    "data": "<base64-encoded>"
+}}
+```
+
+| Constraint | Value |
+|---|---|
+| Formats | JPEG, PNG, GIF, WebP |
+| Max size | 5 MB per image |
+| Max per request | 100 images (1M context); fewer for smaller contexts |
+| Optimal resolution | Long edge ≤ 1568 px |
+| URL source | `{"source": {"type": "url", "url": "..."}}` also supported |
+
+### Citations
+
+Add `"citations": {"enabled": true}` to a `document` content block. Response text blocks get a `citations` field with char-range references back into the doc.
+
+```python
+{
+    "type": "document",
+    "source": {"type": "text", "media_type": "text/plain", "data": DOC},
+    "citations": {"enabled": True},
+}
+```
+
+### Batch API
+
+- Endpoint: `client.messages.batches.create(requests=[...])`
+- Up to **100,000 requests/batch**
+- Returns within **24h** (often much faster)
+- **50% discount** on tokens
+- Each request needs a `custom_id` for matching results
+- Use for: evals, backfills, bulk processing. NOT for low-latency.
+
+### Files API (beta)
+
+Upload once, reference by ID across many requests. `client.files.upload(...)` → `{"source": {"type": "file", "file_id": "..."}}`. Saves re-uploading large PDFs/images.
+
+---
+
