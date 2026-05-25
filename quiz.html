@@ -361,6 +361,106 @@ const QUESTIONS = [
     ],
     answer: 1,
     explain: "Top-level <code>system</code> field — NOT a message with role 'system' (that's OpenAI's convention). The <code>messages</code> array only contains user/assistant turns."
+  },
+
+  // ===== Block 2: Prompting techniques =====
+  {
+    id: "b2-q1",
+    block: "2 — Prompting",
+    topic: "Structure",
+    q: "What structure does Anthropic explicitly recommend for delimiting sections of a prompt (documents, examples, instructions)?",
+    choices: [
+      "JSON objects with named keys",
+      "Markdown headers (## Document, ## Question)",
+      "XML tags like <code>&lt;document&gt;</code>, <code>&lt;question&gt;</code>, <code>&lt;examples&gt;</code>",
+      "Triple-backtick fenced code blocks"
+    ],
+    answer: 2,
+    explain: "Claude was trained heavily on XML-containing text, and the docs explicitly recommend XML tags. Tag names are arbitrary — pick lowercase descriptive ones (<code>&lt;document&gt;</code>, <code>&lt;criteria&gt;</code>, <code>&lt;format&gt;</code>). The structure helps Claude tell content from instruction."
+  },
+  {
+    id: "b2-q2",
+    block: "2 — Prompting",
+    topic: "Output format",
+    q: "You need guaranteed JSON output (no preamble, no markdown fences). What's the most reliable technique?",
+    choices: [
+      "Add 'output JSON only' to the system prompt and hope",
+      "Set a <code>response_format</code> parameter on the request",
+      "Prefill the assistant turn ending with <code>{</code> — Claude continues from there",
+      "Use <code>stop_sequences=['```']</code> to strip markdown"
+    ],
+    answer: 2,
+    explain: "End <code>messages</code> with <code>{\"role\": \"assistant\", \"content\": \"{\"}</code>. Claude can only continue the prefix, so output starts as JSON. Remember to prepend the <code>{</code> back when parsing. There is no <code>response_format</code> parameter in the Messages API."
+  },
+  {
+    id: "b2-q3",
+    block: "2 — Prompting",
+    topic: "Long context",
+    q: "In a 50k-token prompt containing reference documents and a final question, where should each go?",
+    choices: [
+      "Question first, documents after — to set the goal upfront",
+      "Documents at top, question at bottom — Claude has recency bias",
+      "Both interleaved — alternate document, question, document, question",
+      "Doesn't matter — attention is uniform across context"
+    ],
+    answer: 1,
+    explain: "Documents at TOP, instructions/question at BOTTOM. Claude attends more strongly to the end of the prompt — you want the ask fresh in attention, not buried under source material. This is one of the most impactful long-context prompting tips."
+  },
+  {
+    id: "b2-q4",
+    block: "2 — Prompting",
+    topic: "Few-shot",
+    q: "How many few-shot examples is the sweet spot for most classification tasks?",
+    choices: [
+      "1 — just enough to show the pattern",
+      "3–5 — covers edge cases without bloating tokens",
+      "10–20 — more is always better",
+      "It depends entirely on the model size"
+    ],
+    answer: 1,
+    explain: "3–5 is the documented sweet spot. Below 3 you don't cover edge cases; above 5 you hit diminishing returns and burn tokens. Critically: the FORMAT of your examples becomes the output format, so structure them exactly how you want responses."
+  },
+  {
+    id: "b2-q5",
+    block: "2 — Prompting",
+    topic: "Chain of thought",
+    q: "What's the difference between writing 'think step by step' in your prompt and using the <code>thinking</code> parameter?",
+    choices: [
+      "They're identical — the parameter is just a shortcut",
+      "Prompted CoT works on any model and bills as output tokens; extended thinking is a parameter (<code>thinking={\"type\": \"enabled\", \"budget_tokens\": N}</code>), only on Opus/Sonnet 4.x, and bills as thinking tokens",
+      "Extended thinking only works in streaming mode",
+      "Prompted CoT is deprecated in favor of the parameter"
+    ],
+    answer: 1,
+    explain: "Two distinct features. Prompted CoT = instruction in the prompt, output tokens, works anywhere. Extended thinking = first-class parameter with a token budget, hidden <code>thinking</code> content block in the response, only on supported models. Use prompted for cheap tasks; extended for hard reasoning and agents."
+  },
+  {
+    id: "b2-q6",
+    block: "2 — Prompting",
+    topic: "Prefill",
+    q: "Which of these is a VALID use of the prefill technique?",
+    choices: [
+      "Starting <code>messages</code> with <code>{\"role\": \"assistant\", \"content\": \"Hello, I'm Claude\"}</code>",
+      "Ending <code>messages</code> with <code>{\"role\": \"assistant\", \"content\": \"&lt;answer&gt;\"}</code> to skip preamble",
+      "Adding <code>prefill='&lt;answer&gt;'</code> as a top-level parameter",
+      "Wrapping the user message in <code>&lt;prefill&gt;</code> tags"
+    ],
+    answer: 1,
+    explain: "Prefill = the LAST message in <code>messages</code> is an assistant turn that starts the desired output. Claude continues from that prefix. You CANNOT start with an assistant message (first must be user). There's no <code>prefill</code> parameter — it's just a message at the end of the list."
+  },
+  {
+    id: "b2-q7",
+    block: "2 — Prompting",
+    topic: "Role / system prompt",
+    q: "Which system prompt is more effective for a code review task?",
+    choices: [
+      "<code>You are a helpful AI assistant.</code>",
+      "<code>You are a senior security engineer reviewing for OWASP Top 10. Thorough, skeptical, assumes nothing about input validation. Explains each finding with what's wrong, why it matters, and the fix.</code>",
+      "<code>Review the code.</code> — let the model figure out the role from context",
+      "<code>Act as if you're the smartest reviewer in the world.</code>"
+    ],
+    answer: 1,
+    explain: "Specific roles + behavioral adjectives + output structure beat generic prompts. 'Senior security engineer' anchors the perspective; 'thorough, skeptical' shape behavior; the (1)(2)(3) structure forces consistent output. Vague prompts ('helpful AI', 'smartest in the world') give vague behavior."
   }
 ];
 
