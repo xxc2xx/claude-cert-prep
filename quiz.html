@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Claude Builder Cert — Quiz</title>
+<title>Claude Builder Cert — Study Hub</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
   :root {
     --bg: #0e1116;
@@ -210,6 +211,161 @@
     font-size: 14px;
   }
 
+  /* Tab nav */
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .tab-btn:hover { background: #242b35; }
+  .tab-btn.active {
+    background: var(--accent);
+    color: #0e1116;
+    border-color: var(--accent);
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Notes (rendered markdown) */
+  .notes-body {
+    max-width: 760px;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .notes-body h1 {
+    color: var(--accent);
+    font-size: 22px;
+    margin: 0 0 12px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+  .notes-body h2 {
+    color: var(--accent);
+    font-size: 18px;
+    margin: 28px 0 10px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+  }
+  .notes-body h3 { color: var(--blue); font-size: 15px; margin: 22px 0 8px; }
+  .notes-body h4 { color: var(--text); font-size: 14px; margin: 16px 0 6px; }
+  .notes-body p { margin: 0 0 10px; }
+  .notes-body ul, .notes-body ol { margin: 0 0 12px 20px; }
+  .notes-body li { margin-bottom: 4px; }
+  .notes-body code {
+    background: var(--panel-2);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.9em;
+    color: #ffb86c;
+    font-family: 'SF Mono', Menlo, monospace;
+  }
+  .notes-body pre {
+    background: var(--panel-2);
+    padding: 12px 14px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 0 0 14px;
+    border: 1px solid var(--border);
+  }
+  .notes-body pre code {
+    background: none;
+    padding: 0;
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .notes-body table {
+    border-collapse: collapse;
+    margin: 0 0 14px;
+    width: 100%;
+    font-size: 13px;
+  }
+  .notes-body th, .notes-body td {
+    border: 1px solid var(--border);
+    padding: 7px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  .notes-body th { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+  .notes-body blockquote {
+    border-left: 3px solid var(--blue);
+    padding: 8px 14px;
+    margin: 12px 0;
+    color: var(--text);
+    background: var(--panel-2);
+    border-radius: 0 4px 4px 0;
+  }
+  .notes-body hr { border: 0; border-top: 1px solid var(--border); margin: 24px 0; }
+  .notes-body strong { color: var(--text); font-weight: 600; }
+  .notes-body em { color: var(--muted); }
+
+  /* Progress view */
+  .progress-summary { display: flex; flex-direction: column; gap: 14px; max-width: 760px; }
+  .progress-row {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+  }
+  .progress-row h3 {
+    margin: 0 0 10px;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .progress-row.overall h3 { color: var(--accent); font-size: 16px; }
+  .progress-bar {
+    height: 8px;
+    background: var(--panel-2);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--green) 0%, #56d364 100%);
+    transition: width 0.4s;
+  }
+  .progress-fill.low { background: linear-gradient(90deg, var(--red) 0%, #ff7b72 100%); }
+  .progress-fill.mid { background: linear-gradient(90deg, #d29922 0%, #e3b341 100%); }
+  .progress-stats {
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .progress-stats b { color: var(--text); font-weight: 600; }
+  .progress-stats .ok { color: var(--green); }
+  .progress-stats .bad { color: var(--red); }
+  .weak-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .weak-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .weak-list li:last-child { border-bottom: none; }
+  .weak-list .topic { color: var(--text); }
+  .weak-list .count { color: var(--red); font-weight: 600; }
+
   footer {
     max-width: 860px;
     margin: 40px auto 24px;
@@ -222,41 +378,69 @@
 </head>
 <body>
 <header>
-  <h1>Claude Builder Cert — <span class="accent">Quiz</span></h1>
-  <div class="stats">
-    <span><b id="stat-answered">0</b>/<b id="stat-total">0</b> answered</span>
-    <span class="ok"><b id="stat-correct">0</b> correct</span>
-    <span class="bad"><b id="stat-wrong">0</b> wrong</span>
-    <span><b id="stat-pct">0%</b></span>
+  <div style="width: 100%;">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+      <h1>Claude Builder Cert — <span class="accent">Study Hub</span></h1>
+      <div class="stats">
+        <span><b id="stat-answered">0</b>/<b id="stat-total">0</b> answered</span>
+        <span class="ok"><b id="stat-correct">0</b> correct</span>
+        <span class="bad"><b id="stat-wrong">0</b> wrong</span>
+        <span><b id="stat-pct">0%</b></span>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="quiz">Quiz</button>
+      <button class="tab-btn" data-tab="cheatsheet">Cheatsheet</button>
+      <button class="tab-btn" data-tab="faq">FAQ</button>
+      <button class="tab-btn" data-tab="progress">Progress</button>
+    </nav>
   </div>
 </header>
 
 <main>
-  <div class="controls">
-    <label>Block:
-      <select id="filter-block">
-        <option value="">All</option>
-      </select>
-    </label>
-    <label>Topic:
-      <select id="filter-topic">
-        <option value="">All</option>
-      </select>
-    </label>
-    <label>Show:
-      <select id="filter-status">
-        <option value="">All</option>
-        <option value="unanswered">Unanswered</option>
-        <option value="wrong">Got wrong</option>
-        <option value="correct">Got correct</option>
-      </select>
-    </label>
-    <label><input type="checkbox" id="shuffle" /> Shuffle</label>
-    <div class="spacer"></div>
-    <button id="reset" class="danger">Reset progress</button>
-  </div>
+  <!-- ===== Quiz tab ===== -->
+  <section id="tab-quiz" class="tab-content active">
+    <div class="controls">
+      <label>Block:
+        <select id="filter-block">
+          <option value="">All</option>
+        </select>
+      </label>
+      <label>Topic:
+        <select id="filter-topic">
+          <option value="">All</option>
+        </select>
+      </label>
+      <label>Show:
+        <select id="filter-status">
+          <option value="">All</option>
+          <option value="unanswered">Unanswered</option>
+          <option value="wrong">Got wrong</option>
+          <option value="correct">Got correct</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="shuffle" /> Shuffle</label>
+      <div class="spacer"></div>
+      <button id="reset" class="danger">Reset progress</button>
+    </div>
 
-  <div id="quiz"></div>
+    <div id="quiz"></div>
+  </section>
+
+  <!-- ===== Cheatsheet tab ===== -->
+  <section id="tab-cheatsheet" class="tab-content">
+    <div class="notes-body" id="cheatsheet-body">Loading cheatsheet…</div>
+  </section>
+
+  <!-- ===== FAQ tab ===== -->
+  <section id="tab-faq" class="tab-content">
+    <div class="notes-body" id="faq-body">Loading FAQ…</div>
+  </section>
+
+  <!-- ===== Progress tab ===== -->
+  <section id="tab-progress" class="tab-content">
+    <div class="progress-summary" id="progress-body"></div>
+  </section>
 </main>
 
 <footer>
@@ -737,6 +921,135 @@ document.getElementById("reset").addEventListener("click", () => {
 
 populateFilters();
 render();
+
+// ===== Tabs =====
+let cheatsheetLoaded = false;
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.tab-content').forEach(s => {
+      s.classList.toggle('active', s.id === 'tab-' + tab);
+    });
+    if ((tab === 'cheatsheet' || tab === 'faq') && !cheatsheetLoaded) loadCheatsheet();
+    if (tab === 'progress') renderProgress();
+  });
+});
+
+async function loadCheatsheet() {
+  try {
+    const res = await fetch('./cheatsheet.md?v=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const md = await res.text();
+    document.getElementById('cheatsheet-body').innerHTML = marked.parse(md);
+
+    // Extract FAQ section (### FAQ — concept questions from prep ... until next H2 or end)
+    const faqMatch = md.match(/(### FAQ — concept questions from prep[\s\S]*?)(?=\n## |\n---\n\n## |$)/);
+    if (faqMatch) {
+      document.getElementById('faq-body').innerHTML = marked.parse(faqMatch[1]);
+    } else {
+      document.getElementById('faq-body').innerHTML =
+        '<p style="color: var(--muted);">No FAQ section found in cheatsheet yet.</p>';
+    }
+    cheatsheetLoaded = true;
+  } catch (e) {
+    const msg = '<p style="color: var(--red);">Error loading cheatsheet: ' + e.message + '</p>';
+    document.getElementById('cheatsheet-body').innerHTML = msg;
+    document.getElementById('faq-body').innerHTML = msg;
+  }
+}
+
+// ===== Progress =====
+function renderProgress() {
+  const body = document.getElementById('progress-body');
+
+  const total = QUESTIONS.length;
+  const answered = Object.keys(progress).length;
+  const correct = Object.values(progress).filter(p => p.correct).length;
+  const wrong = answered - correct;
+  const pct = answered ? Math.round(100 * correct / answered) : 0;
+
+  // By block
+  const blocks = {};
+  QUESTIONS.forEach(q => {
+    if (!blocks[q.block]) blocks[q.block] = { total: 0, answered: 0, correct: 0 };
+    blocks[q.block].total++;
+    const p = progress[q.id];
+    if (p) {
+      blocks[q.block].answered++;
+      if (p.correct) blocks[q.block].correct++;
+    }
+  });
+
+  // Weak topics (got wrong at least once)
+  const wrongTopics = {};
+  QUESTIONS.forEach(q => {
+    const p = progress[q.id];
+    if (p && !p.correct) {
+      wrongTopics[q.topic] = (wrongTopics[q.topic] || 0) + 1;
+    }
+  });
+
+  // Wrong question list with IDs (so user can find them in quiz)
+  const wrongIds = QUESTIONS
+    .filter(q => progress[q.id] && !progress[q.id].correct)
+    .map(q => ({ id: q.id, block: q.block, topic: q.topic, q: q.q }));
+
+  const pctClass = pct >= 80 ? '' : pct >= 60 ? 'mid' : 'low';
+
+  let html = `
+    <div class="progress-row overall">
+      <h3>Overall</h3>
+      <div class="progress-bar"><div class="progress-fill ${pctClass}" style="width: ${pct}%"></div></div>
+      <div class="progress-stats">
+        <b>${answered}</b>/${total} answered &nbsp;·&nbsp;
+        <span class="ok"><b>${correct}</b> correct</span> &nbsp;·&nbsp;
+        <span class="bad"><b>${wrong}</b> wrong</span> &nbsp;·&nbsp;
+        <b>${pct}%</b>
+      </div>
+    </div>
+  `;
+
+  for (const [block, s] of Object.entries(blocks)) {
+    const bp = s.answered ? Math.round(100 * s.correct / s.answered) : 0;
+    const bpClass = bp >= 80 ? '' : bp >= 60 ? 'mid' : 'low';
+    html += `
+      <div class="progress-row">
+        <h3>${block}</h3>
+        <div class="progress-bar"><div class="progress-fill ${bpClass}" style="width: ${bp}%"></div></div>
+        <div class="progress-stats">
+          ${s.answered}/${s.total} answered &nbsp;·&nbsp;
+          <span class="ok">${s.correct} correct</span> &nbsp;·&nbsp;
+          <span class="bad">${s.answered - s.correct} wrong</span> &nbsp;·&nbsp;
+          ${bp}%
+        </div>
+      </div>
+    `;
+  }
+
+  if (Object.keys(wrongTopics).length) {
+    html += `<div class="progress-row"><h3>Weak topics — got wrong at least once</h3><ul class="weak-list">`;
+    for (const [topic, n] of Object.entries(wrongTopics).sort((a, b) => b[1] - a[1])) {
+      html += `<li><span class="topic">${topic}</span><span class="count">${n} wrong</span></li>`;
+    }
+    html += `</ul></div>`;
+  }
+
+  if (wrongIds.length) {
+    html += `<div class="progress-row"><h3>Questions to retry</h3><ul class="weak-list">`;
+    for (const w of wrongIds) {
+      html += `<li><span class="topic"><b>${w.id}</b> · ${w.topic}</span><span class="count" style="color: var(--muted); font-weight: normal; font-size: 11px;">${w.block}</span></li>`;
+    }
+    html += `<li style="padding-top: 10px; border-top: none;"><span style="color: var(--muted); font-size: 12px;">Switch to the Quiz tab and set "Show: Got wrong" to drill these.</span></li></ul></div>`;
+  }
+
+  if (!answered) {
+    html += `<div class="progress-row"><div class="progress-stats" style="text-align: center; padding: 20px;">No answers yet — start the Quiz tab.</div></div>`;
+  }
+
+  body.innerHTML = html;
+}
 </script>
 </body>
 </html>
