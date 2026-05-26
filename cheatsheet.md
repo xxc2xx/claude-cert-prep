@@ -502,5 +502,56 @@ Add `"citations": {"enabled": true}` to a `document` content block. Response tex
 
 Upload once, reference by ID across many requests. `client.files.upload(...)` → `{"source": {"type": "file", "file_id": "..."}}`. Saves re-uploading large PDFs/images.
 
+### Two cases from the SEA+PAC intel pipeline
+
+#### Case 1 — Weekly Mon 3am run (current state)
+
+7 markets × ~4 brands = ~28 calls, all with same system prompt. Sequential, ~45 min, email at 9:20am.
+
+| Concept | Verdict | Why |
+|---|---|---|
+| Cache | ⚠ BAD | Same 2000-token system prompt processed 28×. Easy fix. |
+| TTL | — | 5-min default would work if cache enabled (back-to-back calls) |
+| Breakpoint | 💡 ADD | One breakpoint after system prompt + analysis template |
+| Tool use | ✓ CORRECT | Content pre-scraped by Python — tools would be over-engineering |
+| Write/read pricing | ⚠ BAD | Full price 28× today. With cache: 1.25× ×1 + 0.10× ×27 = **~15% of cost** |
+| Citations | ✗ N/A | Exec HTML brief, not RAG, no source-traceability need |
+| Batch API | ⚠ MARGINAL | Email goes out 6h after run — 24h Batch SLA too risky |
+
+**One-line cache fix:** `system=[{"type": "text", "text": SYSTEM, "cache_control": {"type": "ephemeral"}}]`
+
+#### Case 2 — Hypothetical 12-week backfill
+
+Boss asks for last quarter's brand-pricing trend. 12 weeks × 7 markets × 4 brands ≈ 336 analyses. No one waiting in real-time. Want it tomorrow morning.
+
+| Concept | Verdict | Why |
+|---|---|---|
+| Cache | ✓ STRONG WIN | One write, 335 reads |
+| TTL | ✓ 1-hour | Run exceeds 5 min — use `"ttl": "1h"` |
+| Breakpoint | ✓ After system + template, before per-article content | Article text stays uncached (varies) |
+| Tool use | 💡 OPPORTUNITY | `fetch_article(brand, market, week)` lets Claude decide which weeks to compare |
+| Write/read pricing | ✓ MASSIVE WIN | 1.25× ×1 + 0.10× ×335 ≈ 11% of full-price cost |
+| Citations | ✓ STRONG WIN | "Where exactly did Adidas raise prices?" → citation points to the paragraph |
+| Batch API | ✓ PERFECT FIT | Overnight, no one waiting → another **50% off** on top of cache savings |
+
+**Cumulative savings:** Regular+no-cache (1.00×) → Regular+cache (0.15×) → **Batch+cache (0.075×, ~13× cheaper).**
+
+### Memorization rule of thumb
+
+| Situation | Tool |
+|---|---|
+| Same prompt prefix repeats > 2× within 5 min | Cache |
+| Same prefix repeats across hours | Cache + 1-hour TTL |
+| You wrote a Python scraper to feed Claude | Probably DON'T need tool use |
+| You want Claude to dynamically decide what data to fetch | Tool use |
+| "Chat with our PDFs" feature | Citations |
+| Bulk run, no human waiting, OK in 24h | Batch API |
+| Live chat, exec waiting | Regular API |
+
+**Hierarchy of savings (least → most impactful):**
+1. Switch model to Haiku where Sonnet/Opus is overkill
+2. Add prompt caching — easy ~80% savings on repeated prefixes
+3. Move bulk non-urgent work to Batch — another 50% on top
+
 ---
 
