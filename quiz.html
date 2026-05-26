@@ -313,6 +313,47 @@
   .notes-body strong { color: var(--text); font-weight: 600; }
   .notes-body em { color: var(--muted); }
 
+  /* Sticky TOC */
+  .notes-toc {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bg);
+    padding: 12px 0 14px;
+    margin: 0 0 22px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .notes-toc-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-right: 6px;
+  }
+  .notes-toc a {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .notes-toc a:hover, .notes-toc a:active {
+    background: var(--accent);
+    color: #0e1116;
+    border-color: var(--accent);
+  }
+
   /* Progress view */
   .progress-summary { display: flex; flex-direction: column; gap: 14px; max-width: 760px; }
   .progress-row {
@@ -937,20 +978,60 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
+function slugify(text) {
+  return text.toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function shortenLabel(text, maxLen) {
+  const blockMatch = text.match(/^(Block \d+)/);
+  if (blockMatch) return blockMatch[1];
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen - 1).trim() + '…';
+}
+
+function buildTOC(container, selector, label, labelMaxLen) {
+  const headings = container.querySelectorAll(selector);
+  if (!headings.length) return;
+  const toc = document.createElement('div');
+  toc.className = 'notes-toc';
+  const lbl = document.createElement('span');
+  lbl.className = 'notes-toc-label';
+  lbl.textContent = label;
+  toc.appendChild(lbl);
+  headings.forEach(h => {
+    const id = slugify(h.textContent);
+    h.id = id;
+    const a = document.createElement('a');
+    a.href = '#' + id;
+    a.textContent = shortenLabel(h.textContent, labelMaxLen);
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    toc.appendChild(a);
+  });
+  container.insertBefore(toc, container.firstChild);
+}
+
 async function loadCheatsheet() {
   try {
     const res = await fetch('./cheatsheet.md?v=' + Date.now());
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const md = await res.text();
-    document.getElementById('cheatsheet-body').innerHTML = marked.parse(md);
+    const cheatBody = document.getElementById('cheatsheet-body');
+    cheatBody.innerHTML = marked.parse(md);
+    buildTOC(cheatBody, 'h2', 'Jump to', 24);
 
     // Extract FAQ section (### FAQ — concept questions from prep ... until next H2 or end)
     const faqMatch = md.match(/(### FAQ — concept questions from prep[\s\S]*?)(?=\n## |\n---\n\n## |$)/);
+    const faqBody = document.getElementById('faq-body');
     if (faqMatch) {
-      document.getElementById('faq-body').innerHTML = marked.parse(faqMatch[1]);
+      faqBody.innerHTML = marked.parse(faqMatch[1]);
+      buildTOC(faqBody, 'h4', 'Jump to', 32);
     } else {
-      document.getElementById('faq-body').innerHTML =
-        '<p style="color: var(--muted);">No FAQ section found in cheatsheet yet.</p>';
+      faqBody.innerHTML = '<p style="color: var(--muted);">No FAQ section found in cheatsheet yet.</p>';
     }
     cheatsheetLoaded = true;
   } catch (e) {
