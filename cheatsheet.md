@@ -324,6 +324,72 @@ Infrastructure (DBs, networks, APIs)            ← still engineers
 
 **Career framing (for Head-of-Analytics-with-AI-tilt pitch):** the syntax barrier is gone, so domain expertise (e.g. SEA+PAC retail) gates the work, not coding ability. Compete with analysts who can't yet think in prompts/APIs, not with engineers.
 
+#### What's a "tool" and a "cache"? (TTL, breakpoint plain English)
+
+**Tool** = a function you let Claude call. You describe what it does + what inputs it takes. Claude itself never runs code — it requests the call, your code executes, you return the result. Examples: `get_weather`, `search_database`, `fetch_brand_pricing`.
+
+**Cache** = saved copy of input tokens Claude already processed.
+
+| Term | Plain English |
+|---|---|
+| Cache | "Don't re-process these tokens, you already saw them" |
+| **TTL** (Time To Live) | How long the cache lasts before forgetting. Default 5 min, optional 1 hour |
+| **Breakpoint** | A bookmark in the prompt: "everything up to here should be cached" |
+
+Analogy: cache = Claude memorising a textbook chapter. First read = expensive. Recall = 10% cost. TTL = how long until the memory fades.
+
+#### "Tools" on Claude desktop vs "tool use" in the API — same thing?
+
+Same concept, different sides of the table:
+
+| | Builder side (cert topic) | User side (Claude.ai / desktop) |
+|---|---|---|
+| Who configures | You write tool definitions in code | You toggle on/off in Settings |
+| Examples | `get_weather()`, `query_db()` | Notion, Figma, Adobe, Amplitude |
+| Who runs them | Your app | Anthropic (hidden) |
+
+The cert wants you on the Builder side: writing definitions in code.
+
+#### `tool_choice` — who uses `none`?
+
+| Value | Claude can... |
+|---|---|
+| `auto` (default) | Use a tool OR respond with text — Claude picks |
+| `any` | MUST use some tool — no plain text |
+| `tool: X` | MUST use tool X specifically |
+| `none` | CANNOT use any tool — text only |
+
+**`none` is for:** the final "now write the summary" step of an agent loop where you want prose, not more tool calls. Or A/B testing same prompt with/without tools.
+
+#### Why does Claude.ai burn capacity so fast on long chats?
+
+Two facts:
+1. Every new message reprocesses the **entire conversation history**. Message 30 reads ~30× the tokens of message 1.
+2. Claude.ai uses caching internally (you don't see it), but each message still counts as 1 against your subscription's limit.
+
+**Fix:** start new chats for new topics. Don't pile 30 unrelated requests in one thread.
+
+(Cache pricing — 1.25× write / 0.10× read — is API-only. Claude.ai bills by message count, not tokens.)
+
+#### Citations — relevant to me?
+
+- **As a user of Claude.ai:** not directly. Web-search source links are managed by Anthropic, you can't configure them.
+- **As a Builder:** very relevant when building RAG systems or any tool where users need to see "where exactly did this answer come from" — e.g., chat-with-our-quarterly-reports, legal review, compliance bots.
+
+#### Batch API — did I purchase it? When use it?
+
+Probably not separately purchased. Your account likely has:
+
+| Thing | What it is | Cost |
+|---|---|---|
+| Claude Pro/Max subscription | Claude.ai web + Claude Code | $20-$200/mo |
+| Claude API account | Pay-per-token, your `intel.py` uses this | per-token |
+| **Batch API** | A feature OF the API, same key | per-token but **50% off** |
+
+**Use Batch when** there's no human waiting (overnight backfills, bulk classification, large evals). **Use regular API when** latency matters (live chat, scheduled deliveries).
+
+In your pipeline: weekly brief → regular API. Re-analyzing 26 weeks of historical brand data → Batch.
+
 ---
 
 ## Block 3 — Advanced features
