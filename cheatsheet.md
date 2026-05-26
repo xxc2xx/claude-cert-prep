@@ -502,6 +502,34 @@ Add `"citations": {"enabled": true}` to a `document` content block. Response tex
 
 Upload once, reference by ID across many requests. `client.files.upload(...)` → `{"source": {"type": "file", "file_id": "..."}}`. Saves re-uploading large PDFs/images.
 
+### Mistakes & gotchas (Block 3)
+
+From the Block 3 first-pass quiz — these are the traps that bit me.
+
+#### Gotcha 1 — Claude does NOT execute tools
+
+`stop_reason: "tool_use"` means Claude *requested* a tool call. Your code runs the actual function, then sends a `tool_result` content block back in a user message. Mental anchor: Claude is a consultant on the phone — they tell you to look up the weather, you look it up, you report back.
+
+#### Gotcha 2 — Cache works on CONTENT BLOCKS, not requests
+
+You don't "cache a request." You plant a `cache_control: {"type": "ephemeral"}` bookmark on a specific content block. Everything from the start of the prompt up to and including that block is the cache key. Max 4 breakpoints per request.
+
+#### Gotcha 3 — Cache is about REUSE, not size
+
+Cache savings = (number of times the prefix repeats) × (size of cached prefix). A huge document used once saves nothing. A small system prompt reused 50 times saves a lot. The user's question is the WORST candidate — it changes every call.
+
+#### Gotcha 4 — `budget_tokens` is a ceiling, not a target
+
+Extended thinking uses less than the budget for easy problems. You pay for actual usage, not the cap. So set budgets generously (10000-32000 for hard reasoning) — you only spend if Claude needs it.
+
+#### Gotcha 5 — Vision resolution caps at 1568px
+
+Claude internally resizes images to ~1568px long edge. Anything bigger wastes bandwidth + tokens with zero quality gain. Like uploading 4K to a 1080p streaming site.
+
+#### Gotcha 6 — Batch API is the SAME API, async + bulk
+
+Same key, same endpoint family, different request shape. 50% discount in exchange for up to 24h latency (often much less). Use when there's no human waiting.
+
 ### Two cases from the SEA+PAC intel pipeline
 
 #### Case 1 — Weekly Mon 3am run (current state)
