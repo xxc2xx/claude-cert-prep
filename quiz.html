@@ -1138,12 +1138,12 @@ async function loadCheatsheet() {
     cheatBody.innerHTML = marked.parse(md);
     buildTOC(cheatBody, 'h2', 'Jump to', 24);
 
-    // Extract FAQ section (### FAQ — concept questions from prep ... until next H2 or end)
-    const faqMatch = md.match(/(### FAQ — concept questions from prep[\s\S]*?)(?=\n## |\n---\n\n## |$)/);
+    // Extract FAQ section (## FAQ — concept questions from prep ... until next H2 or end)
+    const faqMatch = md.match(/(## FAQ — concept questions from prep[\s\S]*?)(?=\n## |$)/);
     const faqBody = document.getElementById('faq-body');
     if (faqMatch) {
       faqBody.innerHTML = marked.parse(faqMatch[1]);
-      buildTOC(faqBody, 'h4', 'Jump to', 32);
+      buildTOC(faqBody, 'h3', 'Jump to', 28);
     } else {
       faqBody.innerHTML = '<p style="color: var(--muted);">No FAQ section found in cheatsheet yet.</p>';
     }

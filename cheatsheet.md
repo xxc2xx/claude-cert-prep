@@ -208,7 +208,38 @@ Combine with `stop_sequences=["</answer>"]` for clean truncation.
 [<question>...</question>]   ← last thing before generation
 ```
 
-### FAQ — concept questions from prep
+## FAQ — concept questions from prep
+
+### Block 1 — Surfaces
+
+#### Claude.ai vs Claude Code vs API — fundamentals
+
+Mental model: the API is the engine. Claude.ai and Claude Code are products built on top of it.
+
+```
+                Anthropic API (the engine)
+                          │
+        ┌─────────────────┼─────────────────┐
+   Claude.ai          Claude Code        Your code
+   (website)            (CLI)         (Python/JS app)
+```
+
+| | Claude.ai | Claude Code | API |
+|---|---|---|---|
+| Surface | Web/mobile app | Terminal | Your own code |
+| System prompt | Hidden (or via Projects) | `CLAUDE.md` | `system="..."` param |
+| Model choice | UI dropdown | Auto/configurable | `model="..."` param |
+| `max_tokens` | Hidden | Hidden | YOU set |
+| Tool use | Built-in only | Built-in (Read, Edit, Bash...) | YOU define + handle |
+| Files | Paperclip upload | Reads local FS | Base64 / Files API |
+| Prompt caching | Automatic | Automatic | YOU control breakpoints |
+| Cost | Subscription | Subscription | Pay per token |
+
+**Why this matters for the Builder cert:** the cert tests the **API mindset**. `max_tokens`, prefill, tool use, caching — all hidden in Claude.ai/Claude Code. A "builder" drops one level down and writes code calling `client.messages.create(...)`.
+
+Analogy from BI work: Claude.ai ≈ published Power BI report (polished UI). Claude Code ≈ Power BI Desktop (technical user). API ≈ Fabric semantic model / DAX underneath (programmatic engine).
+
+### Block 2 — Prompting
 
 #### What's an XML tag vs JSON?
 
@@ -223,6 +254,22 @@ XML = markup that wraps free-form text in named tags. JSON = structured data (ke
 ```
 
 Use **XML for prompt input** (Claude reads it). Use **JSON for output** (your code parses it). XML wins for input because (a) no escaping required, (b) visually scannable, (c) Claude was heavily trained on it.
+
+#### Is the XML-tags preference Claude-specific?
+
+All major LLMs (Claude, GPT, Gemini) parse both XML and JSON. But:
+
+| | Claude | GPT | Gemini |
+|---|---|---|---|
+| **Recommended structure** | XML tags | Markdown headers | Markdown/XML |
+| **Specifically tuned for** | XML | Mixed | Mixed |
+
+**Why XML wins for prompt input:**
+1. **No escaping.** Wrapping `She said "hi"` in `<document>` needs zero escapes. JSON would force `\"hi\"`.
+2. **Semantic boundaries.** `<document>` tells Claude "reference material, not instruction."
+3. **Anthropic specifically tuned Claude on XML.** It's not just "easier to read" — it's a model-training choice.
+
+Use XML to **wrap text input**. Use JSON to **structure data input/output**. They aren't competing — different jobs.
 
 #### Do I have to write the "assistant" prefill every time?
 
@@ -260,69 +307,7 @@ Good persona prompts are specific: role + behavioral adjectives + output structu
 
 Bad: "You are a helpful AI."
 
-#### Is the XML-tags preference Claude-specific?
-
-All major LLMs (Claude, GPT, Gemini) parse both XML and JSON. But:
-
-| | Claude | GPT | Gemini |
-|---|---|---|---|
-| **Recommended structure** | XML tags | Markdown headers | Markdown/XML |
-| **Specifically tuned for** | XML | Mixed | Mixed |
-
-**Why XML wins for prompt input:**
-1. **No escaping.** Wrapping `She said "hi"` in `<document>` needs zero escapes. JSON would force `\"hi\"`.
-2. **Semantic boundaries.** `<document>` tells Claude "reference material, not instruction."
-3. **Anthropic specifically tuned Claude on XML.** It's not just "easier to read" — it's a model-training choice.
-
-Use XML to **wrap text input**. Use JSON to **structure data input/output**. They aren't competing — different jobs.
-
-#### Claude.ai vs Claude Code vs API — fundamentals
-
-Mental model: the API is the engine. Claude.ai and Claude Code are products built on top of it.
-
-```
-                Anthropic API (the engine)
-                          │
-        ┌─────────────────┼─────────────────┐
-   Claude.ai          Claude Code        Your code
-   (website)            (CLI)         (Python/JS app)
-```
-
-| | Claude.ai | Claude Code | API |
-|---|---|---|---|
-| Surface | Web/mobile app | Terminal | Your own code |
-| System prompt | Hidden (or via Projects) | `CLAUDE.md` | `system="..."` param |
-| Model choice | UI dropdown | Auto/configurable | `model="..."` param |
-| `max_tokens` | Hidden | Hidden | YOU set |
-| Tool use | Built-in only | Built-in (Read, Edit, Bash...) | YOU define + handle |
-| Files | Paperclip upload | Reads local FS | Base64 / Files API |
-| Prompt caching | Automatic | Automatic | YOU control breakpoints |
-| Cost | Subscription | Subscription | Pay per token |
-
-**Why this matters for the Builder cert:** the cert tests the **API mindset**. `max_tokens`, prefill, tool use, caching — all hidden in Claude.ai/Claude Code. A "builder" drops one level down and writes code calling `client.messages.create(...)`.
-
-Analogy from BI work: Claude.ai ≈ published Power BI report (polished UI). Claude Code ≈ Power BI Desktop (technical user). API ≈ Fabric semantic model / DAX underneath (programmatic engine).
-
-#### Does prompting replace Python? (the "is the gap filled" question)
-
-**The middle two layers compressed. The top and bottom didn't.**
-
-```
-Human judgment (what to build, what's true)     ← always human
-Business logic (extract, classify, summarize)   ← NEW: prompts replaced code here
-Orchestration (error handling, glue, state)     ← still code (Claude writes it)
-Infrastructure (DBs, networks, APIs)            ← still engineers
-```
-
-**Tasks where prompts replaced Python:** extraction from documents, classification, summarization, analysis briefs, structured generation. Pre-LLM these needed regex + pandas + spaCy + sklearn.
-
-**Tasks where code still wins:**
-1. **Reliability/determinism** — finance, healthcare, compliance need tested deterministic logic
-2. **Scale/cost** — millions of calls = real money; regex is free
-3. **Speed** — API = seconds; code = microseconds
-4. **Evaluation** — you still need domain expertise to recognize good output
-
-**Career framing (for Head-of-Analytics-with-AI-tilt pitch):** the syntax barrier is gone, so domain expertise (e.g. SEA+PAC retail) gates the work, not coding ability. Compete with analysts who can't yet think in prompts/APIs, not with engineers.
+### Block 3 — Advanced features
 
 #### What's a "tool" and a "cache"? (TTL, breakpoint plain English)
 
@@ -390,6 +375,8 @@ Probably not separately purchased. Your account likely has:
 
 In your pipeline: weekly brief → regular API. Re-analyzing 26 weeks of historical brand data → Batch.
 
+### Block 4 — Agents
+
 #### What's a "loop"? Why is an agent a loop?
 
 A **loop** = repeat steps until a condition is met. `while not done: do_thing()`.
@@ -445,6 +432,29 @@ Write the MCP server once; all MCP-aware clients can use it.
 | Scope | YOU, across all conversations/projects | One project only |
 | Example | "I work at Adidas EM" | "This project is the SEA+PAC intel pipeline" |
 | Where to view | Claude.ai: Settings → Personalization. API: `memory.list`/`memory.search`. Claude Code: `~/.claude/projects/<proj>/memory/` |
+
+### Career & conceptual
+
+#### Does prompting replace Python? (the "is the gap filled" question)
+
+**The middle two layers compressed. The top and bottom didn't.**
+
+```
+Human judgment (what to build, what's true)     ← always human
+Business logic (extract, classify, summarize)   ← NEW: prompts replaced code here
+Orchestration (error handling, glue, state)     ← still code (Claude writes it)
+Infrastructure (DBs, networks, APIs)            ← still engineers
+```
+
+**Tasks where prompts replaced Python:** extraction from documents, classification, summarization, analysis briefs, structured generation. Pre-LLM these needed regex + pandas + spaCy + sklearn.
+
+**Tasks where code still wins:**
+1. **Reliability/determinism** — finance, healthcare, compliance need tested deterministic logic
+2. **Scale/cost** — millions of calls = real money; regex is free
+3. **Speed** — API = seconds; code = microseconds
+4. **Evaluation** — you still need domain expertise to recognize good output
+
+**Career framing (for Head-of-Analytics-with-AI-tilt pitch):** the syntax barrier is gone, so domain expertise (e.g. SEA+PAC retail) gates the work, not coding ability. Compete with analysts who can't yet think in prompts/APIs, not with engineers.
 
 ---
 
