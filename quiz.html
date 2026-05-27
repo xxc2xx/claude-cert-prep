@@ -407,6 +407,37 @@
   .weak-list .topic { color: var(--text); }
   .weak-list .count { color: var(--red); font-weight: 600; }
 
+  /* Back to top button */
+  .back-to-top {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #0e1116;
+    border: none;
+    font-size: 22px;
+    font-weight: 700;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s, transform .15s;
+    z-index: 20;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+  }
+  .back-to-top.visible {
+    opacity: 0.95;
+    pointer-events: auto;
+  }
+  .back-to-top:hover { transform: translateY(-2px); opacity: 1; }
+  .back-to-top:active { transform: translateY(0); }
+
   footer {
     max-width: 860px;
     margin: 40px auto 24px;
@@ -487,6 +518,8 @@
 <footer>
   Progress saved locally in your browser. Cheatsheet: <code>~/claude-cert-prep/cheatsheet.md</code>
 </footer>
+
+<button id="back-to-top" class="back-to-top" aria-label="Back to top" title="Back to top">↑</button>
 
 <script>
 const QUESTIONS = [
@@ -912,6 +945,120 @@ const QUESTIONS = [
     ],
     answer: 1,
     explain: "Memory is a TOOL, not a model feature or separate API. Claude calls <code>memory.read</code>, <code>memory.write</code>, etc. autonomously through the same tool use pattern you already know. Anthropic manages the storage. Scopes: user (across all conversations) or workspace (per project). Different from prompt caching — caching is per-request token reuse; memory is durable storage."
+  },
+
+  // ===== Block 5: Claude Code CLI =====
+  {
+    id: "b5-q1",
+    block: "5 — Claude Code CLI",
+    topic: "Session control",
+    q: "What's the difference between <code>/clear</code> and <code>/compact</code>?",
+    choices: [
+      "They're aliases — both wipe the conversation",
+      "<code>/clear</code> wipes the conversation entirely; <code>/compact</code> summarizes/compresses long context but keeps the thread alive",
+      "<code>/clear</code> just clears the terminal screen; <code>/compact</code> wipes the conversation",
+      "<code>/compact</code> deletes old files; <code>/clear</code> wipes the conversation"
+    ],
+    answer: 1,
+    explain: "<code>/clear</code> = start fresh (new conversation). <code>/compact</code> = keep the conversation but Claude summarizes everything-so-far into a compressed form to free up context window. Use <code>/compact</code> when you want continuity but the context is getting heavy."
+  },
+  {
+    id: "b5-q2",
+    block: "5 — Claude Code CLI",
+    topic: "Slash commands",
+    q: "When you run <code>/agents</code> in Claude Code, what does it show?",
+    choices: [
+      "A live list of all subagents currently executing across your Claude Code sessions",
+      "Subagent DEFINITIONS from <code>~/.claude/agents/</code> + <code>&lt;project&gt;/.claude/agents/</code> + built-ins (Explore, Plan, general-purpose) — NOT runtime status",
+      "A queue of agent tasks waiting to be assigned",
+      "Performance metrics of your past agent runs"
+    ],
+    answer: 1,
+    explain: "<code>/agents</code> = CONFIG view, not runtime. Reads subagent definitions from disk + built-ins. Same output regardless of what's currently running in another session. There is NO cross-session 'what's running now' dashboard in Claude Code."
+  },
+  {
+    id: "b5-q3",
+    block: "5 — Claude Code CLI",
+    topic: "Inline prefixes",
+    q: "You're in Claude Code and need to run <code>gcloud auth login</code> yourself (interactive — Claude can't do it). How do you trigger it from the prompt?",
+    choices: [
+      "<code>! gcloud auth login</code>",
+      "<code>@ gcloud auth login</code>",
+      "<code># gcloud auth login</code>",
+      "<code>/run gcloud auth login</code>"
+    ],
+    answer: 0,
+    explain: "<code>! &lt;cmd&gt;</code> runs a shell command directly in the session — output goes into the conversation. Perfect for interactive things Claude can't run itself (auth logins, manual confirmations)."
+  },
+  {
+    id: "b5-q4",
+    block: "5 — Claude Code CLI",
+    topic: "Inline prefixes",
+    q: "What do the three inline prefixes <code>!</code>, <code>#</code>, <code>@</code> do?",
+    choices: [
+      "<code>!</code> = run shell · <code>#</code> = append to memory/CLAUDE.md · <code>@</code> = reference a file inline",
+      "<code>!</code> = priority · <code>#</code> = hashtag · <code>@</code> = mention user",
+      "All three do the same — they're aliases for the slash commands",
+      "<code>!</code> = run skill · <code>#</code> = comment · <code>@</code> = reference agent"
+    ],
+    answer: 0,
+    explain: "<code>! &lt;cmd&gt;</code> = shell command in session. <code># &lt;text&gt;</code> = append to memory / CLAUDE.md (quick way to add durable instructions). <code>@ &lt;path&gt;</code> = reference a file inline (so Claude reads it without you having to describe it)."
+  },
+  {
+    id: "b5-q5",
+    block: "5 — Claude Code CLI",
+    topic: "Keyboard",
+    q: "What's the difference between pressing <code>Esc</code> once and <code>Esc Esc</code>?",
+    choices: [
+      "Single <code>Esc</code> = interrupt Claude · Double <code>Esc</code> = edit your previous message",
+      "Both are the same — Esc Esc is just for emphasis",
+      "Single <code>Esc</code> = exit Claude Code · Double <code>Esc</code> = save and exit",
+      "Single <code>Esc</code> = pause · Double <code>Esc</code> = resume"
+    ],
+    answer: 0,
+    explain: "<code>Esc</code> = interrupt Claude mid-response. <code>Esc Esc</code> = edit your previous message (useful when you realize the request was unclear or wrong). Also know: <code>Shift+Tab</code> toggles plan/auto-accept modes, <code>Ctrl+R</code> searches history."
+  },
+  {
+    id: "b5-q6",
+    block: "5 — Claude Code CLI",
+    topic: "CLAUDE.md",
+    q: "How is <code>CLAUDE.md</code> created and updated in a repo?",
+    choices: [
+      "Auto-generated fresh every conversation by Claude",
+      "Scaffold once with <code>/init</code>; after that edit manually or via <code># &lt;text&gt;</code> prefix. It's a persistent file checked into the repo — not regenerated per chat",
+      "Created by <code>/memory</code> command, automatically updated each turn",
+      "Generated by GitHub from your README"
+    ],
+    answer: 1,
+    explain: "<code>CLAUDE.md</code> is a PERSISTENT file in your repo. <code>/init</code> generates it ONCE as a scaffold; after that you edit it manually or use the <code>#</code> prefix to append. Claude loads it into context at session start. It does NOT regenerate per conversation."
+  },
+  {
+    id: "b5-q7",
+    block: "5 — Claude Code CLI",
+    topic: "Code review commands",
+    q: "What's the difference between <code>/review</code>, <code>/security-review</code>, and <code>/ultrareview</code>?",
+    choices: [
+      "They're aliases — all do the same review",
+      "<code>/review</code> = general PR review · <code>/security-review</code> = security audit of pending changes · <code>/ultrareview</code> = multi-agent cloud review (billed, user-triggered only)",
+      "Only <code>/review</code> exists — the others are not real commands",
+      "<code>/ultrareview</code> replaces <code>/review</code> in newer versions"
+    ],
+    answer: 1,
+    explain: "Three distinct commands. <code>/review</code> = general PR review (pass PR number or run in a branch). <code>/security-review</code> = defensive security scan of pending changes. <code>/ultrareview</code> = multi-agent cloud review, billed, user-triggered only (Claude itself cannot launch it for you)."
+  },
+  {
+    id: "b5-q8",
+    block: "5 — Claude Code CLI",
+    topic: "Cross-session visibility",
+    q: "You're running a long task in VS Code's Claude Code extension. From your terminal Claude Code session, can you see the VS Code session's progress or approval prompts?",
+    choices: [
+      "Yes — all Claude Code sessions share a dashboard via <code>/agents</code>",
+      "No — each session is an isolated process. Approval prompts are modal INSIDE the session that raised them. There is no cross-session visibility.",
+      "Yes — use <code>/status</code> to see all running sessions",
+      "Only if you enable cross-session sync in <code>/config</code>"
+    ],
+    answer: 1,
+    explain: "Each Claude Code session = its own isolated process. <b>No</b> cross-session dashboard exists. Approval prompts are modal inside the session that raised them. <code>/agents</code> shows DEFINITIONS regardless of what's running. This trips up users who expect a unified 'show me everything running' view."
   }
 ];
 
@@ -1076,6 +1223,15 @@ document.getElementById("reset").addEventListener("click", () => {
 
 populateFilters();
 render();
+
+// ===== Back to top =====
+const backToTopBtn = document.getElementById('back-to-top');
+window.addEventListener('scroll', () => {
+  backToTopBtn.classList.toggle('visible', window.scrollY > 400);
+}, { passive: true });
+backToTopBtn.addEventListener('click', () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
 
 // ===== Tabs =====
 let cheatsheetLoaded = false;
