@@ -390,6 +390,62 @@ Probably not separately purchased. Your account likely has:
 
 In your pipeline: weekly brief → regular API. Re-analyzing 26 weeks of historical brand data → Batch.
 
+#### What's a "loop"? Why is an agent a loop?
+
+A **loop** = repeat steps until a condition is met. `while not done: do_thing()`.
+
+**Agent = loop because Claude can't do everything in one shot.** It thinks → requests a tool → waits for result → thinks again → maybe more tools → finishes. Each iteration is one Claude API call. The loop is YOUR code's job — Claude can't loop itself.
+
+Start: user question. End: Claude returns `stop_reason: "end_turn"`.
+
+#### `role` field — can I set it to "head of marketing"?
+
+**No.** Three roles only:
+
+| | |
+|---|---|
+| `user` | Human side of conversation |
+| `assistant` | Claude's side |
+| (`system` as top-level field, not a role inside `messages`) | Conversation-wide instructions |
+
+`role` is structural metadata (who's speaking), not persona. For personas, put it in the content:
+```python
+system="You're advising a Head of Marketing at Adidas. Use KPIs, skip technical jargon."
+```
+
+#### Where does `tool_use_id` come from?
+
+**Claude generates it.** When Claude returns a `tool_use` content block, it has an `id` field like `toolu_01A9bC2dE...`. You copy it back into your `tool_result` as `tool_use_id`. This pairs "I asked for X" with "here's X's result" — critical for parallel tool calls.
+
+#### `is_error: true` — what is it really?
+
+Not "data missing." It means **tool execution FAILED**. The error message itself goes in `content`, and `is_error: true` flags it as a failure. Claude reads the message and decides: retry, try a different tool, ask the user, give up.
+
+"Errors as data" = the failure is information Claude can act on, not a crash. Always wrap tools in try/except.
+
+#### JSON-RPC, MCP, and the Power BI semantic-layer analogy
+
+**JSON-RPC** = a standardized wire format for "call this function on a remote server." JSON message in, JSON message out.
+
+**MCP ≈ Power BI semantic layer for LLMs:**
+
+| | Power BI semantic layer | MCP |
+|---|---|---|
+| What it abstracts | Data sources | Tools/data for LLMs |
+| Consumers | Power BI, Excel, Tableau (XMLA) | Claude.ai, Claude Code, Cursor, any LLM client |
+| Producer writes... | One semantic model | One MCP server |
+| Benefit | Decouple BI tools from raw data | Decouple LLMs from raw integrations |
+
+Write the MCP server once; all MCP-aware clients can use it.
+
+#### User memory vs workspace memory
+
+| | User memory | Workspace memory |
+|---|---|---|
+| Scope | YOU, across all conversations/projects | One project only |
+| Example | "I work at Adidas EM" | "This project is the SEA+PAC intel pipeline" |
+| Where to view | Claude.ai: Settings → Personalization. API: `memory.list`/`memory.search`. Claude Code: `~/.claude/projects/<proj>/memory/` |
+
 ---
 
 ## Block 3 — Advanced features
@@ -695,6 +751,61 @@ Used via the Agent SDK. Claude autonomously calls `memory.read`, `memory.write`,
 | Summarize and compress mid-run | Long-horizon agents |
 | 1M context window (Opus 4.7) | When you genuinely need it; expensive |
 | Extended thinking between tool calls | Heavy reasoning required |
+
+---
+
+## Block 5 — Claude Code CLI (slash commands & shortcuts)
+
+The 20 commands worth keeping in muscle memory. Each Claude Code session (terminal tab, VS Code extension) is its own isolated process — there is no global "show me everything running across all my sessions" view.
+
+### Session control
+| Command | What it does |
+|---|---|
+| `/help` | List all slash commands |
+| `/clear` | Wipe conversation, start fresh |
+| `/compact` | Manually compact long context |
+| `/resume` | Resume a prior session |
+| `/cost` | Token usage and spend |
+
+### Configuration
+| Command | What it does |
+|---|---|
+| `/config` | Model, theme, settings UI |
+| `/model` | Switch model mid-session (Opus ↔ Sonnet ↔ Haiku) |
+| `/agents` | View/create subagent **definitions** (config view, not runtime). Reads from `~/.claude/agents/` (user) + `<project>/.claude/agents/` (project) + built-ins like `Explore`, `Plan`, `general-purpose` |
+| `/mcp` | Manage MCP servers |
+| `/hooks` | Manage hooks (`PreToolUse`, `Stop`, etc.) |
+
+### Workflow
+| Command | What it does |
+|---|---|
+| `/init` | Generate `CLAUDE.md` for current repo. **Note:** `CLAUDE.md` is NOT auto-generated per conversation — it's a persistent file checked into the repo. `/init` is the one-time scaffold; after that you edit it manually (or via the `#` prefix). |
+| `/review` | **Review a PR** — multi-step review of a pull request. Pass a PR number/URL or run inside a branch; Claude inspects the diff, comments on issues, and proposes fixes. Different from `/security-review` (defensive scan) and `/ultrareview` (multi-agent cloud review, billed). |
+| `/security-review` | Security audit of pending changes on the current branch |
+| `/ultrareview` | Multi-agent cloud review of branch or `/ultrareview <PR#>` (user-triggered, billed) |
+| `/schedule` | Create cron-style remote routines |
+| `/loop 5m <cmd>` | Run a command on an interval |
+
+### Inline prefixes (not slash commands)
+| Prefix | What it does |
+|---|---|
+| `! <cmd>` | Run a shell command in the session — output goes into the conversation. Useful for things Claude can't run itself (e.g. `! gcloud auth login`) |
+| `# <text>` | Append to memory / `CLAUDE.md` |
+| `@ <path>` | Reference a file inline |
+
+### Keyboard
+- `Esc` — interrupt
+- `Esc Esc` — edit your previous message
+- `Shift+Tab` — toggle plan / auto-accept modes
+- `Ctrl+R` — search history
+
+### Honorable mentions
+`/doctor` (diagnostics), `/ide` (VS Code link), `/bug` (report), `/pr_comments` (fetch PR comments), `/add-dir` (add another working dir), `/fast` (toggle fast mode on Opus 4.6).
+
+### Gotchas
+- **`/agents` ≠ runtime status.** It shows configured subagent definitions on disk, not what's currently executing. Same list shows regardless of what's running in another Claude Code window.
+- **No cross-session dashboard.** If VS Code Claude Code is mid-task and your terminal is idle, the terminal cannot see the VS Code session's tasks or approval prompts. Approval prompts are modal *inside the session that raised them*.
+- **`CLAUDE.md` is persistent, not generated per chat.** It's loaded into context at session start from disk. `/init` scaffolds it once.
 
 ---
 
