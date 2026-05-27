@@ -583,3 +583,118 @@ Boss asks for last quarter's brand-pricing trend. 12 weeks × 7 markets × 4 bra
 
 ---
 
+## Block 4 — Agents
+
+### What IS an agent?
+
+**Agent = a loop**, written by you, around the Messages API + tool use.
+
+```
+1. Get user goal
+2. Call Claude with tools available
+3. Check stop_reason:
+   - "end_turn" → DONE
+   - "tool_use" → run the tool, send result back → go to 2
+4. Safety: bail after N iterations
+```
+
+That's the whole concept. The Agent SDK, MCP, memory tool — all extensions of this loop.
+
+### The minimal agent loop
+
+```python
+def run_agent(user_goal, tools, max_iters=10):
+    messages = [{"role": "user", "content": user_goal}]
+    for _ in range(max_iters):
+        r = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=4096,
+            tools=tools,
+            messages=messages,
+        )
+        if r.stop_reason == "end_turn":
+            return r
+        if r.stop_reason == "tool_use":
+            messages.append({"role": "assistant", "content": r.content})
+            tool_results = []
+            for block in r.content:
+                if block.type == "tool_use":
+                    result = execute_tool(block.name, block.input)
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": str(result),
+                    })
+            messages.append({"role": "user", "content": tool_results})
+    raise Exception("Hit max iterations")
+```
+
+### Loop gotchas
+
+1. **Always send Claude its own prior response** (the assistant message with `tool_use` blocks) when returning `tool_result`. Forgetting this confuses the model.
+2. **Parallel tool_results go in ONE user message**, not multiple.
+3. **`tool_use_id` must match exactly** between request and result.
+4. **Errors as data**: return `is_error: True` in the tool_result, don't crash. Lets Claude decide how to recover.
+5. **`pause_turn`** = long-running tool paused. Continue with partial state. Rare, but on the exam.
+
+### Claude Agent SDK
+
+Higher-level wrapper that writes the loop for you. Adds: loop management, tool execution + permissions, context window auto-management, error recovery, streaming events, memory integration.
+
+```python
+from claude_agent_sdk import ClaudeAgentClient
+async with ClaudeAgentClient(options=...) as client:
+    async for message in client.query("Help me debug this"):
+        print(message)
+```
+
+Prototype → write the loop yourself. Production → use the SDK.
+
+### MCP — Model Context Protocol
+
+Open standard for connecting LLMs to external tools/data. Anthropic-driven, broadly adopted (Claude.ai, Claude Code, Cursor, etc.).
+
+```
+MCP Client ◄─── JSON-RPC ───► MCP Server
+(Claude.ai,     (stdio or       (your tool,
+ Claude Code,    HTTP+SSE)       third-party)
+ your app)
+```
+
+**Three capabilities an MCP server exposes:**
+
+| | What | Example |
+|---|---|---|
+| **Tools** | Functions Claude can call | `query_postgres(sql)` |
+| **Resources** | Data Claude can read | A file, calendar, URL |
+| **Prompts** | Reusable templates | "Code review prompt" |
+
+**Transports:** `stdio` for local processes, `HTTP+SSE` for remote services.
+
+**Why it matters:** before MCP, every LLM client had its own integration format. Now write a server once → all MCP clients can use it.
+
+### Memory tool
+
+Anthropic-managed tool giving Claude persistent memory across conversations.
+
+| Scope | What sticks |
+|---|---|
+| **User memory** | Across all conversations for a user |
+| **Workspace memory** | Scoped to a project |
+
+Used via the Agent SDK. Claude autonomously calls `memory.read`, `memory.write`, `memory.search`, `memory.delete`.
+
+**Key insight:** memory is a tool — same pattern as any other tool, not a separate API.
+
+### Context window management for long agent runs
+
+| Strategy | When |
+|---|---|
+| Prompt caching on system + tools | Always (cheapest move) |
+| Truncate old turns | Recency matters more than history |
+| Summarize and compress mid-run | Long-horizon agents |
+| 1M context window (Opus 4.7) | When you genuinely need it; expensive |
+| Extended thinking between tool calls | Heavy reasoning required |
+
+---
+

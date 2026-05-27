@@ -798,6 +798,120 @@ const QUESTIONS = [
     ],
     answer: 1,
     explain: "Batch API = 50% discount on tokens, processed within 24 hours (often <1h). Up to 100,000 requests per batch. Each request needs a <code>custom_id</code> to match results back. Use for evals, backfills, bulk classification — NOT real-time chat."
+  },
+
+  // ===== Block 4: Agents =====
+  {
+    id: "b4-q1",
+    block: "4 — Agents",
+    topic: "What is an agent",
+    q: "In the Claude API context, what IS an \"agent\"?",
+    choices: [
+      "A separate model variant trained specifically for agentic tasks",
+      "A pre-built service from Anthropic you subscribe to",
+      "A loop YOU write that calls the Messages API + tool use repeatedly until <code>stop_reason == 'end_turn'</code>",
+      "A managed cloud service running continuously on Anthropic's side"
+    ],
+    answer: 2,
+    explain: "An agent is just a LOOP. You write it. It calls Claude with tools available, executes any tool the model requests, sends the result back, and repeats until Claude signals it's done (<code>end_turn</code>). The Agent SDK, MCP, memory tool — all extensions of this same loop concept."
+  },
+  {
+    id: "b4-q2",
+    block: "4 — Agents",
+    topic: "Loop stop condition",
+    q: "Inside your agent loop, what's the primary signal that the agent is done and should exit?",
+    choices: [
+      "A fixed number of iterations has been reached",
+      "<code>response.stop_reason == 'end_turn'</code>",
+      "The user explicitly closes the connection",
+      "Claude responds with the literal string 'I'm done'"
+    ],
+    answer: 1,
+    explain: "<code>stop_reason == 'end_turn'</code> = Claude finished naturally, no more tools requested → exit the loop. <code>stop_reason == 'tool_use'</code> = run the tool and continue. A max_iterations counter is a SAFETY net (so a buggy tool doesn't infinite-loop), but it's the fallback, not the primary stop signal."
+  },
+  {
+    id: "b4-q3",
+    block: "4 — Agents",
+    topic: "Parallel tool use",
+    q: "Claude returned 3 <code>tool_use</code> blocks in ONE response (parallel tool use). How do you return the results?",
+    choices: [
+      "3 separate API calls, one tool_result each",
+      "3 separate user messages, one tool_result each",
+      "ONE user message containing all 3 <code>tool_result</code> content blocks",
+      "Concatenate all 3 results into a single string in one tool_result"
+    ],
+    answer: 2,
+    explain: "Parallel tool use → all <code>tool_result</code> blocks return in ONE user message, in any order, each referencing its corresponding <code>tool_use_id</code>. Splitting them across multiple messages will break the conversation."
+  },
+  {
+    id: "b4-q4",
+    block: "4 — Agents",
+    topic: "Tool errors",
+    q: "Your tool function threw an exception. What should you send back to Claude?",
+    choices: [
+      "Don't send anything — let Claude figure it out from silence",
+      "Send a tool_result with <code>is_error: true</code> and the error message as content",
+      "Send a user text message that says \"ERROR\"",
+      "Crash the agent loop — the human will fix it"
+    ],
+    answer: 1,
+    explain: "Errors are DATA, not exceptions. Return <code>{\"type\": \"tool_result\", \"tool_use_id\": \"...\", \"content\": \"Error: ...\", \"is_error\": true}</code>. This lets Claude decide whether to retry with different inputs, try a different tool, or give up gracefully. Crashing your code leaves Claude blind to what happened."
+  },
+  {
+    id: "b4-q5",
+    block: "4 — Agents",
+    topic: "MCP",
+    q: "What is MCP?",
+    choices: [
+      "Model Compression Protocol — a way to make models smaller",
+      "Model Context Protocol — an open standard for connecting LLMs to external tools and data sources",
+      "Microsoft Cloud Platform — Microsoft's competing API to Anthropic's",
+      "Multi-Claude Pipeline — for chaining multiple Claude calls together"
+    ],
+    answer: 1,
+    explain: "MCP = <b>M</b>odel <b>C</b>ontext <b>P</b>rotocol. Open standard, Anthropic-driven. Defines how an MCP Client (Claude.ai, Claude Code, Cursor, your app) connects to an MCP Server (your tool, third-party service). Servers expose <b>tools</b> (callable functions), <b>resources</b> (readable data), and <b>prompts</b> (reusable templates). Transports: stdio (local) or HTTP+SSE (remote)."
+  },
+  {
+    id: "b4-q6",
+    block: "4 — Agents",
+    topic: "MCP capabilities",
+    q: "Which of these is NOT one of the three core capabilities an MCP server exposes?",
+    choices: [
+      "Tools — functions Claude can call",
+      "Resources — data Claude can read",
+      "Prompts — reusable prompt templates",
+      "Models — alternative LLMs Claude can switch to"
+    ],
+    answer: 3,
+    explain: "MCP servers expose <b>tools</b>, <b>resources</b>, and <b>prompts</b> — not models. The LLM is the client; MCP is for giving the client access to external capabilities, not for swapping out the model itself."
+  },
+  {
+    id: "b4-q7",
+    block: "4 — Agents",
+    topic: "Agent SDK",
+    q: "What role does the Claude Agent SDK play vs. writing the agent loop yourself?",
+    choices: [
+      "It replaces the Messages API — you can't use Messages API after adopting it",
+      "It's a higher-level wrapper that handles loop management, tool execution, permissions, context window, and error recovery for you",
+      "It's required to use tool use",
+      "It's a model-training framework for building your own Claude variants"
+    ],
+    answer: 1,
+    explain: "The Agent SDK builds ON the Messages API — it doesn't replace it. It writes the agent loop for you and adds extras: stop-condition logic, parallel tool dispatch, permission gating, automatic context management, streaming events, memory integration. Prototype = write loop yourself. Production = SDK."
+  },
+  {
+    id: "b4-q8",
+    block: "4 — Agents",
+    topic: "Memory tool",
+    q: "How does the Memory tool give Claude persistent memory across conversations?",
+    choices: [
+      "It's a built-in model feature — newer Claude models have native memory",
+      "It's a managed tool — Claude calls <code>memory.read/write/search/delete</code> as if they were regular tools",
+      "It's a separate API endpoint that runs in parallel with Messages",
+      "It's the same as prompt caching, just renamed"
+    ],
+    answer: 1,
+    explain: "Memory is a TOOL, not a model feature or separate API. Claude calls <code>memory.read</code>, <code>memory.write</code>, etc. autonomously through the same tool use pattern you already know. Anthropic manages the storage. Scopes: user (across all conversations) or workspace (per project). Different from prompt caching — caching is per-request token reuse; memory is durable storage."
   }
 ];
 
