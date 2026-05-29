@@ -1059,6 +1059,176 @@ const QUESTIONS = [
     ],
     answer: 1,
     explain: "Each Claude Code session = its own isolated process. <b>No</b> cross-session dashboard exists. Approval prompts are modal inside the session that raised them. <code>/agents</code> shows DEFINITIONS regardless of what's running. This trips up users who expect a unified 'show me everything running' view."
+  },
+
+  // ===== Block 6: Mock-exam blitz (mixed, synthesis) =====
+  {
+    id: "b6-q1",
+    block: "6 — Mock exam",
+    topic: "Cost optimization",
+    q: "You need to classify 50,000 product descriptions overnight. Latency doesn't matter, cost does. Best setup?",
+    choices: [
+      "Opus 4.7 via regular API",
+      "Sonnet 4.6 via Batch API",
+      "Haiku 4.5 via Batch API",
+      "Haiku 4.5 via regular API"
+    ],
+    answer: 2,
+    explain: "Three layers of savings stack: <b>Haiku</b> (cheapest model — classification is simple enough), <b>Batch API</b> (50% off, latency-flexible bulk work), and prompt caching on the classification rubric. Opus/Sonnet are overkill for classification. Regular API loses you the 50% Batch discount."
+  },
+  {
+    id: "b6-q2",
+    block: "6 — Mock exam",
+    topic: "Cache + tool use",
+    q: "You have <code>cache_control</code> on your system prompt + tool definitions. Claude returns <code>stop_reason: \"tool_use\"</code>. You run the tool and call the API again with the <code>tool_result</code>. Will your cache hit?",
+    choices: [
+      "No — the messages array changed, so the cache is invalidated",
+      "Yes — system + tools are still the cached prefix; tool_result is downstream",
+      "Only if you also put <code>cache_control</code> on the tool_result",
+      "Cache resets on every <code>tool_use</code> response"
+    ],
+    answer: 1,
+    explain: "Cache key = the prefix UP TO and including your breakpoints. System + tools come BEFORE messages — they stay cached. Adding a tool_result later doesn't change the prefix, so the cache still hits. This is why agent loops with caching are cheap: the expensive part (system + tools + maybe docs) is paid once."
+  },
+  {
+    id: "b6-q3",
+    block: "6 — Mock exam",
+    topic: "Stop reasons",
+    q: "Response comes back with <code>stop_reason: \"max_tokens\"</code>. What does it mean?",
+    choices: [
+      "You exceeded your input token limit — reduce prompt size",
+      "You hit your <code>max_tokens</code> OUTPUT cap — response was truncated; raise <code>max_tokens</code>",
+      "The model's context window is full",
+      "A safety filter triggered"
+    ],
+    answer: 1,
+    explain: "<code>max_tokens</code> caps OUTPUT. Hitting it means Claude was cut off mid-response. Almost always a bug — raise <code>max_tokens</code>. Don't confuse with the context window (that's input + output combined, much larger)."
+  },
+  {
+    id: "b6-q4",
+    block: "6 — Mock exam",
+    topic: "Valid message arrays",
+    q: "Which <code>messages</code> array is INVALID?",
+    choices: [
+      "<code>[{user: 'Hi'}, {assistant: 'Hello'}]</code>",
+      "<code>[{user: 'A'}, {assistant: 'B'}, {user: 'C'}]</code>",
+      "<code>[{user: 'A'}, {user: 'B'}]</code>",
+      "<code>[{user: 'A'}, {assistant: '{'}]</code> (prefill pattern)"
+    ],
+    answer: 2,
+    explain: "Two consecutive same-role messages break the required user↔assistant alternation. The prefill pattern (ending with assistant) IS allowed — but the previous message must still be user."
+  },
+  {
+    id: "b6-q5",
+    block: "6 — Mock exam",
+    topic: "Tool errors",
+    q: "Your tool function timed out. You return: <code>{\"type\": \"tool_result\", \"tool_use_id\": \"...\", \"content\": \"Error: timeout\"}</code>. What did you forget?",
+    choices: [
+      "The <code>role</code> field",
+      "<code>\"is_error\": true</code>",
+      "A <code>retry</code> flag",
+      "Nothing — that's complete"
+    ],
+    answer: 1,
+    explain: "Without <code>is_error: true</code>, Claude may interpret \"Error: timeout\" as the actual successful result of the tool (a string that happens to contain the word 'Error'). The flag tells Claude this was a failure so it can decide to retry / fall back / give up."
+  },
+  {
+    id: "b6-q6",
+    block: "6 — Mock exam",
+    topic: "TTL trap",
+    q: "You're running a long-horizon agent that takes 20 minutes. Your system prompt (5000 tokens) has the default <code>cache_control</code> applied. After 20 min, is the cache still valid?",
+    choices: [
+      "Yes — cache lasts indefinitely until you delete it",
+      "Yes — default TTL is 1 hour",
+      "No — default TTL is 5 minutes; should have set <code>\"ttl\": \"1h\"</code> for long-horizon work",
+      "Cache lasts only within a single API call"
+    ],
+    answer: 2,
+    explain: "Default TTL = 5 minutes. A 20-minute run will see the cache expire mid-way, forcing a (1.25× cost) rewrite. For long-horizon agents, pass <code>cache_control: {\"type\": \"ephemeral\", \"ttl\": \"1h\"}</code>."
+  },
+  {
+    id: "b6-q7",
+    block: "6 — Mock exam",
+    topic: "MCP",
+    q: "Which is TRUE about MCP?",
+    choices: [
+      "It's Anthropic-exclusive — only Claude clients can use MCP servers",
+      "It's an open protocol — Claude.ai, Claude Code, Cursor, and other LLM clients can all consume the same MCP server",
+      "It's a Python-only library",
+      "It replaces the Messages API for tool calls"
+    ],
+    answer: 1,
+    explain: "MCP is OPEN. Anthropic drives it but it's an open standard. Write an MCP server once; Claude.ai, Claude Code, Cursor, and other MCP-aware clients all use it. This is the design goal — decouple LLM clients from tool integrations."
+  },
+  {
+    id: "b6-q8",
+    block: "6 — Mock exam",
+    topic: "Vision",
+    q: "You upload a 6000×4000 px JPEG (4 MB) to a vision-enabled Claude call. What happens?",
+    choices: [
+      "Claude analyzes at the full 6000×4000 resolution",
+      "Rejected — image is over the size limit",
+      "Claude internally resizes to ~1568px on the long edge; the extra resolution is wasted",
+      "API errors because the resolution exceeds the limit"
+    ],
+    answer: 2,
+    explain: "4 MB is under the 5 MB size cap, so it's accepted. But Claude's vision pipeline internally normalizes images to ~1568 px on the long edge. The other 4432 px of width is wasted upload + processing. For best efficiency, resize before sending."
+  },
+  {
+    id: "b6-q9",
+    block: "6 — Mock exam",
+    topic: "Agent loop",
+    q: "In your agent loop, what's the PRIMARY signal to exit?",
+    choices: [
+      "<code>max_iterations</code> safety counter reached",
+      "<code>response.stop_reason == \"end_turn\"</code>",
+      "The user typed \"stop\"",
+      "<code>response.content</code> is empty"
+    ],
+    answer: 1,
+    explain: "<code>end_turn</code> = Claude finished naturally, no more tools to call → exit. <code>max_iterations</code> is a SAFETY fallback (so a buggy tool doesn't infinite-loop), not the primary exit. Always have both: stop_reason check as primary, iteration cap as backstop."
+  },
+  {
+    id: "b6-q10",
+    block: "6 — Mock exam",
+    topic: "Bulk cost stack",
+    q: "100,000 brand-article analyses overnight, same 3000-token system prompt across all calls. Cheapest setup?",
+    choices: [
+      "Sonnet, regular API, no cache",
+      "Sonnet, Batch API, cache breakpoint on system prompt",
+      "Opus, Batch API, no cache",
+      "Sonnet, regular API, cache breakpoint on system prompt"
+    ],
+    answer: 1,
+    explain: "Stack three optimizations: <b>Batch API</b> (50% off, no human waiting), <b>cache breakpoint on system</b> (3000 tokens × 99,999 reads at 10% cost instead of full price), <b>Sonnet not Opus</b> (article analysis doesn't need Opus). All three together = far cheaper than any single optimization alone."
+  },
+  {
+    id: "b6-q11",
+    block: "6 — Mock exam",
+    topic: "Prefill",
+    q: "You want guaranteed JSON output with no preamble. The bulletproof technique is:",
+    choices: [
+      "Pass a <code>response_format={\"type\": \"json_object\"}</code> parameter",
+      "Add 'JSON only, no preamble' to the system prompt and hope",
+      "End <code>messages</code> with <code>{\"role\": \"assistant\", \"content\": \"{\"}</code>",
+      "Add a top-level <code>output_schema</code> parameter"
+    ],
+    answer: 2,
+    explain: "Prefill. End the messages array with an assistant turn that begins with <code>{</code>. Claude continues from there, output is guaranteed to start as JSON. There is no <code>response_format</code> or <code>output_schema</code> parameter in Anthropic's Messages API (those are OpenAI conventions). Remember to prepend <code>{</code> back when parsing."
+  },
+  {
+    id: "b6-q12",
+    block: "6 — Mock exam",
+    topic: "Memory tool",
+    q: "The Memory tool gives Claude persistent memory across conversations. How is it architected?",
+    choices: [
+      "Built into the model — Claude 4.x has native memory",
+      "A managed Anthropic tool — Claude calls <code>memory.read/write/search/delete</code> via the standard tool use pattern",
+      "A separate API endpoint that runs alongside Messages",
+      "Same as prompt caching, just longer TTL"
+    ],
+    answer: 1,
+    explain: "Memory = a TOOL, not a model feature. Same tool use pattern: Claude calls <code>memory.write(...)</code>, Anthropic's managed storage handles it, returns a tool_result. Scopes: user (across all conversations) or workspace (per project). Different mechanism from prompt caching — caching is per-request token reuse; memory is durable storage across requests."
   }
 ];
 
