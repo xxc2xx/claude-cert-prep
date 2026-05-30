@@ -351,7 +351,7 @@
     transition: background .15s, color .15s, border-color .15s;
     white-space: nowrap;
   }
-  .notes-toc a:hover, .notes-toc a:active {
+  .notes-toc a:hover, .notes-toc a:active, .notes-toc a.active {
     background: var(--accent);
     color: #0e1116;
     border-color: var(--accent);
@@ -1887,9 +1887,10 @@ backToTopBtn.addEventListener('click', () => {
 });
 
 // ===== Tabs =====
-let cheatsheetLoaded = false;
-let briefLoaded = false;
-let manualLoaded = false;
+// Splittable tabs render only one section at a time, controlled by a chip bar.
+// State is keyed by tab name. The first load fetches + parses + splits the
+// markdown; subsequent chip clicks just re-render the active section.
+const splittableState = new Map();
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -1898,9 +1899,10 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.tab-content').forEach(s => {
       s.classList.toggle('active', s.id === 'tab-' + tab);
     });
-    if ((tab === 'cheatsheet' || tab === 'faq') && !cheatsheetLoaded) loadCheatsheet();
-    if (tab === 'brief' && !briefLoaded) loadBrief();
-    if (tab === 'manual' && !manualLoaded) loadManual();
+    if (tab === 'cheatsheet') loadCheatsheetSplit();
+    if (tab === 'faq') loadFaqSplit();
+    if (tab === 'brief') loadBriefSplit();
+    if (tab === 'manual') loadManualSplit();
     if (tab === 'progress') renderProgress();
   });
 });
@@ -1946,109 +1948,187 @@ function buildTOC(container, selector, label, labelMaxLen, customLabeler) {
   container.insertBefore(toc, container.firstChild);
 }
 
-async function loadCheatsheet() {
-  try {
-    const res = await fetch('./cheatsheet.md?v=' + Date.now());
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const md = await res.text();
-    const cheatBody = document.getElementById('cheatsheet-body');
-    cheatBody.innerHTML = marked.parse(md);
-    buildTOC(cheatBody, 'h2', 'Jump to', 24);
+// Parse markdown safely using DOMParser (avoids Safari iOS innerHTML quirks
+// where some block-level tags get silently dropped during fragment parsing).
+function parseMarkdownToNodes(md) {
+  const html = marked.parse(md);
+  const doc = new DOMParser().parseFromString(
+    '<!DOCTYPE html><html><body>' + html + '</body></html>',
+    'text/html'
+  );
+  return Array.from(doc.body.childNodes);
+}
 
-    // Extract FAQ section (## FAQ — concept questions from prep ... until next H2 or end)
-    const faqMatch = md.match(/(## FAQ — concept questions from prep[\s\S]*?)(?=\n## |$)/);
-    const faqBody = document.getElementById('faq-body');
-    if (faqMatch) {
-      faqBody.innerHTML = marked.parse(faqMatch[1]);
-      buildTOC(faqBody, 'h3', 'Jump to', 28);
+// Walk a flat list of nodes and group them into sections, starting a new
+// section whenever we encounter a heading of the given tag. The labelFn
+// decides each section's chip label; returning null means "no chip for
+// this section" (the content still renders if it's the active section).
+function splitNodesByHeading(nodes, headingTag, labelFn) {
+  const tag = headingTag.toLowerCase();
+  const sections = [];
+  let current = { label: null, nodes: [] };
+  nodes.forEach(node => {
+    const nodeName = (node.nodeName || '').toLowerCase();
+    if (nodeName === tag) {
+      if (current.nodes.length) sections.push(current);
+      const text = node.textContent || '';
+      current = { label: labelFn(text), headingText: text, nodes: [node] };
     } else {
-      faqBody.innerHTML = '<p style="color: var(--muted);">No FAQ section found in cheatsheet yet.</p>';
+      current.nodes.push(node);
     }
-    cheatsheetLoaded = true;
+  });
+  if (current.nodes.length) sections.push(current);
+  return sections;
+}
+
+// Render one section of a splittable tab. Builds the chip bar then appends
+// the active section's content.
+function renderSplittableActive(tabName) {
+  const state = splittableState.get(tabName);
+  if (!state) return;
+  const { sections, activeIdx, chipLabel, containerId } = state;
+  const container = document.getElementById(containerId);
+  container.replaceChildren();
+
+  const chipBar = document.createElement('div');
+  chipBar.className = 'notes-toc';
+  const lbl = document.createElement('span');
+  lbl.className = 'notes-toc-label';
+  lbl.textContent = chipLabel;
+  chipBar.appendChild(lbl);
+
+  sections.forEach((section, i) => {
+    if (section.label === null) return; // unlabeled sections get no chip
+    const a = document.createElement('a');
+    a.href = '#';
+    a.textContent = section.label;
+    if (i === activeIdx) a.classList.add('active');
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      state.activeIdx = i;
+      renderSplittableActive(tabName);
+      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    chipBar.appendChild(a);
+  });
+  container.appendChild(chipBar);
+
+  const content = document.createElement('div');
+  const section = sections[activeIdx];
+  if (section) {
+    section.nodes.forEach(n => content.appendChild(n.cloneNode(true)));
+  }
+  container.appendChild(content);
+}
+
+async function loadSplittable(tabName, url, containerId, headingTag, labelFn, chipLabel, sectionFilter) {
+  if (splittableState.has(tabName)) return;
+  const container = document.getElementById(containerId);
+  try {
+    const res = await fetch(url + '?v=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const md = await res.text();
+    const sourceNodes = sectionFilter
+      ? sectionFilter(parseMarkdownToNodes(md), md)
+      : parseMarkdownToNodes(md);
+    const sections = splitNodesByHeading(sourceNodes, headingTag, labelFn);
+    const firstLabeledIdx = sections.findIndex(s => s.label !== null);
+    const activeIdx = firstLabeledIdx === -1 ? 0 : firstLabeledIdx;
+    splittableState.set(tabName, { sections, activeIdx, chipLabel, containerId });
+    renderSplittableActive(tabName);
   } catch (e) {
-    const msg = '<p style="color: var(--red);">Error loading cheatsheet: ' + e.message + '</p>';
-    document.getElementById('cheatsheet-body').innerHTML = msg;
-    document.getElementById('faq-body').innerHTML = msg;
+    container.innerHTML =
+      '<p style="color: var(--red);">Error loading content: ' + e.message + '</p>';
   }
 }
 
-async function loadBrief() {
-  try {
-    const res = await fetch('./super_user_brief.md?v=' + Date.now());
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const md = await res.text();
-    const briefBody = document.getElementById('brief-body');
-    briefBody.innerHTML = marked.parse(md);
-    buildTOC(briefBody, 'h2', 'Jump to', 28);
-    briefLoaded = true;
-  } catch (e) {
-    document.getElementById('brief-body').innerHTML =
-      '<p style="color: var(--red);">Error loading brief: ' + e.message + '</p>';
-  }
-}
+// ---- Per-tab configs ----
 
-async function loadManual() {
-  const manualBody = document.getElementById('manual-body');
-  try {
-    const res = await fetch('./field_manual.md?v=' + Date.now());
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const md = await res.text();
-    const renderedHTML = marked.parse(md);
-    // Use DOMParser instead of innerHTML — Safari iOS innerHTML
-    // silently dropped some h2 tags (foster parenting around an
-    // earlier table). DOMParser applies the strict HTML5 algorithm.
-    const parsed = new DOMParser().parseFromString(
-      '<!DOCTYPE html><html><body>' + renderedHTML + '</body></html>',
-      'text/html'
-    );
-    manualBody.replaceChildren(...Array.from(parsed.body.childNodes));
-
-    // Diagnostic: where did marked.js stop?
-    const allH2s = manualBody.querySelectorAll('h2');
-    const labelInfo = [];
-    allH2s.forEach((h, i) => {
-      const text = h.textContent;
+function loadManualSplit() {
+  return loadSplittable(
+    'manual',
+    './field_manual.md',
+    'manual-body',
+    'h2',
+    (text) => {
       const m = text.match(/^(\d+)/);
-      const label = m ? m[1] : (/^appendix/i.test(text) ? '13' : null);
-      labelInfo.push(`#${i + 1} "${text.slice(0, 40)}" → ${label === null ? 'SKIP' : label}`);
-    });
-    // Find context around "4 — Tool" to see what tag it ended up in
-    const idx = renderedHTML.indexOf('4 — Tool');
-    const ctxIdx = idx > -1 ? Math.max(0, idx - 80) : -1;
-    const ch4Context = idx > -1
-      ? renderedHTML.slice(ctxIdx, ctxIdx + 200).replace(/</g, '&lt;')
-      : '(not found)';
-    const allHeadings = manualBody.querySelectorAll('h1,h2,h3,h4,h5,h6');
-    const headingTally = {};
-    allHeadings.forEach(h => {
-      headingTally[h.tagName] = (headingTally[h.tagName] || 0) + 1;
-    });
-    const diag = document.createElement('pre');
-    diag.style.cssText = 'background:#1f2630;border:1px solid #2a313c;border-radius:8px;padding:10px;font-size:11px;color:#8b949e;white-space:pre-wrap;margin:0 0 16px;overflow-x:auto;';
-    diag.innerHTML =
-      'DIAGNOSTIC\n' +
-      'marked.js: ' + (typeof marked !== 'undefined' ? 'loaded' : 'NOT LOADED') + '\n' +
-      'marked version: ' + (typeof marked !== 'undefined' && marked.version ? marked.version : 'unknown') + '\n' +
-      'markdown source length: ' + md.length + ' chars\n' +
-      'rendered HTML length: ' + renderedHTML.length + ' chars\n' +
-      'all heading counts: ' + JSON.stringify(headingTally) + '\n' +
-      'navigator.userAgent: ' + navigator.userAgent.slice(0, 100) + '\n\n' +
-      'h2 elements (' + allH2s.length + '):\n' + labelInfo.join('\n') + '\n\n' +
-      'CONTEXT around "4 — Tool" in rendered HTML:\n' +
-      ch4Context;
-    manualBody.insertBefore(diag, manualBody.firstChild);
-
-    buildTOC(manualBody, 'h2', 'Chapter', 32, (text) => {
-      const chapterMatch = text.match(/^(\d+)/);
-      if (chapterMatch) return chapterMatch[1];
+      if (m) return m[1];
       if (/^appendix/i.test(text)) return '13';
+      return null; // intro paragraphs, "Closing"
+    },
+    'Chapter'
+  );
+}
+
+function loadCheatsheetSplit() {
+  return loadSplittable(
+    'cheatsheet',
+    './cheatsheet.md',
+    'cheatsheet-body',
+    'h2',
+    (text) => {
+      const m = text.match(/^Block\s+(\d+)/i);
+      if (m) return 'B' + m[1];
+      return null; // skip FAQ (it has its own tab) and any non-block H2
+    },
+    'Block'
+  );
+}
+
+function loadBriefSplit() {
+  return loadSplittable(
+    'brief',
+    './super_user_brief.md',
+    'brief-body',
+    'h2',
+    (text) => {
+      const arcMatch = text.match(/^Arc\s+(\d+)/i);
+      if (arcMatch) return 'Arc ' + arcMatch[1];
+      if (/^how to use/i.test(text)) return 'How';
+      if (/^anticipated/i.test(text)) return 'Q&A';
+      if (/^demo cheatsheet/i.test(text)) return 'Demo';
+      if (/^what to not/i.test(text)) return 'Avoid';
       return null;
-    });
-    manualLoaded = true;
-  } catch (e) {
-    manualBody.innerHTML =
-      '<p style="color: var(--red);">Error loading manual: ' + e.message + '<br>Stack: ' + (e.stack || 'n/a') + '</p>';
-  }
+    },
+    'Section'
+  );
+}
+
+// FAQ is special: it lives inside cheatsheet.md as a single H2 with H3
+// sub-sections (one per block). We narrow to just the FAQ section first,
+// then split that section's nodes by H3.
+function loadFaqSplit() {
+  return loadSplittable(
+    'faq',
+    './cheatsheet.md',
+    'faq-body',
+    'h3',
+    (text) => {
+      const m = text.match(/^Block\s+(\d+)/i);
+      if (m) return 'B' + m[1];
+      if (/^career/i.test(text)) return 'Career';
+      return null;
+    },
+    'FAQ',
+    (allNodes, md) => {
+      // Filter to just the nodes between the FAQ H2 and the next H2.
+      let inFaq = false;
+      const out = [];
+      for (const n of allNodes) {
+        const tag = (n.nodeName || '').toLowerCase();
+        const text = n.textContent || '';
+        if (tag === 'h2') {
+          if (/^FAQ/i.test(text)) {
+            inFaq = true;
+            continue; // skip the FAQ H2 itself
+          }
+          if (inFaq) break; // hit the next H2 — stop
+        }
+        if (inFaq) out.push(n);
+      }
+      return out;
+    }
+  );
 }
 
 // ===== Progress =====
