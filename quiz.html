@@ -1988,25 +1988,37 @@ async function loadBrief() {
 }
 
 async function loadManual() {
+  const manualBody = document.getElementById('manual-body');
   try {
     const res = await fetch('./field_manual.md?v=' + Date.now());
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const md = await res.text();
-    const manualBody = document.getElementById('manual-body');
     manualBody.innerHTML = marked.parse(md);
+
+    // Diagnostic: count h2s found and labels produced before buildTOC
+    const allH2s = manualBody.querySelectorAll('h2');
+    const labelInfo = [];
+    allH2s.forEach((h, i) => {
+      const text = h.textContent;
+      const m = text.match(/^(\d+)/);
+      const label = m ? m[1] : (/^appendix/i.test(text) ? '13' : null);
+      labelInfo.push(`#${i + 1} "${text.slice(0, 40)}" → ${label === null ? 'SKIP' : label}`);
+    });
+    const diag = document.createElement('pre');
+    diag.style.cssText = 'background:#1f2630;border:1px solid #2a313c;border-radius:8px;padding:10px;font-size:11px;color:#8b949e;white-space:pre-wrap;margin:0 0 16px;';
+    diag.textContent = `DIAGNOSTIC — found ${allH2s.length} h2 elements:\n` + labelInfo.join('\n');
+    manualBody.insertBefore(diag, manualBody.firstChild);
+
     buildTOC(manualBody, 'h2', 'Chapter', 32, (text) => {
-      // Match leading digits — covers "1 — Title", "12 — Title", etc.
-      // Avoid em dash in regex character classes; WebKit can choke on
-      // `[—-]` if it interprets em-dash-to-hyphen as an invalid range.
       const chapterMatch = text.match(/^(\d+)/);
       if (chapterMatch) return chapterMatch[1];
       if (/^appendix/i.test(text)) return '13';
-      return null; // skip "Closing" and anything else
+      return null;
     });
     manualLoaded = true;
   } catch (e) {
-    document.getElementById('manual-body').innerHTML =
-      '<p style="color: var(--red);">Error loading manual: ' + e.message + '</p>';
+    manualBody.innerHTML =
+      '<p style="color: var(--red);">Error loading manual: ' + e.message + '<br>Stack: ' + (e.stack || 'n/a') + '</p>';
   }
 }
 
