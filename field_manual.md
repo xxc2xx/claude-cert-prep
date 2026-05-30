@@ -366,7 +366,7 @@ Versus the no-XML version:
 Summarize this document in 3 bullets, plain English, no jargon, each ≤ 15 words, lead with action verb: {document_text}
 ```
 
-Both work. The XML version is more reliable, easier to maintain, easier to programmatically construct, and easier for Claude to reference ("looking at the <style> section, I should...").
+Both work. The XML version is more reliable, easier to maintain, easier to programmatically construct, and easier for Claude to reference ("looking at the `<style>` section, I should...").
 
 **XML vs JSON in prompts.** JSON is for the *output*, XML is for the *input structure*. Output JSON when you need to parse the result. Input XML to organize what Claude reads.
 
