@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
 <title>Claude Builder Cert — Study Hub</title>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
 <style>
   :root {
     --bg: #0e1116;
@@ -1995,10 +1995,13 @@ async function loadManual() {
     const manualBody = document.getElementById('manual-body');
     manualBody.innerHTML = marked.parse(md);
     buildTOC(manualBody, 'h2', 'Chapter', 32, (text) => {
-      const chapterMatch = text.match(/^(\d+)\s*[—-]/);
+      // Match leading digits — covers "1 — Title", "12 — Title", etc.
+      // Avoid em dash in regex character classes; WebKit can choke on
+      // `[—-]` if it interprets em-dash-to-hyphen as an invalid range.
+      const chapterMatch = text.match(/^(\d+)/);
       if (chapterMatch) return chapterMatch[1];
       if (/^appendix/i.test(text)) return '13';
-      return null; // skip Table of contents, Closing
+      return null; // skip "Closing" and anything else
     });
     manualLoaded = true;
   } catch (e) {
