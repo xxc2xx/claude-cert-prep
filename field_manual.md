@@ -10,25 +10,7 @@ A long-form deep dive for the 6-hour flight on **2026-05-31**. Builds on `cheats
 
 ---
 
-## Table of contents
-
-1. [Orientation — what is Claude, really](#chapter-1)
-2. [The Messages API, end to end](#chapter-2)
-3. [Prompting in depth](#chapter-3)
-4. [Tool use and agents](#chapter-4)
-5. [Prompt caching mastery](#chapter-5)
-6. [Vision, documents, citations, extended thinking](#chapter-6)
-7. [Batch API, Files API, web search, computer use](#chapter-7)
-8. [MCP and the ecosystem](#chapter-8)
-9. [Claude Code (the CLI) in depth](#chapter-9)
-10. [Memory and context management](#chapter-10)
-11. [Safety, AUP, production operations](#chapter-11)
-12. [Patterns, anti-patterns, and the career frame](#chapter-12)
-13. [Appendix — quick reference cards](#appendix)
-
----
-
-## <a id="chapter-1"></a>1 — Orientation: what is Claude, really
+## 1 — Orientation: what is Claude, really
 
 ### 1.1 Anthropic the company
 
@@ -141,7 +123,7 @@ Yes, asking the question twice — once at the start, once at the end — improv
 
 ---
 
-## <a id="chapter-2"></a>2 — The Messages API, end to end
+## 2 — The Messages API, end to end
 
 ### 2.1 The minimum viable call
 
@@ -351,7 +333,7 @@ You can pass a custom request ID via headers for idempotency on retries. If your
 
 ---
 
-## <a id="chapter-3"></a>3 — Prompting in depth
+## 3 — Prompting in depth
 
 ### 3.1 Why XML works so well with Claude
 
@@ -604,7 +586,7 @@ This gives Claude landmarks to navigate and reference.
 
 ---
 
-## <a id="chapter-4"></a>4 — Tool use and agents
+## 4 — Tool use and agents
 
 ### 4.1 What "tool use" means, mechanically
 
@@ -805,7 +787,7 @@ The SDK is what Claude Code (the CLI) is built on. When you type a prompt to Cla
 
 ---
 
-## <a id="chapter-5"></a>5 — Prompt caching mastery
+## 5 — Prompt caching mastery
 
 ### 5.1 The mental model
 
@@ -1002,7 +984,7 @@ for market in MARKETS:
 
 ---
 
-## <a id="chapter-6"></a>6 — Vision, documents, citations, extended thinking
+## 6 — Vision, documents, citations, extended thinking
 
 ### 6.1 Vision (images)
 
@@ -1134,7 +1116,7 @@ Usually not. They're raw reasoning, not polished output. They can also confuse n
 
 ---
 
-## <a id="chapter-7"></a>7 — Batch API, Files API, web search, computer use
+## 7 — Batch API, Files API, web search, computer use
 
 ### 7.1 Batch API — the 50% discount
 
@@ -1279,7 +1261,7 @@ Claude writes code, executes, sees stdout/files, refines. Great for data analysi
 
 ---
 
-## <a id="chapter-8"></a>8 — MCP and the ecosystem
+## 8 — MCP and the ecosystem
 
 ### 8.1 What MCP is
 
@@ -1388,7 +1370,7 @@ For your `intel.py` pipeline, custom tools are fine — there's only one consume
 
 ---
 
-## <a id="chapter-9"></a>9 — Claude Code (the CLI) in depth
+## 9 — Claude Code (the CLI) in depth
 
 ### 9.1 What Claude Code is, architecturally
 
@@ -1589,7 +1571,7 @@ The CLI is the canonical surface; IDE integrations are convenience layers.
 
 ---
 
-## <a id="chapter-10"></a>10 — Memory and context management
+## 10 — Memory and context management
 
 ### 10.1 The Memory tool (managed)
 
@@ -1668,7 +1650,7 @@ Use the right tool. Don't write a memory note when you mean to create a task; do
 
 ---
 
-## <a id="chapter-11"></a>11 — Safety, AUP, production operations
+## 11 — Safety, AUP, production operations
 
 ### 11.1 Anthropic Acceptable Use Policy highlights
 
@@ -1785,7 +1767,7 @@ Then dashboard the daily/weekly trend. Alert on:
 
 ---
 
-## <a id="chapter-12"></a>12 — Patterns, anti-patterns, and the career frame
+## 12 — Patterns, anti-patterns, and the career frame
 
 ### 12.1 Patterns worth internalizing
 
@@ -1888,7 +1870,7 @@ This is what you've been carrying into 1:1s and interviews — worth restating b
 
 ---
 
-## <a id="appendix"></a>Appendix — quick reference cards
+## Appendix — quick reference cards
 
 ### A.1 Model ID reference
 
