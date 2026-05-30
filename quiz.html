@@ -464,6 +464,7 @@
       <button class="tab-btn active" data-tab="quiz">Quiz</button>
       <button class="tab-btn" data-tab="cheatsheet">Cheatsheet</button>
       <button class="tab-btn" data-tab="faq">FAQ</button>
+      <button class="tab-btn" data-tab="brief">Brief</button>
       <button class="tab-btn" data-tab="progress">Progress</button>
     </nav>
   </div>
@@ -507,6 +508,11 @@
   <!-- ===== FAQ tab ===== -->
   <section id="tab-faq" class="tab-content">
     <div class="notes-body" id="faq-body">Loading FAQ…</div>
+  </section>
+
+  <!-- ===== Brief tab (super-user presentation prep) ===== -->
+  <section id="tab-brief" class="tab-content">
+    <div class="notes-body" id="brief-body">Loading brief…</div>
   </section>
 
   <!-- ===== Progress tab ===== -->
@@ -1405,6 +1411,7 @@ backToTopBtn.addEventListener('click', () => {
 
 // ===== Tabs =====
 let cheatsheetLoaded = false;
+let briefLoaded = false;
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -1414,6 +1421,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
       s.classList.toggle('active', s.id === 'tab-' + tab);
     });
     if ((tab === 'cheatsheet' || tab === 'faq') && !cheatsheetLoaded) loadCheatsheet();
+    if (tab === 'brief' && !briefLoaded) loadBrief();
     if (tab === 'progress') renderProgress();
   });
 });
@@ -1478,6 +1486,21 @@ async function loadCheatsheet() {
     const msg = '<p style="color: var(--red);">Error loading cheatsheet: ' + e.message + '</p>';
     document.getElementById('cheatsheet-body').innerHTML = msg;
     document.getElementById('faq-body').innerHTML = msg;
+  }
+}
+
+async function loadBrief() {
+  try {
+    const res = await fetch('./super_user_brief.md?v=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const md = await res.text();
+    const briefBody = document.getElementById('brief-body');
+    briefBody.innerHTML = marked.parse(md);
+    buildTOC(briefBody, 'h2', 'Jump to', 28);
+    briefLoaded = true;
+  } catch (e) {
+    document.getElementById('brief-body').innerHTML =
+      '<p style="color: var(--red);">Error loading brief: ' + e.message + '</p>';
   }
 }
 
