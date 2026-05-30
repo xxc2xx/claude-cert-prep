@@ -1241,6 +1241,474 @@ const QUESTIONS = [
     ],
     answer: 1,
     explain: "Memory = a TOOL, not a model feature. Same tool use pattern: Claude calls <code>memory.write(...)</code>, Anthropic's managed storage handles it, returns a tool_result. Scopes: user (across all conversations) or workspace (per project). Different mechanism from prompt caching — caching is per-request token reuse; memory is durable storage across requests."
+  },
+
+  // ===== Block 7: Easy drills (recall, single-fact) =====
+  {
+    id: "b7-q1",
+    block: "7 — Easy drills",
+    topic: "Model tiers",
+    q: "Which Claude model tier is the cheapest per token?",
+    choices: ["Opus", "Sonnet", "Haiku", "They cost the same per token"],
+    answer: 2,
+    explain: "Haiku is the cheap-and-fast tier. Roughly 1× baseline; Sonnet ~5×; Opus ~15×. Pick Haiku for one-liner extractions, classification, simple summarization."
+  },
+  {
+    id: "b7-q2",
+    block: "7 — Easy drills",
+    topic: "Defaults",
+    q: "What is the default <code>temperature</code> if you don't set it?",
+    choices: ["<code>0.0</code>", "<code>0.5</code>", "<code>1.0</code>", "There is no default"],
+    answer: 2,
+    explain: "Default temperature is <code>1.0</code>. For deterministic/classification tasks, override to <code>0.0</code>. Don't tune <code>temperature</code> AND <code>top_p</code> together — pick one knob."
+  },
+  {
+    id: "b7-q3",
+    block: "7 — Easy drills",
+    topic: "Caching",
+    q: "What does <code>TTL</code> stand for in prompt caching?",
+    choices: ["Tokens To Live", "Time To Live", "Total Token Length", "Type Tag Layer"],
+    answer: 1,
+    explain: "Time To Live. Default 5 minutes; opt into 1 hour via <code>cache_control: {type: 'ephemeral', ttl: '1h'}</code>. The cache evaporates after the TTL window."
+  },
+  {
+    id: "b7-q4",
+    block: "7 — Easy drills",
+    topic: "MCP",
+    q: "What does MCP stand for?",
+    choices: [
+      "Multi-Channel Processing",
+      "Model Context Protocol",
+      "Managed Compute Pipeline",
+      "Modular Claude Plugin"
+    ],
+    answer: 1,
+    explain: "Model Context Protocol. An open standard from Anthropic for exposing tools / resources / prompts to AI agents. Think USB for AI tools. JSON-RPC over stdio or HTTP+SSE."
+  },
+  {
+    id: "b7-q5",
+    block: "7 — Easy drills",
+    topic: "Agent loop",
+    q: "When you check <code>response.stop_reason</code> to decide if the agent loop should exit, which value means 'Claude is done'?",
+    choices: ["<code>completed</code>", "<code>finished</code>", "<code>end_turn</code>", "<code>done</code>"],
+    answer: 2,
+    explain: "<code>end_turn</code> is the primary exit signal. Other values: <code>tool_use</code> (continue loop, execute tool), <code>max_tokens</code> (you hit the cap), <code>stop_sequence</code> (matched your custom stop string), <code>pause_turn</code> (long server-tool paused)."
+  },
+  {
+    id: "b7-q6",
+    block: "7 — Easy drills",
+    topic: "Caching defaults",
+    q: "What's the DEFAULT cache TTL if you write just <code>cache_control: {type: 'ephemeral'}</code>?",
+    choices: ["1 minute", "5 minutes", "1 hour", "Until you delete it manually"],
+    answer: 1,
+    explain: "5 minutes. The word 'ephemeral' is the giveaway. For long-horizon agents (>5 min), explicitly set <code>ttl: '1h'</code>."
+  },
+  {
+    id: "b7-q7",
+    block: "7 — Easy drills",
+    topic: "Batch API",
+    q: "What discount does the Batch API offer compared to the regular Messages API?",
+    choices: ["25% off", "50% off", "75% off", "No discount — same price, just async"],
+    answer: 1,
+    explain: "50% off any tier, with up to 24h SLA. Use for non-urgent jobs: overnight intel runs, bulk classification, evals, re-runs over historical data. Not for interactive UX."
+  },
+  {
+    id: "b7-q8",
+    block: "7 — Easy drills",
+    topic: "Vision",
+    q: "Which image formats does Claude's vision feature accept?",
+    choices: [
+      "Only PNG",
+      "PNG and JPEG only",
+      "JPEG, PNG, GIF, WebP",
+      "Any format — Claude converts internally"
+    ],
+    answer: 2,
+    explain: "JPEG, PNG, GIF (single frame), WebP. Max 5MB per image. Optimal long-edge ~1568px. Up to ~5 images per message."
+  },
+  {
+    id: "b7-q9",
+    block: "7 — Easy drills",
+    topic: "Data privacy",
+    q: "By default, does Anthropic train on data sent via the API?",
+    choices: [
+      "Yes — opt-out is available in settings",
+      "No — API data is not used for training by default",
+      "Only if you're on the free tier",
+      "Only the prompts, not the responses"
+    ],
+    answer: 1,
+    explain: "API data is NOT used for training by default. This is a key enterprise differentiator vs consumer-tier products. Verify current ToS, but the no-train default has been stable. claude.ai consumer apps have different defaults — check your account settings."
+  },
+  {
+    id: "b7-q10",
+    block: "7 — Easy drills",
+    topic: "Claude Code basics",
+    q: "In Claude Code (the CLI), what does the <code>!</code> prefix do at the start of a prompt?",
+    choices: [
+      "Marks the prompt as urgent",
+      "Runs a shell command and includes the output in the conversation",
+      "Bypasses all permission checks",
+      "Forces Claude to use a specific model"
+    ],
+    answer: 1,
+    explain: "<code>! command</code> runs the shell command, output lands in the conversation. Useful for: <code>! npm test</code>, <code>! git status</code>. Companion prefixes: <code>#</code> adds a note to CLAUDE.md, <code>@file</code> references a file."
+  },
+
+  // ===== Block 8: Intermediate (apply concept to scenario) =====
+  {
+    id: "b8-q1",
+    block: "8 — Intermediate",
+    topic: "Model selection",
+    q: "You're building a high-volume sentiment classifier (10k items/day, &lt;1s latency target, simple labels). Which model should you start with?",
+    choices: [
+      "<code>claude-opus-4-7</code> — best accuracy",
+      "<code>claude-sonnet-4-6</code> — balanced",
+      "<code>claude-haiku-4-5-20251001</code> — cheap and fast for simple classification",
+      "Doesn't matter — they all classify equally well"
+    ],
+    answer: 2,
+    explain: "Haiku is built for this exact shape — high volume, simple task, latency-sensitive. Using Opus would cost ~15× more for no measurable quality gain on a simple labeling task. The skill is matching tier to task complexity."
+  },
+  {
+    id: "b8-q2",
+    block: "8 — Intermediate",
+    topic: "Caching",
+    q: "You want to cache a 500-token system prompt because you call it 100 times an hour. Will the cache activate?",
+    choices: [
+      "Yes — caching works for any block size",
+      "No — cached blocks must be at least ~1024 tokens (Sonnet/Haiku) to activate",
+      "Only if you also set <code>ttl: '1h'</code>",
+      "Yes, but only on the second call onwards"
+    ],
+    answer: 1,
+    explain: "Minimum block size to activate the cache is ~1024 tokens on Sonnet/Haiku (~2048 on Opus). Below that threshold, the breakpoint is silently ignored — you pay full price every call. Either pad/combine to clear the threshold, or accept the small cost."
+  },
+  {
+    id: "b8-q3",
+    block: "8 — Intermediate",
+    topic: "Parallel tools",
+    q: "Claude's response contains 3 <code>tool_use</code> blocks in a single message (parallel tool use). How do you reply?",
+    choices: [
+      "3 separate user messages, one <code>tool_result</code> in each",
+      "1 user message with 3 <code>tool_result</code> blocks in <code>content</code>",
+      "1 assistant message with 3 <code>tool_result</code> blocks",
+      "Pick the most important one and ignore the others"
+    ],
+    answer: 1,
+    explain: "ONE user message, with all 3 <code>tool_result</code> blocks listed in its content array. Each <code>tool_result</code> must include the matching <code>tool_use_id</code> so Claude knows which tool returned which result. Multiple user messages would break the alternation rule."
+  },
+  {
+    id: "b8-q4",
+    block: "8 — Intermediate",
+    topic: "Structured output",
+    q: "You want Claude to return ONLY JSON, no preamble. What's the most reliable technique on the Anthropic API?",
+    choices: [
+      "Set <code>response_format={'type': 'json_object'}</code>",
+      "Add <code>output_schema={'type': 'object'}</code>",
+      "End the messages array with <code>{role: 'assistant', content: '{'}</code> (prefill)",
+      "Ask in the system prompt — 'respond with JSON only'"
+    ],
+    answer: 2,
+    explain: "Prefill. Anthropic's API has no <code>response_format</code> or <code>output_schema</code> parameter (those are OpenAI). Prefilling the assistant turn with <code>{</code> forces Claude to continue the JSON. Remember to prepend the <code>{</code> back when parsing — the response starts AFTER the prefill."
+  },
+  {
+    id: "b8-q5",
+    block: "8 — Intermediate",
+    topic: "Long context",
+    q: "You're giving Claude a 100k-token document and asking a single question about it. Where should the question go for best reliability?",
+    choices: [
+      "Only at the start (Claude reads top to bottom)",
+      "Only at the end (Claude weights recent input more)",
+      "At both the start AND the end of the document",
+      "It doesn't matter — Claude attends evenly to all positions"
+    ],
+    answer: 2,
+    explain: "Both ends. LLMs reliably attend to the start and end of long contexts but can miss the middle ('lost in the middle' effect). Anchoring the question at both ends costs a few tokens and noticeably improves recall on long-document tasks."
+  },
+  {
+    id: "b8-q6",
+    block: "8 — Intermediate",
+    topic: "Tool errors",
+    q: "Your tool times out and you want Claude to know the call failed (not silently consume 'Timeout' as if it were a result). What do you set on the <code>tool_result</code> block?",
+    choices: [
+      "<code>status: 'failed'</code>",
+      "<code>is_error: true</code>",
+      "<code>error: 'Timeout'</code> in content",
+      "<code>role: 'error'</code> on the wrapping message"
+    ],
+    answer: 1,
+    explain: "<code>is_error: true</code> on the <code>tool_result</code> block. Without this flag, Claude reads the string 'Timeout' as a successful return value — a string that just happens to contain the word. With the flag, Claude knows to handle the failure path (retry, alternative tool, surface error)."
+  },
+  {
+    id: "b8-q7",
+    block: "8 — Intermediate",
+    topic: "tool_choice",
+    q: "You've defined a <code>search_db</code> tool and want to force Claude to call it (not answer from prior knowledge). What do you set?",
+    choices: [
+      "<code>tool_choice: {type: 'auto'}</code>",
+      "<code>tool_choice: {type: 'any'}</code>",
+      "<code>tool_choice: {type: 'tool', name: 'search_db'}</code>",
+      "<code>tool_choice: {type: 'none'}</code>"
+    ],
+    answer: 2,
+    explain: "<code>{type: 'tool', name: 'search_db'}</code> forces a specific tool. <code>any</code> means 'must use some tool but Claude picks which'. <code>auto</code> (default) lets Claude decide whether to use any tool. <code>none</code> forbids tool use entirely."
+  },
+  {
+    id: "b8-q8",
+    block: "8 — Intermediate",
+    topic: "Batch use case",
+    q: "You need to classify 50,000 historical product descriptions overnight. The output isn't urgent and can take up to 8 hours. Which API should you use?",
+    choices: [
+      "Messages API with retries on 429",
+      "Batch API at 50% off",
+      "Files API for bulk upload",
+      "Claude Code in a loop"
+    ],
+    answer: 1,
+    explain: "Batch API — half the cost, async, designed for exactly this shape (high volume, non-urgent). Submit JSONL with up to 100k requests, 24h SLA (usually faster). Same model quality, same prompts; just cheaper because you trade latency."
+  },
+  {
+    id: "b8-q9",
+    block: "8 — Intermediate",
+    topic: "Streaming",
+    q: "You're using <code>client.messages.stream(...)</code> for a UX-facing feature. How do you get the full final Message object (with stop_reason, usage stats, etc.) after the stream completes?",
+    choices: [
+      "It's printed to stdout automatically",
+      "Call <code>stream.get_final_message()</code> after the stream loop",
+      "Reconstruct it manually from concatenating <code>text_stream</code>",
+      "Re-issue the request without streaming"
+    ],
+    answer: 1,
+    explain: "<code>stream.get_final_message()</code> after the for-loop completes. It returns the full Message object: stop_reason, usage (input/output/cache tokens), id, model echo. Streaming gives you tokens as they generate AND the final metadata — you don't have to choose."
+  },
+  {
+    id: "b8-q10",
+    block: "8 — Intermediate",
+    topic: "System prompt placement",
+    q: "You have a 4000-token style guide that's identical across every call. To minimize cost across 200 daily calls, where should it go and how?",
+    choices: [
+      "In every user message — that's the only place caching works",
+      "In the top-level <code>system</code> field with <code>cache_control: {type: 'ephemeral'}</code> on it",
+      "In a separate API call before each real call",
+      "In a CLAUDE.md file — Claude reads it automatically"
+    ],
+    answer: 1,
+    explain: "Top-level <code>system</code> field, marked cacheable. The <code>system</code> field accepts a list of text blocks, and each block can have its own <code>cache_control</code>. First call writes the cache (1.25×); all 199 subsequent calls within the TTL read it (0.10×). Net savings on the style guide tokens: ~89% across the day."
+  },
+
+  // ===== Block 9: Hard / production gotchas =====
+  {
+    id: "b9-q1",
+    block: "9 — Hard / gotchas",
+    topic: "Cache invalidation",
+    q: "You added <code>f'Today is {today}'</code> at the start of a cached system prompt. Cache hit rate dropped to 0% the next day. Why?",
+    choices: [
+      "The cache TTL ran out — that's normal",
+      "Anything BEFORE a cache breakpoint must match byte-for-byte; the date string changed the prefix and invalidated all cached prefixes",
+      "Caching doesn't work with system prompts containing dates",
+      "You forgot to set <code>ttl: '1h'</code>"
+    ],
+    answer: 1,
+    explain: "Cache is a PREFIX match. If even one byte before the breakpoint differs from what was originally cached, you get a cache miss. Dynamic content (timestamps, request IDs, per-user data) must go AFTER the last cache breakpoint, never before. Pattern: cached stable content → uncached dynamic content → user input."
+  },
+  {
+    id: "b9-q2",
+    block: "9 — Hard / gotchas",
+    topic: "Cost spike",
+    q: "Your Claude bill 3x'd overnight with no code changes. What's the most likely cause to investigate FIRST?",
+    choices: [
+      "Anthropic raised prices",
+      "Cache hit rate dropped (something invalidated your cache prefixes — check <code>cache_read_input_tokens</code> vs <code>cache_creation_input_tokens</code>)",
+      "Your API key was compromised",
+      "Network issues caused retries"
+    ],
+    answer: 1,
+    explain: "Most common cause: a 'stable' prefix changed silently (config update, dependency bumped, header rotation), invalidating your cache. Without caching, you go from paying 10% on cached blocks to 100%. Compare usage fields: if <code>cache_read_input_tokens</code> dropped to ~0 and <code>input_tokens</code> spiked, cache is the culprit. Compromised keys are real too — check both."
+  },
+  {
+    id: "b9-q3",
+    block: "9 — Hard / gotchas",
+    topic: "Caching ROI",
+    q: "You cache a 5000-token block (write cost: 1.25×). You only call it ONCE in the TTL window. Net cost vs not caching?",
+    choices: [
+      "Same cost",
+      "25% cheaper",
+      "25% MORE expensive — caching only wins from 2 reads onward",
+      "10% of the no-cache cost (cache read price)"
+    ],
+    answer: 2,
+    explain: "Break-even is at K≈1.28 reads. At K=1 (write once, read zero additional times), you've paid 1.25× for nothing — net 25% MORE expensive than no cache. Rule: only cache blocks you'll read ≥2 times within the TTL. Caching everything 'just in case' burns money on single-use prompts."
+  },
+  {
+    id: "b9-q4",
+    block: "9 — Hard / gotchas",
+    topic: "Tool description",
+    q: "Your <code>search_database</code> tool description is just 'Search the database.' Claude isn't calling it when users ask for data. Most likely fix?",
+    choices: [
+      "Rename the tool",
+      "Expand the description: what it does, what kinds of queries it handles, what it returns, when to use it (Claude decides based on the description)",
+      "Switch from Sonnet to Opus — Opus reads tools better",
+      "Set <code>tool_choice: {type: 'any'}</code> to force tool use"
+    ],
+    answer: 1,
+    explain: "Tool descriptions are how Claude decides WHEN to call your tool. 'Search the database' is too vague — search what? return what? when? Better: 'Search the customer-orders database. Pass a SQL WHERE-clause-like string. Returns up to 100 matching rows as JSON. Use this whenever the user asks about specific orders, customers, or shipments.' Claude reads descriptions like a teammate reading a docstring."
+  },
+  {
+    id: "b9-q5",
+    block: "9 — Hard / gotchas",
+    topic: "Agent loop debugging",
+    q: "Your agent loops 10 times and exits via <code>max_iterations</code>, never reaching <code>end_turn</code>. The task was simple. What's the FIRST thing to check?",
+    choices: [
+      "Switch to Opus — Sonnet can't handle agents",
+      "Inspect each iteration's tool calls and results — likely a tool returning malformed data, causing Claude to retry the same operation",
+      "Raise <code>max_iterations</code> to 100",
+      "Disable tool use and retry"
+    ],
+    answer: 1,
+    explain: "Hitting <code>max_iterations</code> on a simple task usually means Claude is stuck in a retry loop because a tool is returning weird or empty data. Log every tool call's input and output for the failing run. Common causes: tool silently returning empty string instead of error, schema mismatch in tool input, infinite pagination loop. Raising the iteration cap masks the symptom; fix the tool."
+  },
+  {
+    id: "b9-q6",
+    block: "9 — Hard / gotchas",
+    topic: "Refusal handling",
+    q: "Production app — Claude refuses on a legitimate security-research prompt. What's the FIRST change to try?",
+    choices: [
+      "Try to jailbreak with role-play",
+      "Add explicit authorization context to the system prompt (e.g. 'This is for an authorized pentest engagement on systems we own')",
+      "Switch to Opus — fewer refusals",
+      "Lower the temperature to 0"
+    ],
+    answer: 1,
+    explain: "Refusals on dual-use topics (security research, vulnerability discussion) often resolve when you add context that makes the legitimate use case clear: authorized engagement, defensive purpose, educational setting. Never jailbreak — that's an AUP violation and risks key revocation. If legitimate context doesn't unblock, the request might genuinely be over the line; reconsider scope."
+  },
+  {
+    id: "b9-q7",
+    block: "9 — Hard / gotchas",
+    topic: "Caching + parallel writes",
+    q: "Two API calls fire 200ms apart with the same cacheable prefix. Both responses show <code>cache_creation_input_tokens > 0</code>. Why?",
+    choices: [
+      "Bug — you should see cache_read on the second",
+      "Cache writes aren't atomic across simultaneous requests — both calls raced to create the cache before either finished",
+      "Cache only works for sequential calls",
+      "You forgot to set <code>cache_control</code> on the second call"
+    ],
+    answer: 1,
+    explain: "Race condition: both calls reach Anthropic before either has finished writing the cache, so both pay the write price. By the time the third call arrives, the cache exists and reads kick in. Mitigation: for bursts, warm the cache with one synchronous call first, THEN fan out parallel calls. Or accept the duplicated write cost — usually marginal vs the K-1 reads that follow."
+  },
+  {
+    id: "b9-q8",
+    block: "9 — Hard / gotchas",
+    topic: "Extended thinking",
+    q: "You set <code>thinking: {type: 'enabled', budget_tokens: 10000}</code>. Claude's response uses 200 thinking tokens. What do you pay for thinking?",
+    choices: [
+      "10,000 tokens (the budget)",
+      "200 tokens (actual usage)",
+      "0 tokens — thinking is free",
+      "5,100 (midpoint of budget and actual)"
+    ],
+    answer: 1,
+    explain: "<code>budget_tokens</code> is a CEILING, not a target. You pay only for thinking tokens actually generated. Setting a high budget you don't use costs nothing. So default to generous budgets on hard tasks — Claude will use what it needs. Tight budgets risk truncating reasoning mid-thought."
+  },
+  {
+    id: "b9-q9",
+    block: "9 — Hard / gotchas",
+    topic: "Context window economics",
+    q: "Your prompts average 5k input tokens but you're using the 1M-context Opus variant 'just in case.' What's likely happening?",
+    choices: [
+      "Nothing — Opus handles any size fine",
+      "You're overpaying — the 1M variant has higher per-token cost AND higher latency than the 200k variant; use the 200k Opus or Sonnet for 5k prompts",
+      "You're saving money — long context tiers are cheaper per token",
+      "You should use Haiku — it has more context than Opus"
+    ],
+    answer: 1,
+    explain: "The 1M-context variant trades cost and latency for headroom. If your real usage is 5k tokens, you're paying premium for capacity you don't touch. Pick context size to match real input — 200k handles ~300 pages, fine for almost all routine work. Reserve 1M for codebase-scale or multi-document RAG without aggressive chunking."
+  },
+  {
+    id: "b9-q10",
+    block: "9 — Hard / gotchas",
+    topic: "Streaming + tool use",
+    q: "You stream a response that ends in <code>stop_reason: 'tool_use'</code>. You want to continue the agent loop. What do you append to <code>messages</code>?",
+    choices: [
+      "Just the tool_result — that's all Claude needs",
+      "An assistant message with the full streamed content (tool_use blocks included), then a user message with tool_result(s)",
+      "Restart from scratch — streaming breaks the loop",
+      "Only the text portion of the stream"
+    ],
+    answer: 1,
+    explain: "You need to append the assistant's COMPLETE response (text + tool_use blocks) to maintain conversation history, then append the user message with tool_result blocks. Skipping the assistant message confuses Claude — it loses memory of the tool calls it made. <code>stream.get_final_message().content</code> gives you the full assembled response to append."
+  },
+
+  // ===== Block 10: Field-manual deep recall =====
+  {
+    id: "b10-q1",
+    block: "10 — Field-manual recall",
+    topic: "MCP transport",
+    q: "MCP uses JSON-RPC. What are the two supported transport mechanisms?",
+    choices: [
+      "HTTP only",
+      "WebSocket only",
+      "stdio (local subprocess) and HTTP+SSE (remote)",
+      "gRPC and REST"
+    ],
+    answer: 2,
+    explain: "stdio for local MCP servers (run as subprocess, messages over stdin/stdout) and HTTP+Server-Sent-Events for remote servers (network-accessible). Same JSON-RPC payload either way; different framing."
+  },
+  {
+    id: "b10-q2",
+    block: "10 — Field-manual recall",
+    topic: "MCP primitives",
+    q: "MCP servers can expose three kinds of primitives. Which set is correct?",
+    choices: [
+      "Functions, classes, modules",
+      "Tools, resources, prompts",
+      "Endpoints, schemas, webhooks",
+      "Inputs, outputs, errors"
+    ],
+    answer: 1,
+    explain: "Tools (functions the agent can call), Resources (data the agent can read), Prompts (templated workflows users can invoke). A well-built MCP server exposes coherent combinations of all three, not just tools."
+  },
+  {
+    id: "b10-q3",
+    block: "10 — Field-manual recall",
+    topic: "Hooks",
+    q: "In Claude Code, a <code>PreToolUse</code> hook can BLOCK an action. How does it signal block?",
+    choices: [
+      "Print 'BLOCK' to stdout",
+      "Exit with a non-zero status code",
+      "Set an environment variable",
+      "Hooks can't block — only observe"
+    ],
+    answer: 1,
+    explain: "Non-zero exit code blocks the tool call. The hook's stderr is surfaced to Claude as context. Common recipe: pre-tool hook that refuses to delete protected paths, exits 1 with an explanation of why."
+  },
+  {
+    id: "b10-q4",
+    block: "10 — Field-manual recall",
+    topic: "Citations",
+    q: "Why enable <code>citations: {enabled: true}</code> on a document content block?",
+    choices: [
+      "It speeds up document parsing",
+      "Claude's response text blocks get <code>citations</code> arrays with character-level references back to the source document",
+      "It's required for PDFs",
+      "It enables vision on documents"
+    ],
+    answer: 1,
+    explain: "Citations give you traceable, auditable references — each claim in Claude's response can be matched to a character range in the source. Useful for: RAG with attribution, regulated industries (legal/medical/finance), hallucination guarding. If Claude can't cite, the claim might be invented."
+  },
+  {
+    id: "b10-q5",
+    block: "10 — Field-manual recall",
+    topic: "Esc Esc",
+    q: "In Claude Code, what does pressing <code>Esc Esc</code> do?",
+    choices: [
+      "Resume the previous session",
+      "Exit Claude Code immediately",
+      "Edit your PREVIOUS message (revise and resubmit, not 'resume')",
+      "Clear the screen"
+    ],
+    answer: 2,
+    explain: "Esc Esc = edit your previous user message. Common confusion: people read it as 'resume previous chat,' but that's <code>/resume</code>. Esc Esc is for the case where you typed a prompt, regretted it, and want to revise without re-running."
   }
 ];
 
@@ -1447,7 +1915,7 @@ function shortenLabel(text, maxLen) {
   return text.slice(0, maxLen - 1).trim() + '…';
 }
 
-function buildTOC(container, selector, label, labelMaxLen) {
+function buildTOC(container, selector, label, labelMaxLen, customLabeler) {
   const headings = container.querySelectorAll(selector);
   if (!headings.length) return;
   const toc = document.createElement('div');
@@ -1457,11 +1925,15 @@ function buildTOC(container, selector, label, labelMaxLen) {
   lbl.textContent = label;
   toc.appendChild(lbl);
   headings.forEach(h => {
+    const labelText = customLabeler
+      ? customLabeler(h.textContent)
+      : shortenLabel(h.textContent, labelMaxLen);
+    if (labelText === null) return; // labeler can skip a heading
     const id = slugify(h.textContent);
     h.id = id;
     const a = document.createElement('a');
     a.href = '#' + id;
-    a.textContent = shortenLabel(h.textContent, labelMaxLen);
+    a.textContent = labelText;
     a.addEventListener('click', e => {
       e.preventDefault();
       h.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1519,7 +1991,12 @@ async function loadManual() {
     const md = await res.text();
     const manualBody = document.getElementById('manual-body');
     manualBody.innerHTML = marked.parse(md);
-    buildTOC(manualBody, 'h2', 'Jump to', 32);
+    buildTOC(manualBody, 'h2', 'Chapter', 32, (text) => {
+      const chapterMatch = text.match(/^(\d+)\s*[—-]/);
+      if (chapterMatch) return chapterMatch[1];
+      if (/^appendix/i.test(text)) return '13';
+      return null; // skip Table of contents, Closing
+    });
     manualLoaded = true;
   } catch (e) {
     document.getElementById('manual-body').innerHTML =
