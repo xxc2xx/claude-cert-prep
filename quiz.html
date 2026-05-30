@@ -2005,19 +2005,30 @@ async function loadManual() {
       const label = m ? m[1] : (/^appendix/i.test(text) ? '13' : null);
       labelInfo.push(`#${i + 1} "${text.slice(0, 40)}" → ${label === null ? 'SKIP' : label}`);
     });
-    const lastChunk = renderedHTML.slice(-300).replace(/</g, '&lt;');
+    // Find context around "4 — Tool" to see what tag it ended up in
+    const idx = renderedHTML.indexOf('4 — Tool');
+    const ctxIdx = idx > -1 ? Math.max(0, idx - 80) : -1;
+    const ch4Context = idx > -1
+      ? renderedHTML.slice(ctxIdx, ctxIdx + 200).replace(/</g, '&lt;')
+      : '(not found)';
+    const allHeadings = manualBody.querySelectorAll('h1,h2,h3,h4,h5,h6');
+    const headingTally = {};
+    allHeadings.forEach(h => {
+      headingTally[h.tagName] = (headingTally[h.tagName] || 0) + 1;
+    });
     const diag = document.createElement('pre');
     diag.style.cssText = 'background:#1f2630;border:1px solid #2a313c;border-radius:8px;padding:10px;font-size:11px;color:#8b949e;white-space:pre-wrap;margin:0 0 16px;overflow-x:auto;';
     diag.innerHTML =
       'DIAGNOSTIC\n' +
       'marked.js: ' + (typeof marked !== 'undefined' ? 'loaded' : 'NOT LOADED') + '\n' +
+      'marked version: ' + (typeof marked !== 'undefined' && marked.version ? marked.version : 'unknown') + '\n' +
       'markdown source length: ' + md.length + ' chars\n' +
       'rendered HTML length: ' + renderedHTML.length + ' chars\n' +
-      'h2 elements found: ' + allH2s.length + '\n' +
+      'all heading counts: ' + JSON.stringify(headingTally) + '\n' +
       'navigator.userAgent: ' + navigator.userAgent.slice(0, 100) + '\n\n' +
-      labelInfo.join('\n') + '\n\n' +
-      'LAST 300 CHARS of rendered HTML (so we can see where parsing stopped):\n' +
-      lastChunk;
+      'h2 elements (' + allH2s.length + '):\n' + labelInfo.join('\n') + '\n\n' +
+      'CONTEXT around "4 — Tool" in rendered HTML:\n' +
+      ch4Context;
     manualBody.insertBefore(diag, manualBody.firstChild);
 
     buildTOC(manualBody, 'h2', 'Chapter', 32, (text) => {
