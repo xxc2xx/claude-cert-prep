@@ -465,6 +465,7 @@
       <button class="tab-btn" data-tab="cheatsheet">Cheatsheet</button>
       <button class="tab-btn" data-tab="faq">FAQ</button>
       <button class="tab-btn" data-tab="brief">Brief</button>
+      <button class="tab-btn" data-tab="manual">Manual</button>
       <button class="tab-btn" data-tab="progress">Progress</button>
     </nav>
   </div>
@@ -513,6 +514,11 @@
   <!-- ===== Brief tab (super-user presentation prep) ===== -->
   <section id="tab-brief" class="tab-content">
     <div class="notes-body" id="brief-body">Loading brief…</div>
+  </section>
+
+  <!-- ===== Manual tab (long-form field manual) ===== -->
+  <section id="tab-manual" class="tab-content">
+    <div class="notes-body" id="manual-body">Loading manual…</div>
   </section>
 
   <!-- ===== Progress tab ===== -->
@@ -1412,6 +1418,7 @@ backToTopBtn.addEventListener('click', () => {
 // ===== Tabs =====
 let cheatsheetLoaded = false;
 let briefLoaded = false;
+let manualLoaded = false;
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -1422,6 +1429,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     });
     if ((tab === 'cheatsheet' || tab === 'faq') && !cheatsheetLoaded) loadCheatsheet();
     if (tab === 'brief' && !briefLoaded) loadBrief();
+    if (tab === 'manual' && !manualLoaded) loadManual();
     if (tab === 'progress') renderProgress();
   });
 });
@@ -1501,6 +1509,21 @@ async function loadBrief() {
   } catch (e) {
     document.getElementById('brief-body').innerHTML =
       '<p style="color: var(--red);">Error loading brief: ' + e.message + '</p>';
+  }
+}
+
+async function loadManual() {
+  try {
+    const res = await fetch('./field_manual.md?v=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const md = await res.text();
+    const manualBody = document.getElementById('manual-body');
+    manualBody.innerHTML = marked.parse(md);
+    buildTOC(manualBody, 'h2', 'Jump to', 32);
+    manualLoaded = true;
+  } catch (e) {
+    document.getElementById('manual-body').innerHTML =
+      '<p style="color: var(--red);">Error loading manual: ' + e.message + '</p>';
   }
 }
 
