@@ -1994,7 +1994,14 @@ async function loadManual() {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const md = await res.text();
     const renderedHTML = marked.parse(md);
-    manualBody.innerHTML = renderedHTML;
+    // Use DOMParser instead of innerHTML — Safari iOS innerHTML
+    // silently dropped some h2 tags (foster parenting around an
+    // earlier table). DOMParser applies the strict HTML5 algorithm.
+    const parsed = new DOMParser().parseFromString(
+      '<!DOCTYPE html><html><body>' + renderedHTML + '</body></html>',
+      'text/html'
+    );
+    manualBody.replaceChildren(...Array.from(parsed.body.childNodes));
 
     // Diagnostic: where did marked.js stop?
     const allH2s = manualBody.querySelectorAll('h2');
