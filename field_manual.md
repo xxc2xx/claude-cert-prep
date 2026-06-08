@@ -331,6 +331,93 @@ def call_with_retry(client, **kwargs):
 
 You can pass a custom request ID via headers for idempotency on retries. If your client retries due to a network blip and the server already processed the first attempt, the second attempt with the same ID won't double-charge. (Verify the exact header name and behavior in the latest docs — this is the kind of thing Anthropic has tweaked over versions.)
 
+### 2.10 Common questions
+
+**Q: `user`, `assistant`, `content` — is content the loop?**
+
+No. Three separate things:
+
+- `role: "user"` — who sent the message (you)
+- `role: "assistant"` — who sent the message (Claude)
+- `content` — the actual payload of that one message (text, image, tool call, etc.)
+
+The **loop** is your Python `while` code that keeps calling the API repeatedly until `stop_reason == "end_turn"`. It lives in your script, not inside a message. Content is what was said at one turn. The loop is the control flow around many turns.
+
+**Q: Why are there two `"text"` keys — `{"type": "text", "text": "..."}`?**
+
+They do different jobs:
+
+| Key | What it is | Example values |
+|---|---|---|
+| `"type"` | Which kind of content block | `"text"`, `"image"`, `"tool_use"`, `"tool_result"`, `"thinking"` |
+| `"text"` | The payload — only exists on text blocks | Any string |
+
+Different block types use different payload keys:
+```python
+{"type": "text",    "text": "Look at this:"}              # text block
+{"type": "image",   "source": {"type": "base64", ...}}    # image block → "source" key
+{"type": "tool_use","id": "tu_001", "name": "search", "input": {...}} # tool block
+```
+The `"type"` key tells you which fields to expect. Think of it like a Python dataclass discriminator.
+
+**Q: Where does `role` come from — CLAUDE.md or do I write it?**
+
+You write it yourself in your Python code. Every message in the `messages` list is constructed by you:
+
+```python
+messages = [
+    {"role": "user", "content": "What's a p-value?"},   # ← you wrote "user"
+]
+response = client.messages.create(model=..., messages=messages)
+messages.append({"role": "assistant", "content": response.content})
+messages.append({"role": "user", "content": "Give me an example."})
+```
+
+CLAUDE.md is a Claude Code CLI file for project context — it has nothing to do with the Messages API `role` field. The API role is a plain Python string you assign.
+
+**Q: Is `content` a Python `list` type?**
+
+Yes. `response.content` is a Python `list`. Even a plain "Hello" response comes back as a list with one item:
+
+```python
+response.content            # [TextBlock(text='Hello!', type='text')]  ← list
+response.content[0]         # TextBlock(text='Hello!', type='text')
+response.content[0].text    # 'Hello!'  ← the string you want
+```
+
+The reason it's always a list: Claude can return multiple blocks in one response (e.g. a `thinking` block + a `text` block, or a `text` block + a `tool_use` block). The list handles all cases uniformly.
+
+**Q: `pause_turn` says "resume the call" — is that what happens when my laptop sleeps?**
+
+No. `pause_turn` and a laptop sleep are completely different:
+
+| | `pause_turn` | Laptop sleeping |
+|---|---|---|
+| What it is | API deliberately paused — a long-running **server-side** tool hasn't finished | Your TCP connection dropped when the OS suspended the network |
+| Who controls it | Anthropic's API sends you the signal | Your OS / network stack — silent failure |
+| How to continue | Call the specific resume endpoint | Re-issue the whole request from scratch |
+| In Claude Code | Rare — only for specific Anthropic-hosted tools | Common — `/resume` reopens the conversation history |
+
+When your laptop sleeps mid-generation in Claude Code: the streaming connection dies, the partial response is lost. `/resume` reloads the **conversation history** (past messages) but can't recover the half-generated response. You re-run the last prompt.
+
+**Q: `stop_sequences` = I force a stop? `end_turn` = end of the loop?**
+
+Mostly right:
+
+- **`stop_sequences`** — strings you define in your API call. If Claude's output emits one of them, generation halts immediately. *You* set them; Claude *triggers* them. Use for structured output (e.g. `stop_sequences=["</answer>"]` to stop exactly at a closing tag).
+- **`end_turn`** — Claude decided it had nothing more to say. It finished naturally. This is the primary exit signal for the agent loop:
+
+```python
+while True:
+    response = client.messages.create(...)
+    if response.stop_reason == "end_turn":
+        break                   # Claude says "I'm done"
+    if response.stop_reason == "tool_use":
+        # execute tool, loop back
+```
+
+Key distinction: `stop_sequences` is a ceiling you impose from *outside*. `end_turn` is Claude deciding it's done from *inside*. For loop control, always check `end_turn`. Stop sequences are for precision output formatting, not loop exit.
+
 ---
 
 ## 3 — Prompting in depth
