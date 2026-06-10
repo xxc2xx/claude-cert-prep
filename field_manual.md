@@ -418,6 +418,70 @@ while True:
 
 Key distinction: `stop_sequences` is a ceiling you impose from *outside*. `end_turn` is Claude deciding it's done from *inside*. For loop control, always check `end_turn`. Stop sequences are for precision output formatting, not loop exit.
 
+**Q: Is `temperature` the same as randomness in Stable Diffusion?**
+
+Same intuition, yes. In SD, guidance scale controls how tightly the image follows the prompt vs. how loose and creative it gets. In LLMs, temperature controls the probability distribution over the next word at each generation step:
+
+- `temperature=0.0` — always picks the single most likely next token. Same input → same output every time. Use for extraction, classification, structured output.
+- `temperature=1.0` (default) — uses raw probabilities. Some variation between runs.
+- Above 1.0 — flattens the distribution, makes unlikely tokens more competitive. More surprising, potentially more creative, more likely to go off track.
+
+The SD analogy holds: SD randomness shapes visual texture and composition; LLM temperature shapes word choice and reasoning direction.
+
+**Q: What's the exact difference between `top_p` and `top_k`?**
+
+Both limit *which tokens Claude can pick from* at each generation step. Different mechanisms:
+
+**`top_k`** — fixed cutoff by rank. Only consider the top K most likely next tokens, ignore everything else.
+- `top_k=5`: Claude always picks from exactly 5 tokens per step, regardless of how their probabilities are distributed.
+- Simple ceiling. Doesn't adapt to context.
+- Problem: if one token has 99% probability, you're still carrying 4 near-zero noise tokens.
+
+**`top_p`** (nucleus sampling) — cutoff by cumulative probability. Keep adding tokens in order of likelihood until their probabilities sum to P.
+- `top_p=0.9`: include the smallest set of tokens whose combined probability ≥ 90%.
+- Adaptive: if one token has 95% probability, `top_p=0.9` keeps just that 1 token. If the top 20 tokens each have ~5%, it keeps all 20.
+
+Concrete example — next token after "The capital of France is":
+- `top_k=5` keeps 5 tokens (mostly wasted — "Paris" dominates)
+- `top_p=0.9` keeps just "Paris" since it has ~99% probability, nothing else needed
+
+For a creative prompt like "The robot felt":
+- `top_k=5` might be too restrictive — interesting words live in positions 6–20
+- `top_p=0.9` adapts — keeps more candidates when Claude is genuinely uncertain
+
+**Summary:** `top_k` is a hard count ceiling. `top_p` is a soft probability ceiling that adapts per token.
+
+**Q: As a non-engineer, how do I find the sweet spot for these parameters?**
+
+You don't need to tune `top_p` or `top_k` at all — Anthropic sets good defaults. The only knob worth touching is `temperature`, and only between 0 and 1:
+
+| Task type | Temperature | Everything else |
+|---|---|---|
+| Factual Q&A, extraction, structured output | `0.0` | leave defaults |
+| Analysis, summarization | `0.0`–`0.3` | leave defaults |
+| Brainstorming, writing, creative | `1.0` (default) | leave defaults |
+
+**How to know if it's right:** run the same prompt 5 times.
+- Answers vary wildly but you want consistency → lower temperature
+- Answers feel robotic / always identical → raise it slightly
+- Creative output sounds safe and bland → raise to 1.0
+
+Rule of thumb: tune `temperature` only. Leave `top_p` and `top_k` alone unless you have a research-level reason to change them.
+
+**Q: 403 errors in web crawling — should the backend handle/resolve them automatically?**
+
+No. 403 means the server **intentionally refused your request** because it identified you as a bot. Unlike 429 (rate limit, temporary) or 500 (server error, transient), a 403 won't fix itself on retry — the `call_with_retry` pattern deliberately excludes 4xx errors for this reason.
+
+What's happening: the site checks your `User-Agent` header, request timing, cookie state, or IP reputation and decides you're a scraper.
+
+What to fix at the request level:
+1. **Set a browser-like `User-Agent`** — default Python `requests` sends `python-requests/2.x.x`, an instant bot signal
+2. **Keep `random_delay()` calls** — timing patterns are the most reliable bot detection signal; removing delays gets you 403d
+3. **Use Playwright for JS-heavy sites** — static `requests` can't execute JavaScript, which many modern sites require before serving content
+4. **Carry session cookies** — some sites need you to maintain state across requests
+
+The `is_blocked()` function in the codebase catches both hard 403s and **soft blocks** — pages that return HTTP 200 but contain "access denied" or empty content. Never trust the status code alone on a scraping target.
+
 ---
 
 ## 3 — Prompting in depth
