@@ -451,6 +451,8 @@ For a creative prompt like "The robot felt":
 
 **Summary:** `top_k` is a hard count ceiling. `top_p` is a soft probability ceiling that adapts per token.
 
+**Corpus linguistics analogy (if you studied linguistics):** this is the same logic as n-gram collocate ranking. In corpus work you'd rank the most frequent right-collocates of a word (by MI score, t-score, frequency). `top_k` = "keep the top K collocates." `top_p` = "keep the collocates that account for 90% of observed co-occurrences." The LLM just does this over a 200k-token context window instead of a 5-word window, with learned weights instead of raw corpus counts — but the question at each step is identical: *given everything to the left, what's most likely next?*
+
 **Q: As a non-engineer, how do I find the sweet spot for these parameters?**
 
 You don't need to tune `top_p` or `top_k` at all — Anthropic sets good defaults. The only knob worth touching is `temperature`, and only between 0 and 1:
