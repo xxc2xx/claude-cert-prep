@@ -819,3 +819,193 @@ The 20 commands worth keeping in muscle memory. Each Claude Code session (termin
 
 ---
 
+## Block 6 — Fable 5 System Prompt: What Anthropic's Engineering Teaches You
+
+> Source: `~/busy-brain/prompts/CLAUDE-FABLE-5.md` — 3,825 lines, leaked June 2026.
+> Read this not as trivia but as a **master class in production-grade prompt engineering** from the team that built the model.
+
+---
+
+### 6.1 — The architecture: XML section hierarchy
+
+Fable 5's prompt is not a wall of text. It's a **structured document** with nested XML sections. Every major behavioral domain gets its own tag:
+
+```xml
+<claude_behavior>
+  <product_information>...</product_information>
+  <refusal_handling>
+    <critical_child_safety_instructions>...</critical_child_safety_instructions>
+  </refusal_handling>
+  <tone_and_formatting>
+    <lists_and_bullets>...</lists_and_bullets>
+  </tone_and_formatting>
+  <user_wellbeing>...</user_wellbeing>
+  <anthropic_reminders>...</anthropic_reminders>
+  <evenhandedness>...</evenhandedness>
+  <knowledge_cutoff>...</knowledge_cutoff>
+</claude_behavior>
+
+<memory_system>
+  <memory_overview>...</memory_overview>
+  <memory_application_instructions>...</memory_application_instructions>
+  <forbidden_memory_phrases>...</forbidden_memory_phrases>
+  <memory_application_examples>...</memory_application_examples>
+</memory_system>
+```
+
+**What to copy:** Use XML tags to separate concerns in your own system prompts. Claude parses them reliably. Flat paragraphs break down on long prompts; tags hold structure under pressure.
+
+---
+
+### 6.2 — The token budget header
+
+The very first thing in the file:
+
+```
+<budget:token_budget>
+190000
+</budget:token_budget>
+```
+
+Anthropic injects the remaining context budget at the top of every call. Claude reads this and adjusts response verbosity accordingly — conserving tokens as the budget shrinks.
+
+**What to copy:** If you're building long-running agents or tools that might approach context limits, inject a `<budget:remaining>` signal at the top of each call. Let the model self-regulate length rather than having it cut off mid-task.
+
+---
+
+### 6.3 — Product information as grounding
+
+The `<product_information>` section tells Claude exactly what it is, what products exist, which model strings to use, what surfaces are available (web, API, Claude Code, Claude Cowork, Chrome/Excel/Powerpoint agents). It also tells Claude what it does NOT know and instructs it to search `docs.claude.com` before answering product questions.
+
+**Lesson:** Ground your model in its operational reality at the top of every system prompt. Don't assume it knows which surface it's on, what version it is, or what tools it has access to. State it explicitly.
+
+**Template:**
+```xml
+<product_context>
+  You are the [product name] assistant. You run inside [surface/app].
+  You have access to: [tool list].
+  You do NOT know: [what to look up instead].
+  If asked about [X], search [URL] before answering.
+</product_context>
+```
+
+---
+
+### 6.4 — Formatting rules: the anti-bullet stance
+
+One of the most surprising sections:
+
+> *Claude writes prose without bullets, numbered lists, or excessive bolding unless the person asks for a list or ranking.*
+> *Inside prose, lists read naturally as "some things include: x, y, and z" without bullets.*
+> *Claude never uses bullet points when declining a task; the additional care helps soften the blow.*
+
+**Why this matters:** Bullet points signal low-effort, robotic output. Anthropic trained Fable 5 to communicate like a knowledgeable person, not a slide deck. The default is prose; lists are opt-in.
+
+**What to copy:** Add a `<formatting>` section to your system prompts. Be explicit about when to use lists vs prose. Default to prose for most tasks — reserve bullets for ranked comparisons or step-by-step instructions only when the user asks.
+
+---
+
+### 6.5 — Knowledge cutoff injection (dynamic date)
+
+```
+Claude's reliable knowledge cutoff is end of Jan 2026. Claude answers the way
+a highly informed individual in Jan 2026 would if talking to someone from
+Tuesday, June 09, 2026.
+```
+
+The current date is **injected dynamically** into the prompt at runtime. Claude doesn't guess the date — it's told.
+
+**What to copy:** Always inject `today = {date}` into your system prompt at runtime, not hardcoded. For agents that need freshness, add: *"If the question could have changed since [cutoff], use web search before answering."*
+
+```python
+system = f"Today is {datetime.now().strftime('%A, %B %d, %Y')}. {rest_of_system_prompt}"
+```
+
+---
+
+### 6.6 — Memory system: the forbidden phrases pattern
+
+The `<forbidden_memory_phrases>` section is a masterclass in behavioral specificity. Instead of saying "don't make it weird," Anthropic lists exact phrases Claude must never say:
+
+**Never say:**
+- "I can see..." / "I notice..." / "According to..."
+- "Based on what I know about you"
+- "Your memories" / "Your profile" / "Your data"
+- "I remember..." / "I recall..." / "From memory..."
+
+**Why:** These phrases break the illusion that Claude naturally knows the user. They make the memory system feel surveillance-like.
+
+**What to copy:** When you define behavioral rules, **list the exact bad phrases** alongside the rule. "Don't be robotic" is useless. "Never say 'As an AI language model'" is specific and enforceable. Your model will comply with specifics, not vibes.
+
+---
+
+### 6.7 — Tool schema design: description as instruction
+
+Every tool schema in Fable 5 bakes **usage instructions into the description field**, not just what the tool does:
+
+```yaml
+fetch_sports_data:
+  description: >
+    Use this tool whenever you need current sports data.
+    Bias towards fetching BEFORE responding — workflow:
+    1) fetch score 2) fetch stats 3) THEN respond.
+    Do NOT rely on memory or assume which players are in a game.
+```
+
+The description field is not a label — it's a **decision tree**. Anthropic tells Claude exactly when to call it, in what order, and what not to do instead.
+
+**What to copy:**
+```python
+tools = [{
+    "name": "get_pricing",
+    "description": (
+        "Fetch live pricing data. ALWAYS call this before answering any "
+        "pricing question — never answer from memory. Call ONCE per product. "
+        "Do NOT call for historical questions (use knowledge cutoff instead)."
+    ),
+    "input_schema": {...}
+}]
+```
+
+---
+
+### 6.8 — Anthropic reminders: mid-conversation injection
+
+```
+Anthropic may send Claude reminders or warnings when a classifier fires.
+Current set: image_reminder, cyber_warning, system_warning, ethics_reminder,
+ip_reminder, long_conversation_reminder.
+```
+
+Anthropic doesn't rely entirely on the initial system prompt. They inject **in-band signals** mid-conversation when classifiers fire. Claude is told to expect these and told they will never reduce its restrictions.
+
+**What to copy for your agents:** Design your system to be able to inject mid-conversation guidance — e.g. when a user is about to hit a context limit, inject `<system:reminder>You are 80% through your context. Wrap up the current task.</system:reminder>` into the next user message.
+
+---
+
+### 6.9 — The wellbeing section: scope management
+
+The `<user_wellbeing>` section runs ~800 words covering mental health, self-harm, crisis lines, and over-reliance on AI. It ends with:
+
+> *Claude does not want to foster over-reliance on Claude. Claude never asks the person to keep talking to Claude.*
+
+Anthropic explicitly tells its most capable model **not to be addictive**. This is a product decision with safety and legal implications.
+
+**What to copy:** If you build any product where users might develop unhealthy engagement patterns (mental health tools, companion apps, coaching agents), add an explicit `<engagement_limits>` section. Define what the model should redirect to a human professional, and when.
+
+---
+
+### 6.10 — Summary: the 5 patterns worth stealing
+
+| Pattern | One-line takeaway |
+|---|---|
+| XML section hierarchy | Separate concerns with tags — don't write a wall of text |
+| Dynamic date + budget injection | Inject runtime state (date, token budget, user role) at call time |
+| Forbidden phrases list | Specify bad outputs verbatim, not just "don't do X" |
+| Tool descriptions as decision trees | Tell Claude WHEN to call, in WHAT order, and what NOT to do |
+| In-band mid-conversation signals | Design for classifier-triggered injections in long agent sessions |
+
+**The meta-lesson:** Fable 5's system prompt reads like a **product spec written for a very literal engineer**. It does not rely on inference, good faith, or vibes. Every rule is stated explicitly, with examples of what to avoid. That is the standard for production-grade prompts.
+
+---
+
