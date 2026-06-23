@@ -2459,6 +2459,127 @@ Multipliers: cache write **1.25×**, cache read **0.10×**, batch **0.50×**.
 
 ---
 
+## 14 — Context, memory, and the orchestrator architecture
+
+*Not cert content — this chapter captures the mental models built during live study sessions. The analogies here are yours.*
+
+### 14.1 The conveyor belt — visualising the agent loop
+
+```
+THE CONVEYOR BELT (the agent loop — your Python while loop)
+
+  ════════════════════════════════════════════════════════════►
+   [user msg]  [asst reply]  [tool_use]  [tool_result]  [asst]
+   ─────────   ──────────    ─────────   ────────────   ──────
+    turn 1       turn 1       turn 2       turn 2        turn 2
+  ════════════════════════════════════════════════════════════►
+        │                                          │
+        │  accumulates as session runs             │
+        ▼                                          ▼
+  ┌─────────────────────────────────────────────────────────┐
+  │              IN-SESSION LUGGAGE                         │
+  │   The conversation history — lives in RAM               │
+  │   Gone when the session ends                            │
+  └─────────────────────────────────────────────────────────┘
+
+
+  Loaded at session start ───────────────────────────────────┐
+                                                             │
+  ┌──────────────────────────────────────────────────────────▼──┐
+  │                  CROSS-SESSION LUGGAGE                       │
+  │                                                              │
+  │  CLAUDE.md (global)      ← standing brief, always loaded    │
+  │  CLAUDE.md (per repo)    ← project rules, loaded in-dir     │
+  │  CLAUDE.md (subfolder)   ← narrower rules, stacks above     │
+  │  memory/*.md             ← notes Claude keeps about you     │
+  │                                                              │
+  │  Persists across sessions. Retrieved next trip.             │
+  └──────────────────────────────────────────────────────────────┘
+
+
+  Separate — lives on Anthropic's servers ──────────────────────┐
+                                                                │
+  ┌──────────────────────────────────────────────────────────────▼──┐
+  │                  ANTHROPIC SERVER CACHE                         │
+  │                                                                  │
+  │  cache_control: {type: "ephemeral"}                             │
+  │  TTL: 5 min default, 1 hour opt-in                              │
+  │  Cost: write 1.25×, read 0.10× (break-even at 2 reads)         │
+  │                                                                  │
+  │  Billing optimisation ONLY. Not memory. Not knowledge.          │
+  │  Expires between sessions — always cold at session start.       │
+  └──────────────────────────────────────────────────────────────────┘
+```
+
+### 14.2 The mental model map
+
+| Your label | What it actually is | Lifespan |
+|---|---|---|
+| **CLI** | Claude Code — `claude` command in terminal | Permanent tool |
+| **Loop / conveyor belt** | Your `while` loop calling the API repeatedly | In-session only |
+| **In-session luggage** | Conversation history (messages array) in RAM | Dies at session end |
+| **Cross-session luggage** | CLAUDE.md files + memory/*.md files on disk | Persists indefinitely |
+| **Cache** | Text stored server-side to avoid re-billing | 5 min / 1 hr TTL |
+| **TTL** | Cache expiry timer — resets on each API call that uses it | Resets per call |
+| **Resume** | `/resume` reloads last session's conversation history | Restores context, not mid-stream response |
+| **PR** | Pull Request — formal request to merge a branch into main | Git workflow concept |
+
+### 14.3 The CLAUDE.md hierarchy
+
+Files load outermost to innermost, stacking not replacing:
+
+```
+~/.claude/CLAUDE.md              ← global: every session, everywhere
+~/my-agent/CLAUDE.md             ← project: only when inside my-agent/
+~/my-agent/internal/CLAUDE.md    ← subfolder: only inside internal/
+```
+
+If a directory has no CLAUDE.md, Claude inherits from the nearest parent that does. Memory files (`~/.claude/projects/.../memory/*.md`) always load regardless of directory — they are not tied to any repo.
+
+**CLAUDE.md vs memory:** CLAUDE.md is the brief *you* write and maintain. Memory files are notes *Claude* writes and maintains. Both are cross-session. Neither is the conversation history.
+
+### 14.4 Why agents don't "know" each other between sessions
+
+Each Claude instance sees only its own context window — nothing else. Two agents running in parallel or sequentially share nothing by default. The only cross-agent communication channel is the **file system**: one agent writes a file, another reads it.
+
+This means "between sessions, agents are not truly talking and knowing about each other" is architecturally correct. Isolation is the default. Sharing is opt-in and explicit.
+
+### 14.5 The cross-session orchestrator pattern
+
+An orchestrating-orchestrator that coordinates agents *across sessions* requires the file system as its message bus. Conversation history is useless here (it dies at session end). Cache is useless (billing only). The only durable shared state is files on disk.
+
+**The architecture that works:**
+
+```
+Session ends → Agent writes state to disk
+                      │
+                      ▼
+              ┌───────────────────┐
+              │  task_queue.json  │  ← what still needs doing
+              │  progress.json    │  ← what's been completed
+              │  outputs/         │  ← results from each agent
+              └───────────────────┘
+                      │
+                      ▼
+Session starts → Orchestrator reads state from disk
+              → Determines what to run next
+              → Dispatches sub-agents with context
+              → Sub-agents write outputs + update progress
+              → Orchestrator reads and synthesises
+```
+
+**The CLAUDE.md for the orchestrator:** tells it at session start: "read `task_queue.json`, check `progress.json`, determine what is pending, dispatch accordingly." Without this, the orchestrator wakes up with no memory of what happened last session.
+
+**Common failure points when building this:**
+- State not written to disk → lost between sessions
+- Sub-agents not updating `progress.json` → orchestrator re-runs completed work
+- No task queue → orchestrator has no source of truth for what's pending
+- Orchestrator CLAUDE.md doesn't tell it to read the state files → it starts blind every session
+
+The file system is the orchestrator's memory. Not conversation history. Not cache. Files.
+
+---
+
 ## Closing
 
 When you land, the goal isn't to remember every line. The goal is to have a **mental map** — when someone says "prompt caching," you immediately think *bookmark, 5 min, 4 breakpoints, break-even at 2 reads.* When they say "agent," you think *loop, stop_reason, tool_use/tool_result, end_turn exit.* When they say "MCP," you think *USB for AI, JSON-RPC, open standard.*
