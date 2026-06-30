@@ -469,6 +469,7 @@
       <button class="tab-btn" data-tab="faq">FAQ</button>
       <button class="tab-btn" data-tab="brief">Brief</button>
       <button class="tab-btn" data-tab="manual">Manual</button>
+      <button class="tab-btn" data-tab="loops">Loops</button>
       <button class="tab-btn" data-tab="progress">Progress</button>
     </nav>
   </div>
@@ -522,6 +523,11 @@
   <!-- ===== Manual tab (long-form field manual) ===== -->
   <section id="tab-manual" class="tab-content">
     <div class="notes-body" id="manual-body">Loading manual…</div>
+  </section>
+
+  <!-- ===== Loops tab (Claude Code Loops coursebook by Derek Hobden) ===== -->
+  <section id="tab-loops" class="tab-content">
+    <div class="notes-body" id="loops-body">Loading loops manual…</div>
   </section>
 
   <!-- ===== Progress tab ===== -->
@@ -2073,6 +2079,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     if (tab === 'faq') loadFaqSplit();
     if (tab === 'brief') loadBriefSplit();
     if (tab === 'manual') loadManualSplit();
+    if (tab === 'loops') loadLoopsSplit();
     if (tab === 'progress') renderProgress();
   });
 });
@@ -2261,6 +2268,22 @@ function loadBriefSplit() {
       return null;
     },
     'Section'
+  );
+}
+
+function loadLoopsSplit() {
+  return loadSplittable(
+    'loops',
+    './loops_manual.md',
+    'loops-body',
+    'h2',
+    (text) => {
+      const m = text.match(/^Ch\s+(\d+)/i);
+      if (m) return 'Ch ' + m[1];
+      if (/^App/i.test(text)) return 'App';
+      return null; // Preface, How to use — shown when active but no chip
+    },
+    'Chapter'
   );
 }
 
