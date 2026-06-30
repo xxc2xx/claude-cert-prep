@@ -2365,100 +2365,6 @@ The IC who can deliver against this list is who I'd promote. Notice how much of 
 
 ---
 
-## Appendix — quick reference cards
-
-### A.1 Model ID reference
-
-| Model | ID | Context | Notes |
-|---|---|---|---|
-| Opus 4.7 (standard) | `claude-opus-4-7` | 200k | Most capable; default for synthesis |
-| Opus 4.7 (1M context) | `claude-opus-4-7[1m]` (verify) | 1M | Codebases, long docs |
-| Sonnet 4.6 | `claude-sonnet-4-6` | 200k | Workhorse |
-| Haiku 4.5 | `claude-haiku-4-5-20251001` | 200k | Cheap, fast; dated suffix |
-
-### A.2 Stop reason cheatsheet
-
-| `stop_reason` | Meaning | Loop action |
-|---|---|---|
-| `end_turn` | Done naturally | Exit loop |
-| `max_tokens` | Hit cap | Bug — raise cap |
-| `stop_sequence` | Custom stop matched | Inspect & decide |
-| `tool_use` | Tool requested | Execute, append result, continue |
-| `pause_turn` | Long tool paused | Resume |
-| `refusal` | Safety decline | Surface to user |
-
-### A.3 Prompt caching cheat
-
-- `cache_control: {type: "ephemeral"}` — 5 min default
-- `cache_control: {type: "ephemeral", ttl: "1h"}` — 1 hour
-- Max **4 breakpoints** per request
-- Min **~1024 tokens** per cached block (Sonnet/Haiku)
-- Write **1.25×**, read **0.10×**, break-even at **2 reads**
-- Inspect: `usage.cache_creation_input_tokens`, `usage.cache_read_input_tokens`
-
-### A.4 Tool use 4-step loop
-
-1. Send `messages + tools`
-2. Read `stop_reason`
-3. If `tool_use`: execute → append `tool_result` (with `tool_use_id`, optional `is_error: true`) → continue
-4. If `end_turn`: exit
-
-### A.5 Pricing back-of-envelope (per 1M tokens — verify)
-
-| Model | Input | Output |
-|---|---|---|
-| Haiku | ~$1 | ~$5 |
-| Sonnet | ~$3 | ~$15 |
-| Opus | ~$15 | ~$75 |
-
-Multipliers: cache write **1.25×**, cache read **0.10×**, batch **0.50×**.
-
-### A.6 The 12 things to drill before any presentation
-
-1. The three model tiers and when to pick each
-2. Why `max_tokens` is required
-3. The four laws of the messages array (alternation, user-first, no system in messages, content can be list)
-4. `stop_reason == "end_turn"` is the primary loop exit
-5. `is_error: true` on tool failures
-6. `tool_use_id` pairing — match results to calls
-7. Prompt caching break-even: 2 reads
-8. TTL default 5 min, opt-in 1 hour
-9. Prefill technique: `{` for JSON, no `response_format` parameter exists
-10. MCP = USB for AI — open standard, JSON-RPC, stdio or HTTP+SSE
-11. Anthropic does NOT train on API data by default
-12. The 4-layer framework: top and bottom expand, middle compresses
-
-### A.7 Glossary
-
-| Term | One-line definition |
-|---|---|
-| **Agent** | A loop that lets the LLM decide its next action (tool call or final answer) |
-| **AUP** | Acceptable Use Policy — Anthropic's terms for what you can/can't build |
-| **Batch API** | Async API at 50% off, 24h SLA |
-| **Breakpoint** | A marker in your prompt where the cache stores the prefix |
-| **Cache_control** | The parameter you set to mark a content block as cacheable |
-| **Citation** | A char-range reference in Claude's output pointing back to a source document |
-| **Computer use** | Claude operating a sandboxed desktop via screenshots and clicks |
-| **Constitutional AI** | Anthropic's safety training method using a written constitution |
-| **Content block** | A unit within a message: text, image, tool_use, tool_result, document, thinking |
-| **Context window** | The maximum tokens Claude can attend to per call |
-| **Extended thinking** | Model-native CoT — separate `thinking` content block before the response |
-| **End_turn** | The stop_reason signaling Claude finished naturally — primary agent exit |
-| **Few-shot** | Providing input→output examples in the prompt |
-| **MCP** | Model Context Protocol — open standard for exposing tools/resources/prompts to AI agents |
-| **Messages API** | Anthropic's primary HTTP API for talking to Claude |
-| **Prefill** | Ending the messages array with an assistant message so Claude continues from there |
-| **Stop_reason** | Field on response indicating why generation stopped |
-| **Subagent** | A specialized agent the main agent can delegate to |
-| **System prompt** | Top-level field setting persistent role/style/constraints — NOT a message |
-| **Tool_choice** | Parameter controlling whether/which tools Claude must call |
-| **Tool_use** | A content block where Claude requests a tool call |
-| **Tool_result** | A content block where you return the tool's output |
-| **TTL** | Time-to-live — how long a cache entry survives. Default 5 min, opt-in 1 h |
-| **Workbench** | Anthropic's web UI for prompt experimentation (console.anthropic.com) |
-
----
-
 ## 14 — Context, memory, and the orchestrator architecture
 
 *Not cert content — this chapter captures the mental models built during live study sessions. The analogies here are yours.*
@@ -2577,6 +2483,100 @@ Session starts → Orchestrator reads state from disk
 - Orchestrator CLAUDE.md doesn't tell it to read the state files → it starts blind every session
 
 The file system is the orchestrator's memory. Not conversation history. Not cache. Files.
+
+---
+
+## Appendix — quick reference cards
+
+### A.1 Model ID reference
+
+| Model | ID | Context | Notes |
+|---|---|---|---|
+| Opus 4.7 (standard) | `claude-opus-4-7` | 200k | Most capable; default for synthesis |
+| Opus 4.7 (1M context) | `claude-opus-4-7[1m]` (verify) | 1M | Codebases, long docs |
+| Sonnet 4.6 | `claude-sonnet-4-6` | 200k | Workhorse |
+| Haiku 4.5 | `claude-haiku-4-5-20251001` | 200k | Cheap, fast; dated suffix |
+
+### A.2 Stop reason cheatsheet
+
+| `stop_reason` | Meaning | Loop action |
+|---|---|---|
+| `end_turn` | Done naturally | Exit loop |
+| `max_tokens` | Hit cap | Bug — raise cap |
+| `stop_sequence` | Custom stop matched | Inspect & decide |
+| `tool_use` | Tool requested | Execute, append result, continue |
+| `pause_turn` | Long tool paused | Resume |
+| `refusal` | Safety decline | Surface to user |
+
+### A.3 Prompt caching cheat
+
+- `cache_control: {type: "ephemeral"}` — 5 min default
+- `cache_control: {type: "ephemeral", ttl: "1h"}` — 1 hour
+- Max **4 breakpoints** per request
+- Min **~1024 tokens** per cached block (Sonnet/Haiku)
+- Write **1.25×**, read **0.10×**, break-even at **2 reads**
+- Inspect: `usage.cache_creation_input_tokens`, `usage.cache_read_input_tokens`
+
+### A.4 Tool use 4-step loop
+
+1. Send `messages + tools`
+2. Read `stop_reason`
+3. If `tool_use`: execute → append `tool_result` (with `tool_use_id`, optional `is_error: true`) → continue
+4. If `end_turn`: exit
+
+### A.5 Pricing back-of-envelope (per 1M tokens — verify)
+
+| Model | Input | Output |
+|---|---|---|
+| Haiku | ~$1 | ~$5 |
+| Sonnet | ~$3 | ~$15 |
+| Opus | ~$15 | ~$75 |
+
+Multipliers: cache write **1.25×**, cache read **0.10×**, batch **0.50×**.
+
+### A.6 The 12 things to drill before any presentation
+
+1. The three model tiers and when to pick each
+2. Why `max_tokens` is required
+3. The four laws of the messages array (alternation, user-first, no system in messages, content can be list)
+4. `stop_reason == "end_turn"` is the primary loop exit
+5. `is_error: true` on tool failures
+6. `tool_use_id` pairing — match results to calls
+7. Prompt caching break-even: 2 reads
+8. TTL default 5 min, opt-in 1 hour
+9. Prefill technique: `{` for JSON, no `response_format` parameter exists
+10. MCP = USB for AI — open standard, JSON-RPC, stdio or HTTP+SSE
+11. Anthropic does NOT train on API data by default
+12. The 4-layer framework: top and bottom expand, middle compresses
+
+### A.7 Glossary
+
+| Term | One-line definition |
+|---|---|
+| **Agent** | A loop that lets the LLM decide its next action (tool call or final answer) |
+| **AUP** | Acceptable Use Policy — Anthropic's terms for what you can/can't build |
+| **Batch API** | Async API at 50% off, 24h SLA |
+| **Breakpoint** | A marker in your prompt where the cache stores the prefix |
+| **Cache_control** | The parameter you set to mark a content block as cacheable |
+| **Citation** | A char-range reference in Claude's output pointing back to a source document |
+| **Computer use** | Claude operating a sandboxed desktop via screenshots and clicks |
+| **Constitutional AI** | Anthropic's safety training method using a written constitution |
+| **Content block** | A unit within a message: text, image, tool_use, tool_result, document, thinking |
+| **Context window** | The maximum tokens Claude can attend to per call |
+| **Extended thinking** | Model-native CoT — separate `thinking` content block before the response |
+| **End_turn** | The stop_reason signaling Claude finished naturally — primary agent exit |
+| **Few-shot** | Providing input→output examples in the prompt |
+| **MCP** | Model Context Protocol — open standard for exposing tools/resources/prompts to AI agents |
+| **Messages API** | Anthropic's primary HTTP API for talking to Claude |
+| **Prefill** | Ending the messages array with an assistant message so Claude continues from there |
+| **Stop_reason** | Field on response indicating why generation stopped |
+| **Subagent** | A specialized agent the main agent can delegate to |
+| **System prompt** | Top-level field setting persistent role/style/constraints — NOT a message |
+| **Tool_choice** | Parameter controlling whether/which tools Claude must call |
+| **Tool_use** | A content block where Claude requests a tool call |
+| **Tool_result** | A content block where you return the tool's output |
+| **TTL** | Time-to-live — how long a cache entry survives. Default 5 min, opt-in 1 h |
+| **Workbench** | Anthropic's web UI for prompt experimentation (console.anthropic.com) |
 
 ---
 
