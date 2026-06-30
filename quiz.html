@@ -357,6 +357,39 @@
     border-color: var(--accent);
   }
 
+  /* Loops tab — callout boxes */
+  .loop-callout {
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 14px 0;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .loop-callout-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+  .loop-callout-pitfall   { border-left: 3px solid var(--red);   background: rgba(248,81,73,.07); }
+  .loop-callout-try       { border-left: 3px solid var(--green); background: rgba(63,185,80,.07); }
+  .loop-callout-mechanism { border-left: 3px solid var(--blue);  background: rgba(88,166,255,.07); }
+  .loop-callout-example   { border-left: 3px solid var(--accent);background: rgba(214,143,58,.07); }
+  .loop-callout-gallery   { border-left: 3px solid #a371f7;      background: rgba(163,113,247,.07); }
+  .loop-callout-objectives{ background: var(--panel-2); border: 1px solid var(--border); }
+  .loop-callout-exercises { border-left: 3px solid #f0a050;      background: rgba(240,160,80,.07); }
+  .loop-callout-summary   { background: var(--panel-2); border: 1px solid var(--border); border-top: 3px solid var(--border); }
+  .loop-callout-pitfall   .loop-callout-label { color: var(--red);   }
+  .loop-callout-try       .loop-callout-label { color: var(--green); }
+  .loop-callout-mechanism .loop-callout-label { color: var(--blue);  }
+  .loop-callout-example   .loop-callout-label { color: var(--accent);}
+  .loop-callout-gallery   .loop-callout-label { color: #a371f7;      }
+  .loop-callout-objectives.loop-callout-label,
+  .loop-callout-summary   .loop-callout-label { color: var(--muted); }
+  .loop-callout-exercises .loop-callout-label { color: #f0a050;      }
+
   /* Progress view */
   .progress-summary { display: flex; flex-direction: column; gap: 14px; max-width: 760px; }
   .progress-row {
@@ -2196,6 +2229,36 @@ function renderSplittableActive(tabName) {
     section.nodes.forEach(n => content.appendChild(n.cloneNode(true)));
   }
   container.appendChild(content);
+  if (tabName === 'loops') postProcessLoops(content);
+}
+
+// Apply callout-box styling to paragraphs in the Loops tab that start with
+// recognised keywords (Pitfall, Try it, Mechanism, Worked Example, etc.).
+function postProcessLoops(root) {
+  const patterns = [
+    { re: /^Pitfall\s*·/,          cls: 'loop-callout loop-callout-pitfall'    },
+    { re: /^Try it\s*·/,           cls: 'loop-callout loop-callout-try'        },
+    { re: /^Mechanism\s*·/,        cls: 'loop-callout loop-callout-mechanism'  },
+    { re: /^Worked Example\s+[\d.]/, cls: 'loop-callout loop-callout-example'  },
+    { re: /^Gallery\s+[\d.]/,      cls: 'loop-callout loop-callout-gallery'    },
+    { re: /^Learning objectives/,  cls: 'loop-callout loop-callout-objectives' },
+    { re: /^Exercises\s+\d/,       cls: 'loop-callout loop-callout-exercises'  },
+    { re: /^Summary/,              cls: 'loop-callout loop-callout-summary'     },
+  ];
+  root.querySelectorAll('p').forEach(p => {
+    const text = p.textContent || '';
+    for (const { re, cls } of patterns) {
+      if (!re.test(text)) continue;
+      p.className = (p.className ? p.className + ' ' : '') + cls;
+      // Split first line (label) from body on the embedded newline character.
+      const nl = text.indexOf('\n');
+      const label = (nl > -1 ? text.slice(0, nl) : text).trim();
+      const body  = (nl > -1 ? text.slice(nl + 1) : '').trim();
+      p.innerHTML = '<strong class="loop-callout-label">' + label + '</strong>'
+        + (body ? '<span>' + body + '</span>' : '');
+      break;
+    }
+  });
 }
 
 async function loadSplittable(tabName, url, containerId, headingTag, labelFn, chipLabel, sectionFilter) {
