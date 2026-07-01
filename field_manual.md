@@ -2369,53 +2369,44 @@ The IC who can deliver against this list is who I'd promote. Notice how much of 
 
 *Not cert content — this chapter captures the mental models built during live study sessions. The analogies here are yours.*
 
-### 14.1 The conveyor belt — visualising the agent loop
+### 14.1 The conveyor belt — three storage layers
 
-```
-THE CONVEYOR BELT (the agent loop — your Python while loop)
+The agent loop builds a conversation on a "conveyor belt" — each turn appends to the messages array. That array and everything else about memory lives in one of three places:
 
-  ════════════════════════════════════════════════════════════►
-   [user msg]  [asst reply]  [tool_use]  [tool_result]  [asst]
-   ─────────   ──────────    ─────────   ────────────   ──────
-    turn 1       turn 1       turn 2       turn 2        turn 2
-  ════════════════════════════════════════════════════════════►
-        │                                          │
-        │  accumulates as session runs             │
-        ▼                                          ▼
-  ┌─────────────────────────────────────────────────────────┐
-  │              IN-SESSION LUGGAGE                         │
-  │   The conversation history — lives in RAM               │
-  │   Gone when the session ends                            │
-  └─────────────────────────────────────────────────────────┘
+| Layer | What it is | When it loads | Lifespan |
+|---|---|---|---|
+| **In-session luggage** | Conversation history (messages array) in RAM | Always present during a session | Dies when session ends |
+| **Cross-session luggage** | CLAUDE.md files + `memory/*.md` on disk | Loaded at session start | Persists indefinitely |
+| **Anthropic server cache** | Cached prompt prefix on Anthropic's servers | On demand via `cache_control` | TTL: 5 min (default) or 1 hr |
 
+**The conveyor belt (turn by turn):**
 
-  Loaded at session start ───────────────────────────────────┐
-                                                             │
-  ┌──────────────────────────────────────────────────────────▼──┐
-  │                  CROSS-SESSION LUGGAGE                       │
-  │                                                              │
-  │  CLAUDE.md (global)      ← standing brief, always loaded    │
-  │  CLAUDE.md (per repo)    ← project rules, loaded in-dir     │
-  │  CLAUDE.md (subfolder)   ← narrower rules, stacks above     │
-  │  memory/*.md             ← notes Claude keeps about you     │
-  │                                                              │
-  │  Persists across sessions. Retrieved next trip.             │
-  └──────────────────────────────────────────────────────────────┘
+| Turn | What's on the belt |
+|---|---|
+| Turn 1 | `user msg` → `assistant reply` |
+| Turn 2 | `tool_use` → `tool_result` → `assistant reply` |
+| Turn N | … keeps accumulating until session ends |
 
+**Cross-session luggage — what loads at session start:**
 
-  Separate — lives on Anthropic's servers ──────────────────────┐
-                                                                │
-  ┌──────────────────────────────────────────────────────────────▼──┐
-  │                  ANTHROPIC SERVER CACHE                         │
-  │                                                                  │
-  │  cache_control: {type: "ephemeral"}                             │
-  │  TTL: 5 min default, 1 hour opt-in                              │
-  │  Cost: write 1.25×, read 0.10× (break-even at 2 reads)         │
-  │                                                                  │
-  │  Billing optimisation ONLY. Not memory. Not knowledge.          │
-  │  Expires between sessions — always cold at session start.       │
-  └──────────────────────────────────────────────────────────────────┘
-```
+| File | Purpose |
+|---|---|
+| `~/.claude/CLAUDE.md` | Global brief — every session, everywhere |
+| `<repo>/CLAUDE.md` | Project rules — only when inside that repo |
+| `<subfolder>/CLAUDE.md` | Narrower rules — stacks on top of project |
+| `memory/*.md` | Notes Claude keeps about you — always loaded |
+
+**Server cache — key numbers:**
+
+| Property | Value |
+|---|---|
+| `cache_control` | `{type: "ephemeral"}` |
+| Default TTL | 5 minutes |
+| Extended TTL | 1 hour (opt-in) |
+| Write cost | 1.25× normal |
+| Read cost | 0.10× normal |
+| Break-even | 2 reads |
+| Purpose | Billing optimisation only — not memory, not knowledge |
 
 ### 14.2 The mental model map
 
