@@ -4,7 +4,9 @@ How I'd present Claude to colleagues who ask "what is this thing and why should 
 
 Written for Winston (Adidas SEA+PAC retail intel). Companion to `cheatsheet.md` — the cheatsheet is the *what*, this brief is the *why* and the *how I'd say it out loud*.
 
-Pivot date: 2026-05-30. Originally cert-prep material; reframed after the Anthropic Partner cert registration was blocked (partner-only, applications paused). Goal shifted from "pass exam" to "be the person on my team who can confidently explain and demo Claude."
+Pivot date: 2026-05-30. Originally cert-prep material; reframed after the Anthropic Partner cert registration was blocked (partner-only, applications paused). Goal shifted to "be the person on my team who can confidently explain and demo Claude."
+
+Update 2026-07-05: Exam registered. **CCAR-F — Claude Certified Architect, Foundations. Sunday 30 August 2026, 2:00 PM HKT. Candidate ID: ANTH220651.** Goal is now both: pass the exam AND be that person on the team. This brief serves the presentation side; `cheatsheet.md` and `field_manual.md` serve the exam side.
 
 ---
 
