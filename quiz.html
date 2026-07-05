@@ -1893,6 +1893,349 @@ const QUESTIONS = [
     ],
     answer: 2,
     explain: "Knowing when NOT to use Claude is the highest-leverage judgment skill. A junior Claude-pills everything: every problem looks like a prompt to be tuned. A senior knows when 50 lines of Python beats a Claude agent, when a fine-tuned smaller model wins on cost+latency, when the right answer is 'just ask the user.' Building one pipeline is necessary but easy. Knowing when not to build it is rare and hugely valuable."
+  },
+
+  // ===== BATCH 2 — added 2026-07-05 =====
+  // Block 1 extensions — Foundations
+  {
+    id: "b1-q8",
+    block: "1 — Foundations",
+    topic: "API structure",
+    q: "In the Messages API, where does the system prompt go?",
+    choices: [
+      "As the first message with <code>role: 'system'</code>",
+      "In a top-level <code>system</code> parameter, separate from <code>messages</code>",
+      "As the first message with <code>role: 'user'</code>",
+      "In the <code>metadata</code> field"
+    ],
+    answer: 1,
+    explain: "The Claude Messages API has a dedicated top-level <code>system</code> parameter — it is <b>not</b> a message in the <code>messages</code> array. This differs from OpenAI's API where system is a message with role 'system'. Claude's <code>messages</code> array must start with a <code>user</code> role."
+  },
+  {
+    id: "b1-q9",
+    block: "1 — Foundations",
+    topic: "Roles",
+    q: "Which role alternation rule does the Messages API enforce?",
+    choices: [
+      "Messages can be in any order — the API doesn't enforce alternation",
+      "user → assistant → user → assistant (must alternate, starting with user)",
+      "assistant → user → assistant → user (must start with assistant)",
+      "Multiple consecutive user messages are fine; consecutive assistant messages are not"
+    ],
+    answer: 1,
+    explain: "The API enforces strict <b>user/assistant alternation</b>, starting with a user message. Sending two consecutive user or assistant messages returns a 400 error. To simulate multi-turn context, you must explicitly include the assistant turns in the messages array."
+  },
+  {
+    id: "b1-q10",
+    block: "1 — Foundations",
+    topic: "Max tokens",
+    q: "What happens if Claude's response would naturally end before reaching <code>max_tokens</code>?",
+    choices: [
+      "The API pads the response to reach max_tokens",
+      "Claude stops at its natural end point — max_tokens is a cap, not a target",
+      "The request errors with a length mismatch",
+      "The stop_reason becomes 'length' even though the model finished naturally"
+    ],
+    answer: 1,
+    explain: "<code>max_tokens</code> is a <b>ceiling</b>, not a target. Claude stops when it finishes its response naturally (<code>stop_reason: 'end_turn'</code>) or when the ceiling is hit (<code>stop_reason: 'max_tokens'</code>). If you see <code>max_tokens</code> in stop_reason, the output was truncated — raise the cap."
+  },
+  {
+    id: "b1-q11",
+    block: "1 — Foundations",
+    topic: "Content blocks",
+    q: "A response object has <code>content: [{type: 'text', text: 'Hello'}, {type: 'tool_use', ...}]</code>. What does this tell you?",
+    choices: [
+      "This is invalid — a response can only have one content block",
+      "Claude returned text AND requested a tool call in the same turn",
+      "The tool_use block overrides the text block",
+      "The response is streaming — content blocks accumulate over time"
+    ],
+    answer: 1,
+    explain: "A response's <code>content</code> array can contain <b>multiple blocks</b>. Text + tool_use in the same response means Claude wrote some commentary and also requested a tool call. You must handle both: render the text and execute the tool. The <code>stop_reason</code> will be <code>'tool_use'</code> in this case."
+  },
+  {
+    id: "b1-q12",
+    block: "1 — Foundations",
+    topic: "Streaming",
+    q: "In streaming mode, which event signals that the full response is complete?",
+    choices: [
+      "<code>content_block_stop</code>",
+      "<code>message_stop</code>",
+      "<code>message_delta</code> with <code>stop_reason</code> set",
+      "<code>stream_end</code>"
+    ],
+    answer: 1,
+    explain: "Streaming emits a sequence of server-sent events. <code>message_stop</code> is the final event — it signals the full response is done. <code>message_delta</code> carries incremental metadata (including <code>stop_reason</code> and <code>usage</code>) just before <code>message_stop</code>. <code>content_block_stop</code> marks the end of a single content block, not the full message."
+  },
+  {
+    id: "b1-q13",
+    block: "1 — Foundations",
+    topic: "Model tiers",
+    q: "Rank these Claude models cheapest to most expensive input cost: Opus, Sonnet, Haiku.",
+    choices: [
+      "Haiku < Sonnet < Opus",
+      "Sonnet < Haiku < Opus",
+      "Opus < Sonnet < Haiku",
+      "They are identically priced — you pay per capability tier, not per model"
+    ],
+    answer: 0,
+    explain: "<b>Haiku</b> is the cheapest (fast, lightweight tasks). <b>Sonnet</b> is mid-tier (balanced quality/cost). <b>Opus</b> is most expensive (highest capability, executive narrative, complex reasoning). The cost differential is significant — Opus is roughly 15× Haiku's input price, which is why model tiering in pipelines is one of the biggest cost levers."
+  },
+  {
+    id: "b1-q14",
+    block: "1 — Foundations",
+    topic: "Rate limits",
+    q: "You hit a 529 error. What does it mean and what should you do?",
+    choices: [
+      "Invalid API key — rotate it",
+      "API overloaded — back off with exponential retry",
+      "Your request exceeded max_tokens for the model",
+      "Prompt caching failed — retry with no cache headers"
+    ],
+    answer: 1,
+    explain: "<b>529 = API overloaded</b> (Anthropic-specific). Retry with <b>exponential backoff</b>. Also watch for <b>429 (rate limit)</b> — you've exceeded your requests-per-minute or tokens-per-minute quota. Both are transient and recoverable. 401 = bad API key. 400 = malformed request. 529 is distinct from 503 (service unavailable) though the behaviour is similar."
+  },
+
+  // Block 2 extensions — Prompting
+  {
+    id: "b2-q8",
+    block: "2 — Prompting",
+    topic: "Prompt structure",
+    q: "Where should dynamic or user-supplied content go relative to a large static context block?",
+    choices: [
+      "At the very beginning of the system prompt",
+      "Interleaved throughout the static context",
+      "After the static context — at the end of the prompt",
+      "In a separate API call to avoid context contamination"
+    ],
+    answer: 2,
+    explain: "Dynamic content (user input, request-specific data) goes <b>after</b> static context. This matters for prompt caching: the cache is a prefix match — anything before the last cache breakpoint must be identical across requests. Putting dynamic content first would break every cache hit. Pattern: static context (cached) → dynamic content (not cached) → user turn."
+  },
+  {
+    id: "b2-q9",
+    block: "2 — Prompting",
+    topic: "XML tags",
+    q: "Why does Anthropic recommend wrapping long context documents in XML tags like <code>&lt;document&gt;...&lt;/document&gt;</code>?",
+    choices: [
+      "Claude can only read content inside XML tags",
+      "It reduces token count by compressing the content",
+      "It gives Claude clear structural boundaries — where the document starts/ends and what role it plays",
+      "XML tags enable prompt caching automatically"
+    ],
+    answer: 2,
+    explain: "Claude is trained to recognise XML-like tags as <b>structural signals</b>. Wrapping content in tags like <code>&lt;document&gt;</code>, <code>&lt;instructions&gt;</code>, <code>&lt;examples&gt;</code> helps Claude distinguish what is context, what is instruction, and what is input. This reduces confusion on long prompts. It does not compress tokens or enable caching automatically."
+  },
+  {
+    id: "b2-q10",
+    block: "2 — Prompting",
+    topic: "Few-shot",
+    q: "You add 3 worked examples to a prompt. What is this technique called and what does it primarily achieve?",
+    choices: [
+      "Fine-tuning — it trains the model on new behaviour",
+      "Few-shot prompting — it demonstrates the desired output format and reasoning pattern",
+      "Chain-of-thought — it forces Claude to reason step by step",
+      "Grounding — it anchors Claude to specific factual content"
+    ],
+    answer: 1,
+    explain: "<b>Few-shot prompting</b> = providing example input/output pairs in the prompt. It shows Claude the <em>format</em>, <em>tone</em>, and <em>reasoning style</em> you want without changing model weights (that would be fine-tuning). Chain-of-thought is a related but distinct technique — it asks Claude to show reasoning steps, often combined with few-shot examples."
+  },
+  {
+    id: "b2-q11",
+    block: "2 — Prompting",
+    topic: "Chain of thought",
+    q: "You want Claude to reason before giving a final answer. Which prompt pattern reliably achieves this?",
+    choices: [
+      "Set <code>temperature: 0</code> to force deterministic reasoning",
+      "Add <code>thinking: {type: 'enabled'}</code> to the request — no prompt change needed",
+      "Ask Claude to 'think step by step' or 'show your reasoning' before the final answer",
+      "Use a multi-turn conversation where each turn is one reasoning step"
+    ],
+    answer: 2,
+    explain: "The simplest chain-of-thought technique is explicit instruction: <em>'Think step by step before answering'</em> or <em>'Reason through this carefully, then give your final answer.'</em> Extended Thinking (the <code>thinking</code> param) is a separate, more powerful mechanism with its own token budget. For most use cases, a prompt instruction is sufficient and much cheaper."
+  },
+  {
+    id: "b2-q12",
+    block: "2 — Prompting",
+    topic: "Prefill",
+    q: "What is 'assistant prefill' and when is it useful?",
+    choices: [
+      "Pre-loading a system prompt via the API before sending user messages",
+      "Providing the start of Claude's response in the messages array to steer its output",
+      "A streaming technique that renders partial responses before completion",
+      "Caching the assistant's last response to avoid re-generation"
+    ],
+    answer: 1,
+    explain: "<b>Assistant prefill</b> = adding a partial assistant message at the end of the messages array. Claude completes from that starting point. Example: ending with <code>{role: 'assistant', content: '{\"result\":'}</code> forces Claude to continue with JSON. Useful for locking format, skipping preambles, or enforcing structured output. Not available in all API configurations (check current docs)."
+  },
+  {
+    id: "b2-q13",
+    block: "2 — Prompting",
+    topic: "Hallucination",
+    q: "Which prompt strategy is most effective at reducing hallucinated facts in a RAG pipeline?",
+    choices: [
+      "Set temperature to 0",
+      "Add 'do not hallucinate' to the system prompt",
+      "Provide the source document in the prompt and instruct Claude to only use that content",
+      "Use Opus instead of Sonnet — larger models hallucinate less"
+    ],
+    answer: 2,
+    explain: "The most reliable hallucination guard in RAG: <b>give Claude the source document and tell it to only use what's in it</b>. Claude cannot hallucinate facts it's been directly handed (it can only misread them). 'Do not hallucinate' is pure instruction with no teeth. Temperature=0 reduces variance but not fabrication. Model size helps marginally but doesn't solve the root issue."
+  },
+  {
+    id: "b2-q14",
+    block: "2 — Prompting",
+    topic: "Output format",
+    q: "You need Claude to always return valid JSON. What's the most reliable way to enforce this?",
+    choices: [
+      "Set <code>response_format: {type: 'json_object'}</code>",
+      "Instruct Claude in the system prompt to return JSON, and use assistant prefill to open the JSON block",
+      "Use temperature=0 — deterministic sampling produces valid JSON",
+      "Post-process the output with a JSON validator and retry on failure"
+    ],
+    answer: 1,
+    explain: "Claude's API does not have a <code>response_format</code> parameter (that's OpenAI). The reliable approach: <b>system prompt instruction</b> ('Always respond with valid JSON only') + <b>assistant prefill</b> opening with <code>{</code>. Post-processing with retry is a valid safety net but not the primary mechanism. Temperature=0 has no bearing on JSON validity."
+  },
+
+  // ===== Block 12 — Prompt Caching (new block) =====
+  {
+    id: "b12-q1",
+    block: "12 — Prompt Caching",
+    topic: "Cache mechanics",
+    q: "How do you mark a content block for prompt caching?",
+    choices: [
+      "Set <code>cache: true</code> in the request body",
+      "Add <code>cache_control: {type: 'ephemeral'}</code> to the content block",
+      "Pass <code>X-Cache-Control: ephemeral</code> as an HTTP header",
+      "Caching is automatic — Anthropic decides what to cache"
+    ],
+    answer: 1,
+    explain: "Prompt caching is <b>opt-in per content block</b>. You add <code>cache_control: {type: 'ephemeral'}</code> to the specific block you want cached (system prompt, a document, tool definitions). Anthropic caches everything up to and including that block as a prefix. There is no automatic caching and no HTTP header mechanism."
+  },
+  {
+    id: "b12-q2",
+    block: "12 — Prompt Caching",
+    topic: "Cache cost",
+    q: "A cache write costs 1.25× and a cache read costs 0.10× normal input price. At what number of reads do you break even?",
+    choices: [
+      "1 read",
+      "2 reads",
+      "5 reads",
+      "10 reads"
+    ],
+    answer: 1,
+    explain: "Break-even math: write cost = 1.25× one read. If normal cost = 1.0×, then: 1 write (1.25) + N reads (0.10N) vs N+1 normal reads (N+1). Break-even: 1.25 + 0.10N = N+1 → 1.25 - 1 = N - 0.10N → 0.25 = 0.90N → N ≈ 0.28. So you save money from the <b>second read onwards</b>. Don't cache content you'll only read once."
+  },
+  {
+    id: "b12-q3",
+    block: "12 — Prompt Caching",
+    topic: "TTL",
+    q: "What is the default cache TTL and how do you extend it?",
+    choices: [
+      "Default 1 hour; extend to 24 hours by setting <code>ttl: '24h'</code>",
+      "Default 5 minutes; extend to 1 hour by setting <code>ttl: '1h'</code> in cache_control",
+      "Default 5 minutes; not extendable — you must re-cache each session",
+      "Default 30 minutes; extend to 1 hour with a paid plan upgrade"
+    ],
+    answer: 1,
+    explain: "Default TTL = <b>5 minutes</b>. Extended TTL = <b>1 hour</b>, opt-in via <code>cache_control: {type: 'ephemeral', ttl: '1h'}</code>. The TTL resets on every request that hits the cache. For long-running agents (>5 min between calls), always use 1h or pay full price after the first idle gap."
+  },
+  {
+    id: "b12-q4",
+    block: "12 — Prompt Caching",
+    topic: "Cache prefix",
+    q: "You have 3 cache breakpoints across system prompt, a document, and tool definitions. On a new request, the system prompt matches but the document changed. Which blocks are served from cache?",
+    choices: [
+      "All three — cache is per-block, not prefix-based",
+      "Only the system prompt — the cache is a prefix match, so a mismatch at block 2 invalidates blocks 2 and 3",
+      "None — any change invalidates the entire cache",
+      "The system prompt and tool definitions — document is skipped"
+    ],
+    answer: 1,
+    explain: "Cache is a <b>longest-prefix match</b>. Everything up to the first changed block is served from cache; the changed block and everything after it is a miss. System prompt (cached) ✓ → document (changed) ✗ → tool definitions (after the mismatch) ✗. This is why stable content goes first, dynamic content goes last."
+  },
+  {
+    id: "b12-q5",
+    block: "12 — Prompt Caching",
+    topic: "Cache breakpoints",
+    q: "How many cache breakpoints can you set per request?",
+    choices: [
+      "1",
+      "4",
+      "Unlimited",
+      "10"
+    ],
+    answer: 1,
+    explain: "You can set a maximum of <b>4 cache breakpoints</b> per request. Each breakpoint marks the end of a cacheable prefix. This is enough for most patterns: system prompt + long context + tool definitions + few-shot examples. Prioritise caching the largest, most stable blocks."
+  },
+  {
+    id: "b12-q6",
+    block: "12 — Prompt Caching",
+    topic: "What to cache",
+    q: "Which of these is the WORST candidate for prompt caching?",
+    choices: [
+      "A 10,000-token brand context document reused across 6 market analyses",
+      "Tool definitions shared across all API calls",
+      "A per-user system prompt that includes the user's name and session timestamp",
+      "A set of 20 few-shot examples used in every classification request"
+    ],
+    answer: 2,
+    explain: "Cache is a prefix match — <b>anything that changes between requests breaks the cache</b>. A system prompt with a user's name and timestamp is different on every call → 100% cache miss rate. The other options are stable across requests and excellent cache candidates. Dynamic personalisation must go <em>after</em> the last cache breakpoint, in the user turn."
+  },
+  {
+    id: "b12-q7",
+    block: "12 — Prompt Caching",
+    topic: "Usage fields",
+    q: "After a request, how do you confirm a cache hit actually occurred?",
+    choices: [
+      "Check the HTTP response header <code>X-Cache: HIT</code>",
+      "Check <code>usage.cache_read_input_tokens</code> — a non-zero value confirms a cache hit",
+      "The API returns a <code>cached: true</code> field in the response body",
+      "Run the same request twice — the second will always be a hit"
+    ],
+    answer: 1,
+    explain: "<code>usage.cache_read_input_tokens</code> tells you exactly how many tokens were served from cache. If it's 0 and <code>cache_creation_input_tokens</code> is non-zero, you wrote to cache but didn't hit (first call). If both are 0, caching isn't working — check your <code>cache_control</code> placement. There is no HTTP cache header."
+  },
+  {
+    id: "b12-q8",
+    block: "12 — Prompt Caching",
+    topic: "Minimum size",
+    q: "Is there a minimum token count required for a block to be eligible for caching?",
+    choices: [
+      "No minimum — any block can be cached",
+      "Yes — approximately 1,024 tokens for most models",
+      "Yes — 4,096 tokens minimum",
+      "Yes — 512 tokens minimum, but only for system prompts"
+    ],
+    answer: 1,
+    explain: "Prompt caching has a <b>minimum block size of ~1,024 tokens</b> (exact threshold may vary by model — check current docs). Blocks below this threshold are not cached even if you add <code>cache_control</code>. This means caching is only cost-effective on substantial context — short system prompts don't qualify."
+  },
+  {
+    id: "b12-q9",
+    block: "12 — Prompt Caching",
+    topic: "Cross-session",
+    q: "A user closes their browser and reopens your app 10 minutes later. Will their prompt cache still be warm?",
+    choices: [
+      "Yes — the cache is server-side and survives client disconnection",
+      "No — the cache is tied to the HTTP session and clears on disconnect",
+      "It depends — with default TTL (5 min) it's expired; with extended TTL (1 hr) it's still warm",
+      "Yes — Anthropic caches indefinitely for paying accounts"
+    ],
+    answer: 2,
+    explain: "The cache lives on <b>Anthropic's servers</b>, not the client. A 10-minute gap: with <b>default 5-minute TTL</b>, the cache has expired → full price on next call. With <b>extended 1-hour TTL</b>, it's still warm. This is why long-horizon agents should always use <code>ttl: '1h'</code> — any idle gap longer than 5 minutes burns the cache."
+  },
+  {
+    id: "b12-q10",
+    block: "12 — Prompt Caching",
+    topic: "Batch + cache",
+    q: "You run a batch of 50 classification requests, all sharing the same 5,000-token system prompt. Which approach minimises cost?",
+    choices: [
+      "Send all 50 as individual API calls with no caching",
+      "Cache the system prompt — write once on the first request, read from cache on the remaining 49",
+      "Use the Batch API with no caching — Batch API is already 50% off",
+      "Cache the system prompt AND use the Batch API — both discounts apply simultaneously"
+    ],
+    answer: 3,
+    explain: "Prompt caching and the Batch API are <b>complementary, not mutually exclusive</b>. The Batch API gives 50% off all token costs. Caching gives 90% off cached input tokens. Both apply simultaneously: write to cache on the first batch request, then the remaining 49 read at 10% cost — and all of that is already at the 50% Batch API discount. Maximum savings."
   }
 ];
 
