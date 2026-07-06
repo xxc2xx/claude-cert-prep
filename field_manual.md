@@ -486,6 +486,71 @@ The `is_blocked()` function in the codebase catches both hard 403s and **soft bl
 
 ---
 
+### 2.11 Claude vs OpenAI — the exam traps
+
+These are the highest-frequency wrong answers on the CCAR-F. Every one of them comes from applying OpenAI API behaviour to Claude.
+
+**Q: Is `max_tokens` required or optional?**
+Required. There is no default. Omitting it returns a 400 error. (OpenAI makes it optional — that's where the confusion comes from.) Remember: it caps OUTPUT length, not input.
+
+**Q: Where does the system prompt go in the Claude API?**
+Top-level `system` parameter — completely separate from the `messages` array.
+```json
+{
+  "model": "...",
+  "system": "You are a helpful assistant.",
+  "messages": [{"role": "user", "content": "Hello"}]
+}
+```
+OpenAI uses `{"role": "system", "content": "..."}` as the first message. Claude does not accept `role: "system"` in the messages array.
+
+**Q: Does Claude have a `response_format` parameter?**
+No. `response_format` is an OpenAI API feature. Claude's equivalent is **assistant prefill** — end your messages array with `{"role": "assistant", "content": "{"}` and Claude continues from that opening brace. Also reinforce with a system prompt instruction: "Respond with valid JSON only."
+
+**Q: What does prefill actually mean — start or end?**
+Prefill = the **last** message in the array has `role: "assistant"` with partial content. Claude continues from there. You cannot START with an assistant message (that's a 400 error — messages must begin with `user`). The pattern:
+```
+messages = [
+  {"role": "user", "content": "Classify this: ..."},
+  {"role": "assistant", "content": '{"label":'}   ← prefill
+]
+```
+
+**Q: When Claude returns `stop_reason: "tool_use"`, who runs the tool?**
+You do. Always. Claude **requests** tool calls — it never executes them. Your code reads the `tool_use` content block (name + inputs), runs the actual function, then sends back a new user message containing a `tool_result` block referencing the `tool_use_id`. Claude then continues. This is the loop.
+
+**Q: What are the three things an MCP server exposes?**
+**Tools** (functions Claude can call), **Resources** (data Claude can read), **Prompts** (reusable templates). MCP does NOT expose models — you cannot swap out the underlying LLM via MCP. The LLM is the client; MCP gives it access to external capabilities.
+
+**Q: Is the Memory tool the same as prompt caching?**
+No — completely different mechanisms:
+
+| | Memory tool | Prompt caching |
+|---|---|---|
+| Purpose | Durable user/project storage | Billing optimisation |
+| Lifespan | Indefinite | 5 min (or 1 hr opt-in) |
+| Scope | User or workspace | Per-request prefix |
+| API | Claude calls `memory.read/write` as a tool | `cache_control: {type: "ephemeral"}` on content block |
+
+**Q: What is the correct syntax to mark a cache breakpoint?**
+Add `cache_control: {"type": "ephemeral"}` directly to the content block you want cached through:
+```json
+{
+  "type": "text",
+  "text": "...your large stable context...",
+  "cache_control": {"type": "ephemeral"}
+}
+```
+Not a top-level param. Not XML tags. Not `cache=True`. Not a method call.
+
+**Q: What is the worst thing to put inside a cache breakpoint?**
+Anything that changes per request — especially the **user's actual question**. The cache is a prefix match: anything before the breakpoint must be identical across requests. User input goes AFTER all cache breakpoints, in the user turn. A cached user question = 100% cache miss rate.
+
+**Q: What is the few-shot sweet spot for most classification tasks?**
+**3–5 examples.** Below 3 you miss edge cases. Above 5 you hit diminishing returns and bloat tokens. The format of examples matters as much as quantity — structure them exactly as you want the output structured.
+
+---
+
 ## 3 — Prompting in depth
 
 ### 3.1 Why XML works so well with Claude

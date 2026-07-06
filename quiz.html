@@ -2236,6 +2236,219 @@ const QUESTIONS = [
     ],
     answer: 3,
     explain: "Prompt caching and the Batch API are <b>complementary, not mutually exclusive</b>. The Batch API gives 50% off all token costs. Caching gives 90% off cached input tokens. Both apply simultaneously: write to cache on the first batch request, then the remaining 49 read at 10% cost — and all of that is already at the 50% Batch API discount. Maximum savings."
+  },
+
+  // ===== BATCH 3 — added 2026-07-06: targeted re-drills on wrong answers =====
+  // Block 13 — API traps (Claude vs OpenAI + mechanics gotchas)
+  {
+    id: "b13-q1",
+    block: "13 — API traps",
+    topic: "Claude vs OpenAI",
+    q: "Which of these parameters exists in the Claude Messages API but NOT in OpenAI's Chat Completions API?",
+    choices: [
+      "<code>response_format</code>",
+      "<code>top_p</code>",
+      "<code>cache_control</code> on content blocks",
+      "<code>max_tokens</code>"
+    ],
+    answer: 2,
+    explain: "<code>cache_control</code> on content blocks is Claude-specific — Anthropic's prompt caching mechanism. OpenAI has no equivalent. <code>response_format</code> is OpenAI-only (Claude doesn't have it). <code>top_p</code> and <code>max_tokens</code> exist in both APIs (though <code>max_tokens</code> is required in Claude, optional in OpenAI)."
+  },
+  {
+    id: "b13-q2",
+    block: "13 — API traps",
+    topic: "Claude vs OpenAI",
+    q: "In OpenAI's API you pass a system message as <code>{role: 'system', content: '...'}</code> in the messages array. In Claude's API, what's the equivalent?",
+    choices: [
+      "Same pattern — <code>{role: 'system', content: '...'}</code> as the first message",
+      "A top-level <code>system</code> parameter, not inside <code>messages</code>",
+      "<code>{role: 'user', content: '&lt;system&gt;...&lt;/system&gt;'}</code>",
+      "A <code>system_prompt</code> key inside the first user message"
+    ],
+    answer: 1,
+    explain: "Claude's <code>system</code> is a <b>top-level API parameter</b>, completely outside the messages array. Sending <code>role: 'system'</code> inside messages returns a 400 error. The messages array in Claude only accepts <code>user</code> and <code>assistant</code> roles, and must start with <code>user</code>."
+  },
+  {
+    id: "b13-q3",
+    block: "13 — API traps",
+    topic: "Claude vs OpenAI",
+    q: "You switch a codebase from OpenAI to Claude. You had <code>response_format: {type: 'json_object'}</code>. What replaces it in Claude?",
+    choices: [
+      "Change it to <code>response_format: {type: 'json'}</code>",
+      "Add <code>output_format: 'json'</code> to the request",
+      "Remove it — Claude has no equivalent; use system prompt instruction + assistant prefill with <code>{</code>",
+      "Move it into the system prompt as <code>&lt;response_format&gt;json&lt;/response_format&gt;</code>"
+    ],
+    answer: 2,
+    explain: "Claude has <b>no <code>response_format</code> parameter</b>. The migration path: (1) Add to system prompt: 'Respond only with valid JSON, no preamble or markdown.' (2) Use assistant prefill — end messages with <code>{\"role\": \"assistant\", \"content\": \"{\"}</code> so Claude continues from the opening brace. Post-process with try/catch as a safety net."
+  },
+  {
+    id: "b13-q4",
+    block: "13 — API traps",
+    topic: "Claude vs OpenAI",
+    q: "OpenAI's <code>max_tokens</code> has a sensible default. What happens in Claude if you omit it?",
+    choices: [
+      "Defaults to 1024 tokens",
+      "Defaults to the model's maximum context window",
+      "Returns a 400 validation error — it is required",
+      "Defaults to 4096 tokens for all models"
+    ],
+    answer: 2,
+    explain: "<code>max_tokens</code> is <b>required</b> in Claude's Messages API — no default exists. This is one of the most common migration bugs. Set it intentionally: use a small value for classification tasks, a large value for long-form generation. It caps <em>output</em> length, not input."
+  },
+  {
+    id: "b13-q5",
+    block: "13 — API traps",
+    topic: "Prefill mechanics",
+    q: "You want Claude to respond without any preamble, starting directly with a JSON object. Which messages array is correct?",
+    choices: [
+      "<code>[{role:'assistant', content:'{'}, {role:'user', content:'classify this...'}]</code>",
+      "<code>[{role:'user', content:'classify this...'}, {role:'assistant', content:'{'}]</code>",
+      "<code>[{role:'user', content:'classify this...'}, {role:'system', content:'output json'}]</code>",
+      "<code>[{role:'user', content:'&lt;prefill&gt;{&lt;/prefill&gt;classify this...'}]</code>"
+    ],
+    answer: 1,
+    explain: "Prefill = the <b>last message</b> in the array has <code>role: 'assistant'</code> with the partial content you want Claude to continue from. The array must still start with <code>user</code>. Claude continues the assistant's partial turn, so the full response starts from <code>{</code> with no wrapper text. Option A starts with assistant — that's a 400 error."
+  },
+  {
+    id: "b13-q6",
+    block: "13 — API traps",
+    topic: "Tool execution",
+    q: "Your agent receives a response with <code>stop_reason: 'tool_use'</code> and a <code>tool_use</code> content block. What must you do before calling the API again?",
+    choices: [
+      "Nothing — Claude has already executed the tool internally; just pass the response back",
+      "Call the tool yourself and send a new user message containing a <code>tool_result</code> block with the output",
+      "Set <code>tool_choice: 'auto'</code> on the next request to trigger execution",
+      "Wait — the tool runs asynchronously and Claude will poll for the result"
+    ],
+    answer: 1,
+    explain: "Claude <b>never executes tools</b>. It only requests them. Your code must: (1) read the <code>tool_use</code> block (name + inputs), (2) run the actual function, (3) construct a new user message containing a <code>tool_result</code> block that references the <code>tool_use_id</code>, (4) call the API again. Claude then sees the result and continues."
+  },
+  {
+    id: "b13-q7",
+    block: "13 — API traps",
+    topic: "Tool execution",
+    q: "A <code>tool_result</code> block has an <code>is_error: true</code> field. What does this tell Claude?",
+    choices: [
+      "Claude should ignore this result and try a different tool",
+      "The tool ran but returned an error — Claude can reason about the failure and decide what to do next",
+      "The API will automatically retry the tool call",
+      "The conversation must be reset — error results corrupt the context"
+    ],
+    answer: 1,
+    explain: "<code>is_error: true</code> tells Claude the tool <b>ran but failed</b>. Claude can read the error message in the content field and reason about it — retry with different inputs, call a fallback tool, or explain the failure to the user. This is intentional: exposing errors to Claude lets it self-correct. Never silently discard errors; pass them back."
+  },
+  {
+    id: "b13-q8",
+    block: "13 — API traps",
+    topic: "MCP",
+    q: "A colleague says their MCP server 'exposes models so Claude can switch to GPT-4 for certain tasks.' What's wrong with this?",
+    choices: [
+      "Nothing — MCP's Models capability lets you define alternate LLMs",
+      "MCP exposes Tools, Resources, and Prompts — not Models. The LLM is the client; MCP gives it external capabilities",
+      "MCP only exposes Tools — Resources and Prompts were removed in a recent version",
+      "This is valid but only works with Claude Code, not the raw API"
+    ],
+    answer: 1,
+    explain: "MCP's three primitives are <b>Tools</b> (functions), <b>Resources</b> (data/files), and <b>Prompts</b> (reusable templates). There is no 'Models' capability — MCP doesn't control which LLM runs. Claude is always the client. You can't use MCP to route to GPT-4. Model selection happens at the API call level, not through MCP."
+  },
+  {
+    id: "b13-q9",
+    block: "13 — API traps",
+    topic: "MCP",
+    q: "What is the key difference between an MCP Tool and an MCP Resource?",
+    choices: [
+      "Tools are for read operations; Resources are for write operations",
+      "Tools are callable functions (Claude decides when to call them); Resources are readable data endpoints (Claude reads them like documents)",
+      "Tools run server-side; Resources run client-side",
+      "There is no difference — they are aliases for the same concept"
+    ],
+    answer: 1,
+    explain: "<b>MCP Tool</b> = a function Claude can invoke (like a tool in tool use — it takes inputs, returns outputs, has side effects). <b>MCP Resource</b> = a data endpoint Claude can read (think: a file, a database row, a config — static-ish data that Claude pulls in as context). Tools are active; Resources are passive. Both are defined by the MCP server."
+  },
+  {
+    id: "b13-q10",
+    block: "13 — API traps",
+    topic: "Memory tool",
+    q: "You use the Memory tool to store a user preference. Three days later, in a fresh session, Claude still knows the preference. Could prompt caching do the same thing?",
+    choices: [
+      "Yes — prompt caching stores data server-side indefinitely",
+      "No — prompt caching TTL is 5 min to 1 hr; it is a billing optimisation, not persistent storage",
+      "Yes — if you use the 1-hour TTL option",
+      "No — but only because prompt caching is per-session, not per-user"
+    ],
+    answer: 1,
+    explain: "Prompt caching is a <b>billing optimisation</b> — it stores a prefix on Anthropic's servers for up to 1 hour to avoid re-billing identical tokens. It is NOT persistent memory. After the TTL expires, it's gone. Memory tool stores data durably (days, weeks) in Anthropic-managed storage scoped to user or workspace. Completely different mechanisms."
+  },
+  {
+    id: "b13-q11",
+    block: "13 — API traps",
+    topic: "Cache invalidation",
+    q: "You cache a system prompt that includes today's date: 'Today is Monday, July 6.' Tomorrow you run the same pipeline. What happens?",
+    choices: [
+      "Cache hit — the server matches on content, not dates",
+      "Cache miss — the date changed, so the content block is different, breaking the prefix match",
+      "Partial hit — everything except the date is cached",
+      "The cache auto-updates when it detects a date change"
+    ],
+    answer: 1,
+    explain: "Cache is a <b>byte-for-byte prefix match</b>. If even one character in the cached block is different, it's a miss — you pay full write cost again. Including any dynamic value (date, timestamp, user name, request ID) inside a cache breakpoint guarantees daily/hourly/per-request misses. Dynamic content belongs AFTER the last breakpoint, in the user turn."
+  },
+  {
+    id: "b13-q12",
+    block: "13 — API traps",
+    topic: "Model IDs",
+    q: "Why do Claude model IDs include a date suffix (e.g. <code>claude-haiku-4-5-20251001</code>) and why does it matter?",
+    choices: [
+      "It's cosmetic — all suffixes point to the same weights",
+      "It pins the exact model version. Using the undated alias (e.g. <code>claude-haiku-4-5</code>) may silently upgrade to a newer version, changing behaviour",
+      "The suffix is the billing tier — higher numbers cost more",
+      "It's only required for the API; Claude Code uses the undated alias internally"
+    ],
+    answer: 1,
+    explain: "The date suffix <b>pins the exact model snapshot</b>. An undated alias like <code>claude-haiku-4-5</code> (if it existed) could be silently updated. In production pipelines, use the full versioned ID so a model update doesn't change your outputs unexpectedly. Typos in model IDs cause <b>404 errors</b>, not silent fallback — so know the exact string."
+  },
+  {
+    id: "b13-q13",
+    block: "13 — API traps",
+    topic: "Claude vs OpenAI",
+    q: "You are migrating from OpenAI to Claude. Which of these OpenAI patterns needs the MOST significant rework?",
+    choices: [
+      "Using <code>temperature: 0</code> for deterministic output",
+      "Passing a system message, using <code>response_format</code>, and using <code>function_calling</code> — all three work differently in Claude",
+      "Using streaming with server-sent events",
+      "Setting <code>max_tokens</code> to cap output length"
+    ],
+    answer: 1,
+    explain: "Three common OpenAI patterns all break in Claude: (1) <code>role: 'system'</code> in messages → move to top-level <code>system</code> param. (2) <code>response_format: {type: 'json_object'}</code> → remove, use prefill + system prompt. (3) <code>function_calling</code> → Claude uses <code>tools</code> array with a different schema. <code>temperature</code> and streaming SSE work similarly in both."
+  },
+  {
+    id: "b13-q14",
+    block: "13 — API traps",
+    topic: "Few-shot",
+    q: "You add 15 few-shot examples to a classification prompt. What's the likely downside?",
+    choices: [
+      "Claude ignores examples beyond the first 5",
+      "No downside — more examples always improves accuracy",
+      "Diminishing accuracy returns while significantly bloating tokens and cost; 3–5 examples usually match or beat 15",
+      "The model overfits and refuses to classify inputs that don't match the examples"
+    ],
+    answer: 2,
+    explain: "Few-shot has a sweet spot of <b>3–5 examples</b> for most tasks. Beyond that: (1) token cost rises linearly, (2) accuracy plateaus or degrades — too many examples can confuse Claude about what's signal vs boilerplate. If 15 examples are needed, the task probably needs fine-tuning or a better prompt structure, not more examples."
+  },
+  {
+    id: "b13-q15",
+    block: "13 — API traps",
+    topic: "Cache syntax",
+    q: "Which of these correctly adds a cache breakpoint to a system prompt content block?",
+    choices: [
+      "<code>{\"system\": \"...\", \"cache\": true}</code>",
+      "<code>{\"type\": \"text\", \"text\": \"...\", \"cache_control\": {\"type\": \"ephemeral\"}}</code>",
+      "<code>&lt;cache_control type='ephemeral'&gt;system prompt here&lt;/cache_control&gt;</code>",
+      "<code>client.cache.create({content: \"...\", ttl: 300})</code>"
+    ],
+    answer: 1,
+    explain: "Cache breakpoints use <code>cache_control: {\"type\": \"ephemeral\"}</code> as a field <b>on the content block object itself</b>. For system prompts passed as an array of content blocks, add it to the block. For a simple string system prompt, you'd first convert it to a content block array. No XML wrapping, no top-level cache param, no client method."
   }
 ];
 
