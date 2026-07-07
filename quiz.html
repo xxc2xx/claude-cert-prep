@@ -2449,6 +2449,151 @@ const QUESTIONS = [
     ],
     answer: 1,
     explain: "Cache breakpoints use <code>cache_control: {\"type\": \"ephemeral\"}</code> as a field <b>on the content block object itself</b>. For system prompts passed as an array of content blocks, add it to the block. For a simple string system prompt, you'd first convert it to a content block array. No XML wrapping, no top-level cache param, no client method."
+  },
+
+  // ===== BATCH 4 — added 2026-07-07: targeted re-drills on Q25-Q72 wrong answers =====
+  // MCP deep drill
+  {
+    id: "b14-q1",
+    block: "14 — Drill: MCP & Tools",
+    topic: "MCP",
+    q: "MCP stands for:",
+    choices: [
+      "Model Compression Protocol",
+      "Model Context Protocol",
+      "Multi-Claude Pipeline",
+      "Managed Compute Protocol"
+    ],
+    answer: 1,
+    explain: "<b>Model Context Protocol.</b> Published by Anthropic, broadly adopted across the AI ecosystem. The analogy: MCP is to AI tools what USB is to peripherals — one standard connector, many devices. It solves the N×M integration problem: tools expose themselves once via an MCP server; any MCP-aware agent can use them without bespoke wiring."
+  },
+  {
+    id: "b14-q2",
+    block: "14 — Drill: MCP & Tools",
+    topic: "MCP",
+    q: "An MCP server exposes three primitives. Which mnemonic captures all three?",
+    choices: [
+      "T–R–P: Tools, Resources, Prompts",
+      "T–R–M: Tools, Resources, Models",
+      "A–P–I: Actions, Prompts, Integrations",
+      "F–D–C: Functions, Data, Connections"
+    ],
+    answer: 0,
+    explain: "<b>T–R–P: Tools, Resources, Prompts.</b> Tools = functions Claude can call. Resources = data Claude can read. Prompts = reusable templates users can invoke. There is no 'Models' primitive — MCP does not let you swap out the LLM. The LLM is the client; MCP expands its external reach."
+  },
+  {
+    id: "b14-q3",
+    block: "14 — Drill: MCP & Tools",
+    topic: "MCP",
+    q: "A colleague says MCP Prompts sound weird — 'isn't MCP just for tools and data?' Are Prompts really one of the three MCP primitives?",
+    choices: [
+      "No — Prompts are not an MCP primitive; only Tools and Resources are",
+      "Yes — Prompts are a first-class MCP primitive for pre-built user-invokable workflows",
+      "Only in MCP v2+ — original MCP only had Tools and Resources",
+      "Yes, but only if the MCP server is hosted by Anthropic"
+    ],
+    answer: 1,
+    explain: "Yes — <b>Prompts are a first-class MCP primitive.</b> They are pre-built, parameterised prompt templates that users can invoke (think slash commands backed by an MCP server). The confusion: Prompts feel out-of-place in a tools-and-data protocol. They're not. MCP is about giving agents rich external context — that includes structured workflows, not just data and functions."
+  },
+  {
+    id: "b14-q4",
+    block: "14 — Drill: MCP & Tools",
+    topic: "Tool errors",
+    q: "Your tool throws an exception. You catch it and return: <code>{type:'tool_result', tool_use_id:'...', content:'Error: DB timeout'}</code>. What's missing?",
+    choices: [
+      "Nothing — this is a complete tool_result",
+      "<code>is_error: true</code> — without it Claude reads the error string as successful output",
+      "A <code>retry: true</code> flag to trigger automatic retry",
+      "The <code>role: 'user'</code> wrapper around the block"
+    ],
+    answer: 1,
+    explain: "<b><code>is_error: true</code> is missing.</b> Without it, Claude treats 'Error: DB timeout' as the actual successful result of the tool — it may confidently reason on that string as real data. The <code>is_error</code> flag tells Claude this was a failure, enabling it to retry with different inputs, call a fallback, or inform the user. Always include it on failures."
+  },
+  {
+    id: "b14-q5",
+    block: "14 — Drill: MCP & Tools",
+    topic: "Tool errors",
+    q: "Claude receives a tool_result with <code>is_error: true</code> and content: 'Rate limit hit, retry after 2s'. What can Claude do with this?",
+    choices: [
+      "Nothing — Claude cannot process error results, it must be restarted",
+      "Reason about the failure: wait, retry the tool, try an alternative, or surface the error to the user",
+      "Auto-retry the tool call after 2 seconds internally",
+      "Ignore it — is_error results are stripped from Claude's context"
+    ],
+    answer: 1,
+    explain: "Claude reads the error content and <b>reasons about it</b> — it might try the tool again, adjust its parameters, use a fallback strategy, or tell the user what went wrong. This is the value of <code>is_error</code>: it turns errors into information Claude can act on instead of data that corrupts its reasoning. Claude never retries internally — your code handles timing; Claude decides strategy."
+  },
+  // Prefill — extra drilling (3rd wrong answer pattern)
+  {
+    id: "b14-q6",
+    block: "14 — Drill: MCP & Tools",
+    topic: "Prefill",
+    q: "This messages array produces what output? <code>[{role:'user', content:'Rate this 1-10:'}, {role:'assistant', content:'Rating:'}]</code>",
+    choices: [
+      "An error — the last message must be role:'user'",
+      "Claude's response starts with 'Rating:' and continues from there — no preamble",
+      "Claude repeats 'Rating:' and then answers",
+      "Claude ignores the prefill and starts its response fresh"
+    ],
+    answer: 1,
+    explain: "This is <b>assistant prefill</b>. Claude continues from 'Rating:' — the full response will be 'Rating: 7/10' or similar, with no introductory sentence. The last message being <code>role:'assistant'</code> with partial content tells Claude to complete that turn. It does NOT cause an error — ending on assistant is specifically how prefill works. Starting on assistant would error."
+  },
+  {
+    id: "b14-q7",
+    block: "14 — Drill: MCP & Tools",
+    topic: "Prefill",
+    q: "You need Claude to return ONLY a JSON object — no 'Sure!' preamble, no markdown fences. The most bulletproof single technique is:",
+    choices: [
+      "Add <code>response_format: {type:'json_object'}</code>",
+      "End the messages array with <code>{role:'assistant', content:'{'}</code>",
+      "Add <code>output_schema: {type:'object'}</code> to the request",
+      "Use <code>stop_sequences: ['```']</code> to strip markdown"
+    ],
+    answer: 1,
+    explain: "<b>Assistant prefill with <code>'{'</code></b> forces Claude to start its response as a JSON object — it has no choice but to continue with valid JSON from that opening brace. There is no <code>response_format</code> or <code>output_schema</code> in Claude's API (those are OpenAI). <code>stop_sequences</code> strips closing fences but doesn't prevent a preamble. Prefill is the Claude-native answer every time this question appears."
+  },
+  // Cache minimum size + long context
+  {
+    id: "b14-q8",
+    block: "14 — Drill: MCP & Tools",
+    topic: "Cache mechanics",
+    q: "You set <code>cache_control</code> on a 300-token tool description. On the second call, <code>cache_read_input_tokens</code> is 0. Why?",
+    choices: [
+      "The TTL expired between the two calls",
+      "The block is below the ~1,024 token minimum — the breakpoint was silently ignored",
+      "You need to call <code>client.cache.warm()</code> first",
+      "Caching only works on system prompts, not tool definitions"
+    ],
+    answer: 1,
+    explain: "Prompt caching has a <b>minimum block size of ~1,024 tokens</b> (Sonnet/Haiku) or ~2,048 tokens (Opus). Below the threshold, the <code>cache_control</code> annotation is silently ignored — no error, no caching. This catches many developers off guard. The fix: combine multiple small blocks into one large cacheable block, or accept that small blocks aren't worth caching."
+  },
+  {
+    id: "b14-q9",
+    block: "14 — Drill: MCP & Tools",
+    topic: "Long context",
+    q: "You pass Claude a 200-page PDF and ask one question. For best accuracy, where should the question appear?",
+    choices: [
+      "Only at the very start — Claude reads top to bottom",
+      "Only at the very end — Claude weights recent input more",
+      "At both the start AND the end of the document",
+      "In the system prompt, not in the user message"
+    ],
+    answer: 2,
+    explain: "<b>Both the start AND the end.</b> LLMs reliably attend to the beginning and end of long inputs — the 'lost in the middle' effect means content in the middle of a huge document gets less attention. Repeating the question at both ends gives Claude the primacy advantage (start) and the recency advantage (end). It costs a few tokens but measurably improves recall on long-document tasks."
+  },
+  {
+    id: "b14-q10",
+    block: "14 — Drill: MCP & Tools",
+    topic: "Cache invalidation",
+    q: "Your cache hit rate dropped from 95% to 0% overnight. No code changed. Most likely cause?",
+    choices: [
+      "Anthropic reset all caches at midnight",
+      "A 'stable' prefix silently changed — config update, dependency bump, or dynamic content injected into the cached block",
+      "You exceeded the maximum number of cache reads per day",
+      "The TTL ran out — caches expire daily"
+    ],
+    answer: 1,
+    explain: "The most common production cause: a <b>silent prefix change</b>. A config update reformatted a tool description, a dependency added a header, or a timestamp crept into the system prompt. Cache is byte-for-byte — one changed character = 100% miss. Diagnose by comparing <code>cache_read_input_tokens</code> (dropped to ~0) vs <code>cache_creation_input_tokens</code> (spiked). Then diff your prompt against the original cached version."
   }
 ];
 

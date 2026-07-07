@@ -993,6 +993,19 @@ The SDK is what Claude Code (the CLI) is built on. When you type a prompt to Cla
 
 ### 4.8 Common tool-use mistakes
 
+**`is_error: true` — the most missed exam detail:**
+
+When your tool fails, the `tool_result` block MUST include `"is_error": true`:
+```json
+{
+  "type": "tool_result",
+  "tool_use_id": "toolu_abc123",
+  "content": "Error: connection timeout after 5s",
+  "is_error": true
+}
+```
+Without `is_error: true`, Claude reads the error string as a **successful tool result** — it may confidently act on "connection timeout" as if it were real data. The flag tells Claude this was a failure so it can retry, fall back, or explain the error. Always set it on failures, never on success.
+
 | Mistake | Symptom | Fix |
 |---|---|---|
 | Forgetting `is_error: true` on failures | Claude treats error string as success data | Always set on failures |
@@ -1199,6 +1212,20 @@ for market in MARKETS:
 **Why 1h TTL:** the full crawl takes ~45 min. With 5m TTL, the cache would expire between the first market and the seventh. 1h gives headroom.
 
 **Why per-brand breakpoint (not per-market):** brand context is constant across markets; market context varies. The cacheable thing is the brand block, not the market.
+
+### 5.11 Exam quick-fire Q&A
+
+**Q: A 500-token system prompt has `cache_control` on it. Does it cache?**
+No. Minimum block size is ~1,024 tokens (Sonnet/Haiku). Below the threshold, the breakpoint is silently ignored — you get no error, just no caching. The answer is never "yes but only on the second call" — if it's below minimum, it never caches regardless of call count.
+
+**Q: You add `f"Today is {today}"` to your cached system prompt. Cache hit rate drops to 0%. Why?**
+Cache is a byte-for-byte prefix match. The date string changes every day, so the cached prefix is different from yesterday's — 100% miss rate. The fix: move dynamic content (dates, user IDs, request timestamps) AFTER the last cache breakpoint, into the user turn. The wrong mental model is "caching doesn't work with system prompts containing dates" — caching works fine, you just broke the prefix by putting dynamic content inside it.
+
+**Q: Where should you place a question about a 100k-token document for best recall?**
+At **both the start AND the end** of the document. LLMs attend most reliably to the beginning and end of long contexts ("lost in the middle" effect). Placing the question only at the end loses the primacy advantage. Placing it at both ends costs a few tokens but measurably improves recall on long-document tasks.
+
+**Q: Your cached system prompt + tools = 8,000 tokens. You run 200 calls/day. Cache is working. On day 2, a config update silently reformats one tool description with a trailing space. What happens?**
+Total cache miss for the day — all 200 calls pay full write cost. The trailing space changed one byte before the breakpoint, invalidating every cached prefix. This is why: (1) tool definitions should be stored in version-controlled files, not generated dynamically, and (2) you should monitor `cache_read_input_tokens` in production — a sudden drop to 0 signals a prefix change.
 
 ---
 
@@ -1585,6 +1612,25 @@ Both are valid; pick based on context.
 | **Distribution** | Publish as a package | Embedded in your code |
 
 For your `intel.py` pipeline, custom tools are fine — there's only one consumer. For a future "ask our data" internal tool used by multiple analytics agents, MCP makes sense.
+
+### 8.8 Exam quick-fire Q&A
+
+**Q: What does MCP stand for?**
+**Model Context Protocol.** Not "Model Compression," not "Multi-Claude Pipeline," not "Microsoft Cloud Platform." It is an open standard (Anthropic-published, broadly adopted) for connecting LLMs to external tools and data sources. The analogy: MCP is to AI tools what USB is to peripherals — one standard port, many devices.
+
+**Q: What are the three things an MCP server exposes? Mnemonic?**
+**T–R–P: Tools, Resources, Prompts.**
+- **Tools** — functions Claude can call (verbs, actions, side effects)
+- **Resources** — data Claude can read (nouns, content, context)
+- **Prompts** — reusable templates users can invoke (pre-built workflows)
+
+NOT models. NOT APIs. NOT connections. The LLM is the client — MCP gives it access to external capabilities, it does not swap out the LLM itself.
+
+**Q: You answered "Prompts — reusable prompt templates" as the thing MCP does NOT expose. Why is that wrong?**
+Prompts ARE one of the three MCP primitives. The question asks what MCP does NOT expose — the answer is **Models** (alternative LLMs). This is a classic misdirection: "Prompts" sounds out-of-place in a tools/data protocol, so it feels like the odd one out. It's not. Memorise TRP and you'll never miss it again.
+
+**Q: What transport options does MCP support?**
+Two: **stdio** (local subprocess, messages over stdin/stdout — for local servers like filesystem access) and **HTTP + SSE** (network service — for remote/cloud servers).
 
 ---
 
