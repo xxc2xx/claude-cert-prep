@@ -4517,6 +4517,570 @@ const QUESTIONS = [
     ],
     answer: 2,
     explain: "Targeting few-shot examples at the specific ambiguous scenarios where errors occur, with explicit rationale for why one tool is preferable to alternatives, teaches the model the comparative decision process needed for edge cases. This is more effective than generic examples or declarative rules."
+  },
+
+  // ===== BLOCK 17 — SG Community Diagnostic (15 questions — sourced from cca-f-diagnostic.web.app) =====,
+  {
+    id: "b17-q01",
+    block: "17 — SG Diagnostic",
+    topic: "D1 Agentic Architecture",
+    q: "A research agent uses four peer agents that message each other freely until they agree. In production, cost varies wildly run-to-run and some runs never finish. Which change best fixes both problems?",
+    choices: [
+      "Lower the temperature on all four agents so their answers converge sooner",
+      "Add a fifth agent whose only job is deciding when the other four should stop",
+      "Move to an orchestrator-worker topology: central coordinator, iteration cap",
+      "Give each agent a larger context window to retain more of the discussion"
+    ],
+    answer: 2,
+    explain: "Peer-to-peer messaging has no central controller, so cost and termination are unpredictable. An orchestrator-worker topology adds a coordinator that decomposes tasks, caps iterations, and decides when to stop — fixing both problems simultaneously."
+  },
+  {
+    id: "b17-q02",
+    block: "17 — SG Diagnostic",
+    topic: "D1 Agentic Architecture",
+    q: "You're reviewing an autonomous agent loop that sometimes never ends. Which is the most reliable basis for terminating it?",
+    choices: [
+      "A task-completion check, a hard iteration cap, an explicit stop/handoff, or an unrecoverable error",
+      "When the response passes 1,500 tokens or 30 seconds elapse, whichever comes first",
+      "When the model states in its reply that it is 'fairly confident' it has finished",
+      "A fixed cap of 10 iterations applied uniformly to every task regardless of size"
+    ],
+    answer: 0,
+    explain: "Robust loop termination needs multiple signals: a task-completion check (stop_reason: end_turn), a safety iteration cap, an explicit human-handoff trigger, and detection of unrecoverable errors. Time/token limits and natural-language confidence are unreliable signals."
+  },
+  {
+    id: "b17-q03",
+    block: "17 — SG Diagnostic",
+    topic: "D1 Agentic Architecture",
+    q: "A customer-support agent escalates too unpredictably. Which signal is a reliable trigger to escalate to a human?",
+    choices: [
+      "Sentiment analysis detects that the customer is angry",
+      "The model's self-rated confidence (1–10) falls below 5",
+      "A classifier trained on past tickets predicts 'complex'",
+      "The request falls into a gap the policy doesn't cover"
+    ],
+    answer: 3,
+    explain: "Policy gaps require a human decision — the agent literally cannot proceed correctly without one. Sentiment and self-reported confidence are unreliable (angry customers often have simple issues; Claude's confidence is poorly calibrated). An ML complexity classifier is probabilistic, not deterministic."
+  },
+  {
+    id: "b17-q04",
+    block: "17 — SG Diagnostic",
+    topic: "D1 Agentic Architecture",
+    q: "A rule must always block refunds over $500. Where should it live?",
+    choices: [
+      "Stated firmly in the system prompt, repeated for emphasis",
+      "In a deterministic hook (or permission) that intercepts the tool call",
+      "In a few-shot example showing the model refusing a large refund",
+      "In the tool's description as a prominently placed usage note"
+    ],
+    answer: 1,
+    explain: "Financial rules that must hold 100% of the time need deterministic enforcement. A PreToolUse hook intercepts the tool call before it executes and can block it with certainty. Prompt-based methods (system prompt, few-shot, tool description) are probabilistic — they have a non-zero failure rate."
+  },
+  {
+    id: "b17-q05",
+    block: "17 — SG Diagnostic",
+    topic: "D4 Prompt Engineering",
+    q: "A structured-extraction job fails validation ~15% of the time because an optional middle_name is often absent, but the schema marks it required. Best fix?",
+    choices: [
+      "Make middle_name nullable so the schema matches reality",
+      "Raise the temperature so the model fills the gaps creatively",
+      "Repeat 'always include middle_name' several times in the prompt",
+      "Drop the validation step entirely so nothing can fail on it"
+    ],
+    answer: 0,
+    explain: "When a field is genuinely optional in source documents, marking it required forces Claude to fabricate a value when the data isn't there. Use type: [\"string\", \"null\"] to make it nullable — the schema then matches reality and fabrication stops."
+  },
+  {
+    id: "b17-q06",
+    block: "17 — SG Diagnostic",
+    topic: "D4 Prompt Engineering",
+    q: "You need Claude to return a JSON object with no preamble text. Which technique most directly enforces this?",
+    choices: [
+      "Politely instructing it to 'return only the JSON'",
+      "Lowering the temperature setting to near zero",
+      "Prefilling the assistant turn with an opening brace",
+      "Adding more examples of well-formatted prose"
+    ],
+    answer: 2,
+    explain: "Prefilling the assistant turn with { forces Claude to continue the JSON directly — there's no room for preamble because the response starts inside the JSON object. Instructions and temperature changes don't structurally prevent preamble text."
+  },
+  {
+    id: "b17-q07",
+    block: "17 — SG Diagnostic",
+    topic: "D4 Prompt Engineering",
+    q: "A validation-retry loop occasionally hangs, re-submitting the same malformed output forever. What's missing?",
+    choices: [
+      "A larger model on retries, since stronger models produce valid output more often",
+      "A higher temperature on each attempt so the output varies instead of repeating",
+      "Switching the output format from JSON to XML, which is simpler to validate",
+      "A bounded retry count plus feeding the specific validation error back"
+    ],
+    answer: 3,
+    explain: "Without a retry cap, a loop on malformed output runs forever. Without feeding the specific error back, Claude repeats the same mistake. The fix is both: limit retries to 2-3 and include the exact validation failure in the next prompt so Claude knows what to fix."
+  },
+  {
+    id: "b17-q08",
+    block: "17 — SG Diagnostic",
+    topic: "D3 Claude Code Config",
+    q: "A rule in the project-root CLAUDE.md is being overridden for files under src/payments/, which nobody configured on purpose. Most likely cause?",
+    choices: [
+      "The root CLAUDE.md file is corrupted, so its rules are silently skipped",
+      "A CLAUDE.md inside src/payments/ takes precedence for files in its subtree",
+      "Claude Code ignores CLAUDE.md files unless the feature is enabled in settings",
+      "The selected model is an older one that doesn't support CLAUDE.md files"
+    ],
+    answer: 1,
+    explain: "CLAUDE.md files follow a specificity rule: a file inside a subdirectory takes precedence over the root CLAUDE.md for all files in that subtree. Check for an unexpected CLAUDE.md in src/payments/."
+  },
+  {
+    id: "b17-q09",
+    block: "17 — SG Diagnostic",
+    topic: "D3 Claude Code Config",
+    q: "You're wiring Claude Code into a CI pipeline to review each pull request automatically. Which is correct?",
+    choices: [
+      "Run it in plan mode so a human can approve each step before execution",
+      "Pipe 'yes' into the interactive prompt so confirmations are auto-accepted",
+      "Run it headless with the -p (print) flag for non-interactive execution",
+      "Use the web UI as a pipeline stage triggered on each new pull request"
+    ],
+    answer: 2,
+    explain: "The -p (--print) flag makes Claude Code non-interactive: it prints output and exits without prompting. Plan mode requires human approval — defeating CI automation. Piping 'yes' is fragile. The web UI can't be triggered programmatically as a CI stage."
+  },
+  {
+    id: "b17-q10",
+    block: "17 — SG Diagnostic",
+    topic: "D3 Claude Code Config",
+    q: "A repo has different conventions for React, API, and DB code, and tests are scattered across folders. You want conventions applied automatically by file type. Best mechanism?",
+    choices: [
+      "Put every convention for all three stacks in the single root CLAUDE.md",
+      "Path/glob-scoped rule files that target each relevant file pattern",
+      "Paste the relevant conventions manually at the top of each file you touch",
+      "Lower the temperature whenever Claude Code is editing the test files"
+    ],
+    answer: 1,
+    explain: "Path/glob-scoped rules in .claude/rules/ let you target specific file patterns (e.g., **/*.tsx for React, **/api/**/*.py for the API layer). A monolithic root CLAUDE.md applies all rules everywhere and becomes unwieldy. Manual pasting doesn't scale."
+  },
+  {
+    id: "b17-q11",
+    block: "17 — SG Diagnostic",
+    topic: "D2 Tool Design & MCP",
+    q: "An agent keeps calling the wrong tool. The tool's entire description reads 'Handles data.' Best first fix?",
+    choices: [
+      "Rename the tool to something shorter and easier for the model to recall",
+      "Raise the temperature so the model explores the tool list more widely",
+      "Add several more specialized tools so it has finer-grained options",
+      "Rewrite the description: what it does, when to use it, when not to"
+    ],
+    answer: 3,
+    explain: "Tool descriptions are how Claude decides which tool to call. 'Handles data' gives no information about purpose, inputs, or when to use it. Rewriting it with: what the tool does, expected inputs, when to call it, and when NOT to call it fixes the selection problem at the root."
+  },
+  {
+    id: "b17-q12",
+    block: "17 — SG Diagnostic",
+    topic: "D2 Tool Design & MCP",
+    q: "An agent has 30 overlapping tools and frequently picks the wrong one. The core problem is:",
+    choices: [
+      "Tool sprawl overloading selection; consolidate and sharpen boundaries",
+      "The model is too small for tool selection and should be upgraded",
+      "A missing hard rule that agents may have at most three tools each",
+      "A context window so large that it dilutes the model's reasoning"
+    ],
+    answer: 0,
+    explain: "The recommended limit is 4-5 tools per agent. With 30 overlapping tools, the model has to reason about too many options with unclear boundaries — leading to wrong selections. The fix is consolidation (fewer tools with clearer, non-overlapping purposes) and possibly distributing tools across specialized subagents."
+  },
+  {
+    id: "b17-q13",
+    block: "17 — SG Diagnostic",
+    topic: "D2 Tool Design & MCP",
+    q: "An MCP tool fails and returns a raw stack-trace string; the agent then can't decide what to do. Better design?",
+    choices: [
+      "Suppress the error and return an empty result so the run continues",
+      "Crash the whole agent on any tool failure so problems surface fast",
+      "Return a structured, actionable error (isError + reason) it can reason about",
+      "Silently retry the tool until it succeeds, however many attempts it takes"
+    ],
+    answer: 2,
+    explain: "Structured errors let Claude reason about what went wrong and how to recover. is_error: true tells Claude the result is an error (not data). The reason field tells it what happened and whether retry makes sense. Suppressing errors or crashing removes the agent's ability to handle failures gracefully."
+  },
+  {
+    id: "b17-q14",
+    block: "17 — SG Diagnostic",
+    topic: "D5 Context & Reliability",
+    q: "A team says reliability problems will be solved by 'just using the largest context window and putting everything in.' Why is this wrong?",
+    choices: [
+      "Relevant signal gets diluted and cost/latency rise; curation beats capacity",
+      "Context windows that large aren't available on any currently shipping model",
+      "Very large windows disable tool calling, so the agents lose their tools",
+      "Filling the window always triggers immediate truncation of early content"
+    ],
+    answer: 0,
+    explain: "More context isn't automatically better. Relevant information gets diluted by irrelevant content (the 'lost in the middle' effect), performance degrades, and cost rises linearly with tokens. The right answer is curating what goes into context, not filling it indiscriminately."
+  },
+  {
+    id: "b17-q15",
+    block: "17 — SG Diagnostic",
+    topic: "D5 Context & Reliability",
+    q: "In a coordinator-subagent system, a subagent hits an unrecoverable error but returns a plausible empty result, and the coordinator reports overall success. Which principle was violated?",
+    choices: [
+      "Prompt caching of the stable system prefix",
+      "Few-shot example coverage of the edge cases",
+      "Stop-sequence configuration on the subagent",
+      "Structured error propagation up the hierarchy"
+    ],
+    answer: 3,
+    explain: "Errors must propagate up the hierarchy with structure — not be swallowed as empty results. When a subagent fails silently and returns a plausible-looking empty result, the coordinator has no way to detect the failure and incorrectly reports success. Anti-pattern #7: silently suppressing errors (empty results as success)."
+  },
+
+  // ===== BLOCK 18 — Hard scenario questions in SG diagnostic style (25 questions) =====,
+  {
+    id: "b18-q01",
+    block: "18 — Hard Scenarios",
+    topic: "D1 Agentic Architecture",
+    q: "A research orchestrator spawns three subagents sequentially — one per API call — and waits for each to finish before calling the next. Total runtime is 3× longer than expected. What's the fix?",
+    choices: [
+      "Increase the orchestrator's max_tokens so it can process all three in one turn",
+      "Emit all three Task tool calls in a single orchestrator response; they execute in parallel",
+      "Give each subagent a dedicated thread in the Python client using asyncio.gather",
+      "Use a message batch API call so all three subagents are queued simultaneously"
+    ],
+    answer: 1,
+    explain: "Parallel subagent execution requires multiple Task/Agent tool calls in a single coordinator response. The API executes them concurrently. Sequential API calls force serial execution. asyncio.gather on the client side doesn't change the model's execution model — the model must emit the tool calls together."
+  },
+  {
+    id: "b18-q02",
+    block: "18 — Hard Scenarios",
+    topic: "D1 Agentic Architecture",
+    q: "A coordinator delegates 'analyze the customer's complaint' to a subagent. The subagent fails with 'I don't know who the customer is.' No code changes were made. Most likely cause?",
+    choices: [
+      "The subagent model was downgraded and lost the ability to infer context",
+      "The coordinator must pass all relevant context explicitly — subagents don't inherit conversation history",
+      "The session token expired mid-request and the subagent started fresh",
+      "The orchestration SDK automatically passes context unless you disable it"
+    ],
+    answer: 1,
+    explain: "Subagents have isolated context. They receive only what the coordinator explicitly includes in their task prompt. The orchestrator must pass the customer ID, complaint text, and any other relevant context. There is no automatic inheritance of the coordinator's conversation history."
+  },
+  {
+    id: "b18-q03",
+    block: "18 — Hard Scenarios",
+    topic: "D1 Agentic Architecture",
+    q: "An agent loop uses this check to exit: `if 'task complete' in response.content[0].text.lower(): break`. It works in testing but hangs in production on 8% of tasks. Root cause?",
+    choices: [
+      "The response content field is sometimes empty, causing an IndexError that's swallowed",
+      "The loop relies on natural language parsing instead of stop_reason; use stop_reason == 'end_turn'",
+      "Lowercasing the response changes the token structure and breaks Claude's internal state",
+      "The 8% hang rate means max_tokens is occasionally cutting off the completion phrase"
+    ],
+    answer: 1,
+    explain: "Natural language termination checks are unreliable. Claude may paraphrase completion ('Done.', 'Finished.', 'All tasks addressed.') in ways that don't match the string. The authoritative signal is stop_reason: 'end_turn', which the API sets deterministically when Claude finishes its response."
+  },
+  {
+    id: "b18-q04",
+    block: "18 — Hard Scenarios",
+    topic: "D1 Agentic Architecture",
+    q: "A coordinator asked to 'research global renewable energy trends' decomposes into: solar panels, wind turbines, battery storage. Users report the output misses geothermal, tidal, and hydrogen entirely. What failed?",
+    choices: [
+      "The subagents hit context limits and dropped the less common energy types",
+      "The coordinator's initial decomposition was too narrow, missing large portions of the problem scope",
+      "Subagents shared findings and a majority-vote mechanism excluded minority topics",
+      "The model's knowledge cutoff predates tidal and hydrogen energy developments"
+    ],
+    answer: 1,
+    explain: "Overly narrow decomposition is a critical D1 anti-pattern. The coordinator framed the task around three well-known technologies and never checked whether the decomposition covered the full problem scope. A coverage check ('what other renewable sources exist?') should precede delegation."
+  },
+  {
+    id: "b18-q05",
+    block: "18 — Hard Scenarios",
+    topic: "D1 Agentic Architecture",
+    q: "A production agent must confirm account ownership before transferring funds. The system prompt says 'Always verify account ownership before any transfer.' After 10,000 successful runs, one transfer goes through without verification. The team is surprised. Why?",
+    choices: [
+      "A network timeout caused the verification tool to skip its response",
+      "Prompt-based instructions have a non-zero failure rate; financial controls require a PreToolUse hook with deterministic enforcement",
+      "The system prompt was cached and the cached version didn't include the verification rule",
+      "The model hallucinated a successful verification response to proceed faster"
+    ],
+    answer: 1,
+    explain: "Prompt instructions — even well-written ones — are probabilistic. A non-zero failure rate is inherent to language model behavior. For financial controls, the rule must live in a deterministic PreToolUse hook that intercepts the transfer tool call and blocks it if ownership verification hasn't been confirmed. 10,000 successes don't mean the 10,001st will succeed."
+  },
+  {
+    id: "b18-q06",
+    block: "18 — Hard Scenarios",
+    topic: "D1 Agentic Architecture",
+    q: "An agent loop checks response.content[0].type == 'text' to detect that Claude is done and exits. On certain tasks it exits prematurely mid-analysis. Root cause?",
+    choices: [
+      "A text block as the first content item means Claude is responding without tool calls; check stop_reason instead",
+      "The loop should check response.stop_reason before inspecting content type",
+      "Claude sometimes puts tool_use before text in the content array, reversing the expected order",
+      "Both A and B are correct — the content check is unreliable and stop_reason is the right signal"
+    ],
+    answer: 3,
+    explain: "A response can contain a text block AND a tool_use block simultaneously (stop_reason: 'tool_use'). Checking for a text block doesn't tell you whether Claude is finished — it only tells you Claude wrote something. stop_reason is the authoritative exit signal. Additionally, Claude may order content blocks differently in different responses."
+  },
+  {
+    id: "b18-q07",
+    block: "18 — Hard Scenarios",
+    topic: "D1 Agentic Architecture",
+    q: "Three subagents run in parallel. The middle one fails and returns {}. The synthesis agent receives three results, assumes the empty one means 'no findings', and produces a report. A key insight is missing. What should the middle agent have done?",
+    choices: [
+      "Returned None so the coordinator could detect the failure via null check",
+      "Retried the task 3 times before returning anything",
+      "Set is_error: true and returned a structured error with category and detail so the coordinator could handle or escalate",
+      "Cached the previous successful run's result and returned that instead"
+    ],
+    answer: 2,
+    explain: "Empty results are indistinguishable from 'found nothing' — they mask failures entirely. Structured errors with is_error: true force the coordinator to handle the failure explicitly: retry with different parameters, escalate to a human, or mark the report as incomplete. Silent empty results are anti-pattern #7."
+  },
+  {
+    id: "b18-q08",
+    block: "18 — Hard Scenarios",
+    topic: "D1 Agentic Architecture",
+    q: "Two subagents discover contradictory data and begin exchanging messages to resolve it. Occasionally the system produces results where the contradiction wasn't resolved. Best architectural fix?",
+    choices: [
+      "Add a voting subagent that breaks ties between the two contradicting agents",
+      "Give each subagent more context so they can resolve contradictions independently",
+      "Route all inter-subagent communication through the coordinator; subagents never communicate directly",
+      "Set consensus_required: true in the subagent configuration"
+    ],
+    answer: 2,
+    explain: "In a coordinator-worker architecture, subagents communicate ONLY through the coordinator. Direct peer-to-peer messaging creates uncontrolled loops, inconsistent resolution, and makes the system hard to debug. The coordinator is responsible for detecting contradictions, requesting clarification, and synthesizing the final result."
+  },
+  {
+    id: "b18-q09",
+    block: "18 — Hard Scenarios",
+    topic: "D1 Agentic Architecture",
+    q: "An agent handles web_search (a server-side built-in tool) correctly in staging. In production, some requests hang indefinitely at the web_search step. The loop handles end_turn, tool_use, and max_tokens. What's missing?",
+    choices: [
+      "A timeout wrapper on the API call to handle network delays",
+      "A handler for stop_reason: 'pause_turn', which fires when a server-side tool hits its internal iteration limit",
+      "An API key rotation mechanism since web_search requires separate credentials",
+      "A retry wrapper since web_search occasionally fails with transient 503 errors"
+    ],
+    answer: 1,
+    explain: "pause_turn is the stop_reason emitted when a server-side tool (like web_search) has hit its internal loop cap and needs the client to send the response back to continue. A loop that doesn't handle pause_turn will hang waiting for a response that never comes as a normal end_turn."
+  },
+  {
+    id: "b18-q10",
+    block: "18 — Hard Scenarios",
+    topic: "D1 Agentic Architecture",
+    q: "A coordinator is asked to research a topic and produces a synthesis with findings from all three subagents. Users report the synthesis sometimes omits entire sub-topics. The coordinator prompt says 'synthesize all findings.' Best fix?",
+    choices: [
+      "Increase the synthesis model's context window to fit all subagent outputs",
+      "Require subagents to annotate their output with coverage labels; include a coordinator check that all expected coverage areas appear before finalizing",
+      "Add a fourth 'completeness-checking' subagent that reads the synthesis and flags gaps",
+      "Run the synthesis twice and merge the two outputs"
+    ],
+    answer: 1,
+    explain: "Coverage annotations let the coordinator verify the synthesis is complete before returning it. Each subagent labels what it covered; the coordinator checks that all delegated areas appear in the final output and triggers a targeted follow-up if any are missing. This is the iterative refinement pattern for synthesis completeness."
+  },
+  {
+    id: "b18-q11",
+    block: "18 — Hard Scenarios",
+    topic: "D3 Claude Code Config",
+    q: "A root CLAUDE.md defines the project's code style. A junior dev notices Claude Code uses different style rules in src/legacy/. No one intentionally configured src/legacy/ differently. How did this happen?",
+    choices: [
+      "Root CLAUDE.md doesn't apply to folders named 'legacy' — it's a reserved name",
+      "An unnoticed CLAUDE.md file inside src/legacy/ takes precedence for files in that subtree",
+      "Code style rules require .claude/rules/ files; CLAUDE.md style rules are advisory only",
+      "The model version doesn't support CLAUDE.md style inheritance in subdirectories"
+    ],
+    answer: 1,
+    explain: "CLAUDE.md files follow specificity: a file in a subdirectory overrides the root for everything in its tree. Someone (or a scaffolding tool) created a src/legacy/CLAUDE.md. Check for unexpected CLAUDE.md files with: find . -name 'CLAUDE.md' -not -path './.git/*'"
+  },
+  {
+    id: "b18-q12",
+    block: "18 — Hard Scenarios",
+    topic: "D3 Claude Code Config",
+    q: "A dev runs Claude Code on a change that touches 14 files across 6 modules. Claude immediately starts editing. Midway through, two files conflict and the change is inconsistent. What should have been done first?",
+    choices: [
+      "Run with --max-files=3 to limit Claude to safe chunks",
+      "Enable plan mode so Claude proposes all edits first and gets human approval before executing",
+      "Add a PostToolUse hook to detect conflicts after each file edit",
+      "Use /diff before starting to show Claude what files will change"
+    ],
+    answer: 1,
+    explain: "Multi-file, cross-module changes are exactly the use case for plan mode. Claude first produces a complete plan (which files, what changes, in what order) that you review and approve before any execution. This catches conflicts and dependencies before they create an inconsistent half-edited state."
+  },
+  {
+    id: "b18-q13",
+    block: "18 — Hard Scenarios",
+    topic: "D3 Claude Code Config",
+    q: "A CI pipeline runs Claude Code but hangs on the first PR — waiting for a 'y/n' prompt that never gets answered. Best fix?",
+    choices: [
+      "Set CI_MODE=true environment variable to suppress all prompts",
+      "Use --dangerously-skip-permissions to bypass confirmation dialogs",
+      "Pass the -p (--print) flag to run Claude Code in non-interactive mode",
+      "Switch to plan mode, which doesn't require user confirmations"
+    ],
+    answer: 2,
+    explain: "The -p / --print flag makes Claude Code fully non-interactive: it runs, prints output, and exits without waiting for confirmations. --dangerously-skip-permissions skips permission prompts but not all interactive prompts and is a security risk. Plan mode still requires human approval, which breaks CI."
+  },
+  {
+    id: "b18-q14",
+    block: "18 — Hard Scenarios",
+    topic: "D3 Claude Code Config",
+    q: "A CLAUDE.md import chain is: root → team.md → domain.md → stack.md → lang.md → micro.md (6 levels). The micro.md conventions are being ignored. Why?",
+    choices: [
+      "Circular imports cause all levels below the cycle to be silently skipped",
+      "Imported files must be in the same directory as the file that imports them",
+      "@import / @path nesting is limited to 5 levels; the 6th level is silently ignored",
+      "Files smaller than 100 tokens are skipped to reduce context overhead"
+    ],
+    answer: 2,
+    explain: "Claude Code enforces a maximum @import nesting depth of 5. The 6th level (micro.md in this case) is silently ignored. Solution: flatten the hierarchy (merge micro.md into lang.md) or restructure to stay within 5 levels."
+  },
+  {
+    id: "b18-q15",
+    block: "18 — Hard Scenarios",
+    topic: "D3 Claude Code Config",
+    q: "A /summarize skill is defined in the project's .claude/skills/ directory. A user also has a /summarize skill in their personal Claude Code settings. Which one runs when the user types /summarize?",
+    choices: [
+      "The project skill runs because project configuration takes precedence over personal settings",
+      "The last-loaded skill wins; load order is alphabetical by path",
+      "The personal skill runs because skill priority is Enterprise > Personal > Project > Plugin",
+      "Both run in sequence; output from the project skill is passed to the personal skill"
+    ],
+    answer: 2,
+    explain: "Skill priority (highest to lowest): Enterprise > Personal > Project > Plugin. A personal skill overrides a project skill with the same name. If the user wants the project skill to take precedence, the personal skill must be renamed or removed."
+  },
+  {
+    id: "b18-q16",
+    block: "18 — Hard Scenarios",
+    topic: "D3 Claude Code Config",
+    q: "A research skill fetches 20 URLs and stores summaries in the main session context. After the skill finishes, the main Claude session is sluggish and the next task loses track of the original codebase context. Fix?",
+    choices: [
+      "Limit the skill's --max-urls flag to 5 so less context is added",
+      "Add context: fork to the skill's frontmatter so it runs in an isolated context that doesn't persist into the main session",
+      "Run the research skill in a separate terminal tab so contexts don't mix",
+      "Call /clear after every skill invocation to reset the main session"
+    ],
+    answer: 1,
+    explain: "context: fork in the skill frontmatter creates an isolated execution context for the skill. When the skill finishes, its context (all the URL fetches, summaries, etc.) is discarded rather than polluting the main session. /clear would lose both the research AND the original codebase context."
+  },
+  {
+    id: "b18-q17",
+    block: "18 — Hard Scenarios",
+    topic: "D3 Claude Code Config",
+    q: "A CI pipeline parses Claude Code stdout with regex to extract the final answer. It breaks frequently as Claude changes its phrasing. Better approach?",
+    choices: [
+      "Add 'always end your response with FINAL_ANSWER: ...' to the system prompt",
+      "Use --output-format stream-json to receive structured JSON events on stdout",
+      "Pipe Claude Code output through a normalizer script that standardizes phrasing",
+      "Set --max-tokens 50 to force a short, consistent final response"
+    ],
+    answer: 1,
+    explain: "--output-format stream-json makes Claude Code emit structured JSON events (one per stdout line). Each event has a type field (e.g., 'result', 'tool_use', 'text') and the relevant payload. This is machine-parseable and stable across Claude versions, unlike regex on natural language output."
+  },
+  {
+    id: "b18-q18",
+    block: "18 — Hard Scenarios",
+    topic: "D3 Claude Code Config",
+    q: "A monorepo contains a Python backend, a React frontend, and a shared types library. The team wants Python linting rules only for *.py files, React conventions only for *.tsx files, and shared rules everywhere. Best structure?",
+    choices: [
+      "Three separate CLAUDE.md files at the root level, one per language",
+      "A single root CLAUDE.md with all rules, relying on Claude to apply them contextually",
+      "A root CLAUDE.md for shared rules plus path-glob rules in .claude/rules/ targeting *.py and *.tsx separately",
+      "Inline comments in each file telling Claude which conventions to follow"
+    ],
+    answer: 2,
+    explain: "Root CLAUDE.md handles shared rules that apply everywhere. Path-scoped rules in .claude/rules/ (with YAML paths: globs like '**/*.py' and '**/*.tsx') layer on language-specific rules only for matching files. This is the correct pattern for monorepo multi-language convention management."
+  },
+  {
+    id: "b18-q19",
+    block: "18 — Hard Scenarios",
+    topic: "D2 Tool Design & MCP",
+    q: "An agent frequently calls search_documents when it should call get_customer_record. Both have one-sentence descriptions. The team's first instinct is to add a third 'meta-lookup' tool. Why is that wrong?",
+    choices: [
+      "Three tools exceed the recommended maximum of two per agent",
+      "Adding a tool doesn't fix the root cause — unclear descriptions cause wrong selection; rewrite both descriptions with explicit when-to-use and when-NOT-to-use guidance",
+      "Tool names, not descriptions, drive selection — renaming the tools would fix it",
+      "The agent needs more few-shot examples of calling each tool correctly"
+    ],
+    answer: 1,
+    explain: "Adding tools compounds the problem. Tool selection accuracy degrades with more tools (especially overlapping ones). The root cause is that the existing descriptions don't tell Claude when each tool is appropriate. Rewriting descriptions with clear use cases and explicit exclusions is the fix."
+  },
+  {
+    id: "b18-q20",
+    block: "18 — Hard Scenarios",
+    topic: "D2 Tool Design & MCP",
+    q: "An MCP server exposes a product catalog with 5,000 items. The team implements it as a search tool. A colleague suggests exposing it as an MCP Resource instead. What's the actual difference?",
+    choices: [
+      "Resources are read-only; tools can write — the catalog should stay a tool since it's read-only",
+      "Resources expose content catalogs at connection time so agents know what's available without a tool call; tools are called on-demand. A static catalog suits Resources.",
+      "Resources are deprecated; the modern pattern is always tool-based discovery",
+      "Resources require the client to implement a resource handler; tools work out of the box"
+    ],
+    answer: 1,
+    explain: "MCP Resources expose content (files, data, catalogs) that agents can read at connection time. This means the agent knows the catalog exists and can reference it without making an exploratory tool call. Tools are for actions and on-demand queries. A static product catalog is a better fit for a Resource."
+  },
+  {
+    id: "b18-q21",
+    block: "18 — Hard Scenarios",
+    topic: "D2 Tool Design & MCP",
+    q: "An orchestrator agent has 22 tools across all scenarios it might handle. Tool selection accuracy is 73%. Which fix will most improve accuracy?",
+    choices: [
+      "Upgrade to a larger model with better tool-selection reasoning",
+      "Add detailed descriptions to all 22 tools",
+      "Decompose into specialized subagents each with 4-5 focused tools",
+      "Enable parallel tool_use so the agent can call multiple tools and pick the best result"
+    ],
+    answer: 2,
+    explain: "The recommended limit is 4-5 tools per agent. With 22 tools, even good descriptions don't fully compensate for the selection burden. Decomposing into specialized subagents (one per scenario type) lets each agent hold only the 4-5 tools it needs. Tool sprawl is the root cause, not description quality or model size."
+  },
+  {
+    id: "b18-q22",
+    block: "18 — Hard Scenarios",
+    topic: "D2 Tool Design & MCP",
+    q: "A tool schema uses 'additionalProperties': true and no required fields. The agent sometimes returns results with missing critical fields and extra unexpected fields. Best schema fix?",
+    choices: [
+      "Set temperature to 0 to make the tool call deterministic",
+      "Add the tool to a prompt that lists all expected fields",
+      "Enable strict mode: set additionalProperties: false, list all fields in required, use supported types only",
+      "Add an output validation step that fills in missing fields with defaults"
+    ],
+    answer: 2,
+    explain: "Strict mode enforces the schema deterministically: no extra fields allowed (additionalProperties: false), all declared fields must appear (required array). This shifts compliance from 'Claude usually does the right thing' to 'the API guarantees it.' Note: strict mode supports a subset of JSON Schema — no $ref, no patterns, no complex compositions."
+  },
+  {
+    id: "b18-q23",
+    block: "18 — Hard Scenarios",
+    topic: "D4 Prompt Engineering",
+    q: "A team migrates to claude-sonnet-4-6 and their structured extraction pipeline starts returning validation errors. The pipeline uses assistant-turn prefill with '{' to force JSON output. Likely cause and fix?",
+    choices: [
+      "JSON prefill requires a separate output_format beta header on claude-sonnet-4-6",
+      "Prefill is treated as legacy on Claude 4.6+; requests ending with an assistant turn may return a validation error. Migrate to output_config.format with a json_schema",
+      "The opening brace must be followed by the full JSON schema in the prefill for claude-sonnet-4-6",
+      "The model requires tool_choice: 'any' to be set whenever prefill is used"
+    ],
+    answer: 1,
+    explain: "Community guides report that on Claude 4.6+, requests where the last message has role: 'assistant' (prefill) may return a validation error instead of continuing from the prefill. The modern replacement is output_config.format: {type: 'json_schema', schema: {...}} which forces JSON output without relying on prefill."
+  },
+  {
+    id: "b18-q24",
+    block: "18 — Hard Scenarios",
+    topic: "D4 Prompt Engineering",
+    q: "A team generates a 500-line module with Claude, then immediately asks the same session to review it for bugs. The review finds only 2 minor issues. In production, 4 real bugs are discovered. What failed?",
+    choices: [
+      "The review prompt lacked explicit bug criteria — it needed to specify what counts as a bug",
+      "The review model had insufficient context to process a 500-line module",
+      "Same-session review suffers from reasoning context bias — Claude remembers why it made each decision and is less likely to question them",
+      "The temperature was too low during review, preventing the model from considering edge cases"
+    ],
+    answer: 2,
+    explain: "Reasoning context bias: when Claude generates code and reviews it in the same session, it retains its generation reasoning — making it less critical of its own decisions. The fix is an independent review session that receives only the artifact (not the generation context). This is the 'same-session self-review' anti-pattern."
+  },
+  {
+    id: "b18-q25",
+    block: "18 — Hard Scenarios",
+    topic: "D4 Prompt Engineering",
+    q: "A structured extraction pipeline reports 98% schema compliance. Auditors find that 12% of extracted invoice totals don't match the sum of line items. How do you explain this to the team?",
+    choices: [
+      "The 12% error proves the schema is wrong — invoice_total should be removed and computed in code",
+      "Schema compliance guarantees correct types and structure, not logical correctness. Semantic validation (checking that total matches line item sum) is separate and always required.",
+      "98% compliance means 2% of responses have wrong field types — which accounts for the 12% math errors",
+      "The model needs fine-tuning on financial documents to improve arithmetic accuracy"
+    ],
+    answer: 1,
+    explain: "Schema compliance and semantic correctness are orthogonal. The schema can be perfectly satisfied (invoice_total is a number, present in the response) while the value is logically wrong (doesn't match line items). You need both: structured output for schema compliance AND a post-extraction validation step for semantic correctness."
   }
 ];
 
