@@ -230,10 +230,13 @@ response.usage.output_tokens                  # generated tokens
 | `max_tokens` | Output hit your declared cap | Usually a bug. Raise `max_tokens` or accept truncation. |
 | `stop_sequence` | Output emitted a string from your `stop_sequences` list | Check `response.stop_sequence` to see which one matched. |
 | `tool_use` | Claude wants to call a tool | Execute the tool, append result, loop back. |
-| `pause_turn` | A long-running server tool paused | Resume the call to continue. |
-| `refusal` | Claude declined for safety | Check `content[0].text` for the refusal message. Reconsider your prompt. |
+| `pause_turn` | A long-running server tool (e.g. web_search) hit its internal iteration cap | Send the response back to continue. |
+| `refusal` | Claude declined for safety | Check `content[0].text` + `stop_details.category` (Opus 4.7+). Reconsider your prompt. |
+| `model_context_window_exceeded` | Generation hit the model's context window before `max_tokens` | Response is valid but truncated. Trim input or request continuation. Default behavior in Sonnet 4.5+. |
 
 **`end_turn` is the agent loop's primary exit.** This is the one that trips most people in mock exams. Not "content is empty" (it rarely is), not "max_tokens reached" (that's an error condition). Look at `stop_reason`.
+
+**`stop_details` on refusals (Opus 4.7+):** A `refusal` response carries a `stop_details` object. `stop_details.type` is always `"refusal"`; `stop_details.category` is the policy category (`"cyber"`, `"bio"`, `"reasoning_extraction"`, `"frontier_llm"`, or `null`). Use the category to route or log specific refusals. `stop_details` is `null` for every other stop reason. No beta header needed.
 
 ### 2.6 Sampling parameters
 
@@ -732,6 +735,7 @@ Why this is powerful:
 - Don't forget to **prepend the prefill string** to the response when parsing — the response only contains what came *after* the prefill.
 - Don't prefill with content that confuses the model — keep it short and structural.
 - Can't use prefill with extended thinking.
+- **Legacy on Claude 4.6+ family (community-sourced caveat):** Some community guides report that on Claude 4.6+ a request ending with an assistant turn may return a validation error instead of continuing from the prefill. The modern alternatives: `output_config.format` for JSON, a forced tool call (tool_choice + schema), or a system prompt instruction to respond without preamble.
 
 ### 3.6 System prompts mastery
 
@@ -1765,20 +1769,32 @@ Example shape:
 
 ### 9.9 Hooks
 
-Hooks run shell commands at specific events. Available event types:
+Hooks run at specific lifecycle events. There are now **28 events** across six groups (expanded in early 2026). Exam-relevant ones:
 
-| Hook | When it fires |
+| Group | Key events |
 |---|---|
-| `PreToolUse` | Before Claude calls a tool — can BLOCK by exiting non-zero |
-| `PostToolUse` | After a tool finishes |
-| `UserPromptSubmit` | When you submit a prompt — can inject context or block |
-| `Stop` | When Claude's turn ends |
-| `Notification` | On certain notification events |
+| Session & turn | `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `Stop` |
+| Tool / agentic loop | `PreToolUse` ★, `PostToolUse` ★, `PermissionRequest`, `PermissionDenied` |
+| Agent & task | `SubagentStart`, `SubagentStop`, `TaskCreated`, `TaskCompleted` |
+| Compaction | `PreCompact`, `PostCompact` |
+
+**Hook types** (not just shell commands):
+
+| Type | How | Use case |
+|---|---|---|
+| `command` | Shell command; exit 0 = pass, exit 2 = block | Linting gates, dangerous-op blocking |
+| `http` | POST to a URL | External audit logging, webhooks |
+| `mcp_tool` | Calls a tool on an MCP server | Structured validation via a reusable service |
+| `prompt` | Single LLM call → yes/no | Context-dependent approval |
+| `agent` | Multi-turn subagent | Complex compliance checks |
+
+**`PreToolUse` is the exam's enforcement hook.** It's the correct mechanism for financial/safety rules — not system prompt instructions. Exit code 2 blocks the tool call.
 
 **Common hook recipes:**
 - **Auto-format on edit** — after every Edit, run `prettier` or `black` on the file
 - **Block dangerous deletes** — pre-tool-use hook that refuses to delete `node_modules` or `.git`
 - **Enforce branch protections** — pre-tool-use hook that blocks `git push` to `main`
+- **Enforce business rules** — pre-tool-use on `process_refund` that checks identity verification was called first
 - **Audit log** — post-tool-use hook that appends every action to a log
 
 Hooks are powerful and dangerous — they're literally shell commands running on your machine. Read other people's hooks carefully before adopting.
@@ -2585,6 +2601,111 @@ Session starts → Orchestrator reads state from disk
 - Orchestrator CLAUDE.md doesn't tell it to read the state files → it starts blind every session
 
 The file system is the orchestrator's memory. Not conversation history. Not cache. Files.
+
+---
+
+## 15 — CCAR-F Exam: Key Decision Frameworks and Anti-Patterns
+
+This chapter consolidates the patterns that appear specifically as wrong-answer traps on the exam.
+
+### 15.1 The 10 Critical Anti-Patterns
+
+These are the exam's canonical wrong answers. Each appears as a plausible-sounding option:
+
+| # | Anti-Pattern | Why it's wrong |
+|---|---|---|
+| 1 | **Parsing natural language for loop termination** — "if Claude says 'I'm done', exit" | Always check `stop_reason`. Natural language is unreliable. |
+| 2 | **Iteration caps as the primary stopping mechanism** — "run max 5 loops" | Safety cap ≠ primary exit. `stop_reason: "end_turn"` is the exit. |
+| 3 | **Prompt-based enforcement for critical business rules** — "always verify identity before refunding" | Non-zero failure rate. Financial/safety rules need PreToolUse hooks. |
+| 4 | **Self-reported confidence scores for escalation decisions** — "if Claude says low confidence, escalate" | Claude's confidence is poorly calibrated. High confidence can be wrong; low confidence can be correct. |
+| 5 | **Sentiment-based escalation** — "customer is angry → escalate" | Sentiment ≠ complexity. Anger + simple billing error = agent can resolve. Calm + SLA policy gap = escalate. |
+| 6 | **Generic error messages hiding diagnostic context** — `"An error occurred"` | Error messages must carry category, retryable flag, and partial results. |
+| 7 | **Silently suppressing errors (empty results as success)** — returning `[]` when a query fails | Masks failures. Claude will treat empty results as "nothing found." Always use `is_error: true`. |
+| 8 | **Too many tools per agent** — giving an agent 15-18 tools | Recommended: 4-5 tools per agent. Too many dilutes tool selection accuracy. |
+| 9 | **Same-session self-review** — generating code then reviewing it in the same session | Reasoning context bias: Claude "remembers" why it made decisions. Independent session required. |
+| 10 | **Aggregate accuracy metrics masking per-document-type failures** — "95% overall accuracy" | A single document type can be 100% accurate and another 40% accurate. Always report per-type breakdown. |
+
+### 15.2 Enforcement — Programmatic vs Prompt-Based
+
+| Enforcement Type | When to Use | Guarantee Level |
+|---|---|---|
+| **Programmatic** (PreToolUse hook, code prerequisite) | Financial operations, safety-critical rules, compliance | Deterministic — 100% enforced |
+| **Prompt-based** (instruction in system prompt) | Best-effort behaviors, style, soft preferences | Probabilistic — non-zero failure rate |
+
+**Pattern:** A PreToolUse hook on `process_refund` that checks whether identity verification has been called. If not, the hook exits with code 2 to block the refund.
+
+### 15.3 Escalation Logic
+
+**Escalate immediately:**
+- Customer explicitly requests a human
+- Policy gap or exception the agent can't decide
+- No progress after reasonable attempts
+
+**Do NOT escalate based on:**
+- High emotion/sentiment (sentiment ≠ complexity)
+- Self-reported confidence ("I'm not sure")
+- Conversation length
+
+**Multiple customer matches:** Ask for additional identifying information (email, last 4 of phone) — never guess by heuristic.
+
+**Structured escalation handoff:** Human agents typically don't have the conversation transcript. Always include: customer ID, issue type, order details, actions taken, recommended resolution.
+
+### 15.4 Same-Session Self-Review (Reasoning Context Bias)
+
+When Claude generates code and reviews it in the same session, it retains the reasoning context from generation — making it less likely to question its own decisions. This is called **reasoning context bias**.
+
+**Fix:** Separate sessions. Pass only the artifact (not the generation context) to the review session.
+
+**Multi-pass for large PRs:**
+- Pass 1 — per-file local analysis: bugs, style, type errors, security (separate prompt per file)
+- Pass 2 — cross-file integration: data flow, interface mismatches, boundary error handling (receives Pass 1 results)
+
+Single-pass over 10+ files suffers from attention dilution and inconsistent depth.
+
+### 15.5 Structured Output — `output_config` and Schema Design
+
+**Three ways to get JSON from Claude:**
+
+| Method | How | Best for |
+|---|---|---|
+| `output_config.format` | `{"format": {"type": "json_schema", "schema": {...}}}` | Direct JSON; no tool needed |
+| Forced tool call | `tool_choice: {"type": "tool", "name": "extract"}` + schema | When you want tool_use loop semantics |
+| Prefill `{` | Pass `{"role": "assistant", "content": "{"}` | Legacy; may not work on Claude 4.6+ |
+
+**Schema compliance ≠ semantic correctness.** Structured output guarantees correct types and required fields — it does NOT guarantee the values are logically correct. Add validation logic.
+
+**Schema design patterns:**
+
+```json
+// Nullable field — when source doc may not have it
+"po_number": {"type": ["string", "null"], "description": "PO number if present, null if not found"}
+
+// Enum with "other" — for unknown categories
+"doc_type": {"type": "string", "enum": ["invoice", "receipt", "contract", "other"]}
+"doc_type_detail": {"type": ["string", "null"], "description": "Describe if 'other'"}
+
+// Enum with "unclear" — prevents fabrication
+"payment_status": {"type": "string", "enum": ["paid", "unpaid", "partial", "unclear"]}
+```
+
+Making every field `required` can force Claude to fabricate data when the source document doesn't contain it.
+
+### 15.6 Key Decision Framework (Quick Reference)
+
+| Decision | Correct Choice | Wrong Choice |
+|---|---|---|
+| Loop termination | Check `stop_reason` | Parse natural language / use iteration caps |
+| Financial rule enforcement | PreToolUse hook | System prompt instruction |
+| Escalation trigger | Explicit request / policy gap / stuck | Sentiment / self-confidence / length |
+| Code review bias | Independent session | Same-session review |
+| Large PR review | Multi-pass (per-file + integration) | Single-pass |
+| JSON output (modern) | `output_config.format` or forced tool | Prefill (legacy/unreliable on 4.6+) |
+| Nullable JSON field | `"type": ["string", "null"]` | Required with empty string default |
+| Ambiguous enum value | Add `"unclear"` option | Force a guess |
+| Error reporting | Structured: category + retry flag + partial | Generic message / silent empty |
+| Tool count per agent | 4–5 max | 15–18 tools |
+| Subagent context | Always pass explicitly | Assume inheritance |
+| Accuracy reporting | Per-document-type breakdown | Aggregate only |
 
 ---
 
