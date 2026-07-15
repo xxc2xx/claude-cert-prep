@@ -2077,3 +2077,133 @@ Claude generates the folder structure, SKILL.md, and example files. Faster than 
 
 ---
 
+## Block 15 — Hooks & the Enforcement Spectrum ⭐⭐ (D1 + D3 + D5 — Course 4 Lesson 6)
+
+### 15.1 — The five enforcement mechanisms (Winston's synthesis)
+
+**Every behavior in Claude Code can be governed by one of five mechanisms, on a reliability spectrum**:
+
+| Component | Purpose | Reliability |
+|---|---|---|
+| **Instruction** | Tells Claude *how* it should behave | Probabilistic |
+| **Skill** | Gives Claude reusable expertise and procedures | Still interpreted by Claude |
+| **Hook** | Automatically runs system logic at a lifecycle event | **Deterministic enforcement** |
+| **Validator** | Checks whether an output follows rules | Deterministic or model-assisted |
+| **Human approval** | Allows a person to approve high-risk actions | Governance control |
+
+**Rule of thumb**: as consequences increase (financial, security, compliance), move DOWN the table toward deterministic mechanisms. Prompt/Skill guidance for style; Hook enforcement for guarantees; Human approval for irreversible actions.
+
+### 15.2 — Layered enforcement in practice
+
+Same rule, two layers:
+
+- **Instruction (probabilistic)**: *"Do not edit production configuration."* — Claude *should* obey, but there's no hard barrier.
+- **Hook (deterministic)**: *"Before every Edit call, inspect the path. If under `/production/`, exit 2."* — the edit is **actually blocked**.
+
+**Strongest design** = both. Instruction tells Claude what good behavior looks like; Hook technically enforces the critical boundary.
+
+**Memory rule** ⭐:
+> **"Skills teach Claude. Hooks control the environment."**
+
+### 15.3 — Hook lifecycle events (memorize the two most-tested)
+
+| Event | Timing | Use for |
+|---|---|---|
+| **`PreToolUse`** | Before a tool executes | **PREVENT** — block edits to protected paths, block refunds over threshold, require ticket before writes |
+| **`PostToolUse`** | After a tool finishes | **OBSERVE or REACT** — log every Bash call, run auto-formatting, normalize timestamps in returned data |
+
+**Memory rule** ⭐:
+> **"PreToolUse to prevent. PostToolUse to observe or react."**
+
+### 15.4 — Hook config in `settings.json`
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.command' >> ~/claude-bash-log.txt"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Structure** — memorize:
+
+- Top-level `"hooks": {...}` in `settings.json`
+- Keyed by **lifecycle event** (`PreToolUse` / `PostToolUse`)
+- Each entry has a **`matcher`** (tool name — activates only for that tool) and a **`hooks`** array of `{type, command}` objects
+- `type: "command"` is the shell-command hook type
+- **Tool-call JSON is piped to hook via stdin** — extract fields with `jq`
+
+**JSON gotcha**: JSON does NOT support `#` comments. Docs sometimes show them for annotation — strip them before writing your `settings.json`.
+
+### 15.5 — Hook security ⭐⭐ (governance layer, exam-testable)
+
+Hooks run **real shell commands with the developer's permissions**. A malicious hook could:
+- Read files
+- Copy credentials
+- Execute arbitrary software
+- Change repositories
+- Send data externally
+
+**Key phrase** (memorize):
+> **"A compromised hook is a lateral movement path"** — an attacker in the hook can move laterally into any system the developer can access.
+
+**Good governance controls** for hooks:
+
+- Store hooks in **source control**
+- Require **code review** for hook changes
+- **Restrict who** can modify them (managed-settings.json can lock hook config)
+- **No embedded secrets**
+- **Validate all input** (tool-call JSON is untrusted)
+- **Least privilege** — run with minimum permissions needed
+- **Log** hook changes
+- **Deploy approved versions centrally** (not per-developer)
+
+**Anti-pattern (command injection)**: if your hook takes JSON input and re-executes it via `sh -c`, you've built an injection surface. Prefer extracting the value with `jq` and logging it directly, not re-executing it.
+
+### 15.6 — Exit codes control Hook behavior
+
+| Exit code | Meaning | Effect |
+|---|---|---|
+| **0** | Success | Tool call proceeds as normal |
+| **2** | Blocking failure | **PreToolUse: blocks the tool call. Tool never runs.** |
+| Non-zero (other) | Warning / error | May log; behavior varies |
+
+The magic combo is **PreToolUse hook + exit code 2** — that's the deterministic enforcement mechanism the exam keeps testing.
+
+### 15.7 — Glossary (Winston's terms — the exam-day quick-reference)
+
+| Term | Plain-English meaning | Example |
+|---|---|---|
+| **Hook** | Automatic command triggered by a Claude Code lifecycle event | Log every Bash call |
+| **Lifecycle event** | Defined moment during an agent session | Before a tool call · when a task ends |
+| **PreToolUse** | Hook event before a tool executes | Block edits to protected files |
+| **PostToolUse** | Hook event after a tool finishes | Run formatting · audit logging |
+| **Matcher** | Filter determining which tool calls activate a hook | Activate only for `Bash` |
+| **Exit code** | Numeric result returned by a command | 0 = succeed · 2 = block |
+| **stdin** | Input supplied directly to a command | Claude Code passes tool-call JSON to the hook |
+| **jq** | CLI tool that extracts values from JSON | `jq -r '.tool_input.command'` |
+| **Enforcement hook** | Hook that technically blocks prohibited actions | Require a ticket before protected writes |
+
+### 15.8 — Common exam trap: hook vs instruction
+
+| Scenario | Wrong choice | Right choice |
+|---|---|---|
+| "Prevent refunds above $500 in a customer-support agent" | Prompt: "Do not process refunds above $500" | **PreToolUse hook** blocking `process_refund` calls with amount > $500 (exit 2) |
+| "Ensure identity verification before financial ops" | Prompt: "Always call get_customer first" | **PreToolUse hook** blocking `process_refund` until `get_customer` has returned verified ID |
+| "Normalize Unix timestamps to ISO 8601 from different MCP tools" | Instruction to Claude | **PostToolUse hook** with the normalizer |
+| "Log every Bash command developers run" | Ask developers to log manually | **PostToolUse hook** on Bash calls, matcher `Bash`, appends to log |
+
+**Rule**: any time an exam question involves **financial, security, or compliance consequences** — the answer is usually a **hook** (deterministic), not a prompt/skill instruction (probabilistic).
+
+---
+
