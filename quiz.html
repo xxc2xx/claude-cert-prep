@@ -551,6 +551,7 @@
       <button class="tab-btn" data-tab="faq">FAQ</button>
       <button class="tab-btn" data-tab="brief">Brief</button>
       <button class="tab-btn" data-tab="manual">Manual</button>
+      <button class="tab-btn" data-tab="guide">⭐ Guide</button>
       <button class="tab-btn" data-tab="loops">Loops</button>
       <button class="tab-btn" data-tab="progress">Progress</button>
     </nav>
@@ -634,6 +635,11 @@
   <!-- ===== Manual tab (long-form field manual) ===== -->
   <section id="tab-manual" class="tab-content">
     <div class="notes-body" id="manual-body">Loading manual…</div>
+  </section>
+
+  <!-- ===== Official Exam Guide tab (Anthropic Exam Guide v1.0) ===== -->
+  <section id="tab-guide" class="tab-content">
+    <div class="notes-body" id="guide-body">Loading official exam guide…</div>
   </section>
 
   <!-- ===== Loops tab (Claude Code Loops coursebook by Derek Hobden) ===== -->
@@ -10258,6 +10264,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     if (tab === 'faq') loadFaqSplit();
     if (tab === 'brief') loadBriefSplit();
     if (tab === 'manual') loadManualSplit();
+    if (tab === 'guide') loadGuideSplit();
     if (tab === 'loops') loadLoopsSplit();
     if (tab === 'progress') renderProgress();
   });
@@ -10493,6 +10500,21 @@ function loadLoopsSplit() {
       return null; // Preface, How to use — shown when active but no chip
     },
     'Chapter'
+  );
+}
+
+function loadGuideSplit() {
+  return loadSplittable(
+    'guide',
+    './official_exam_guide.md',
+    'guide-body',
+    'h2',
+    (text) => {
+      const m = text.match(/^(\d+)/);
+      if (m) return '§' + m[1];
+      return null;
+    },
+    'Section'
   );
 }
 
