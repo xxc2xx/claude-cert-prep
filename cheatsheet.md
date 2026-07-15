@@ -1885,6 +1885,41 @@ Claude uses a **three-step loading protocol** — it does NOT load all Skills in
 | Output is **consistent when applied but people don't apply it uniformly** | **P1** (established standard, needs encoding) |
 | Reference **exists** but **access is unreliable** (paste drift, forgotten steps) | **P2** (bundle for on-demand loading) |
 
+**Decision tree — memorize this exact sequence** ⭐:
+
+```
+Can Claude already perform the task correctly SOMETIMES?
+│
+├── Yes, but quality varies
+│      → Pattern 1: encode the standard
+│         "Do it the same way every time"
+│
+└── No
+     │
+     ├── Does the correct information already exist,
+     │   but Claude does not reliably receive it?
+     │      → Pattern 2: bundle the reference
+     │         "Always give Claude the right material"
+     │
+     └── Does Claude need specialised knowledge,
+         rules, schemas, or examples it does not know?
+             → Pattern 3: teach the capability
+                "Teach Claude something it does not know"
+```
+
+**Three one-liners for exam-day recall**:
+- **P1**: *"Do it the same way every time."*
+- **P2**: *"Always give Claude the right material."*
+- **P3**: *"Teach Claude something it does not know."*
+
+**Real-world application examples** (from Winston's own work):
+
+| Client asset | Likely pattern | Why |
+|---|---|---|
+| QC severity rubric | **P1** | Claude can assess issues; the goal is consistent severity + routing |
+| Metric dictionary / approved business definitions | **P2** | Definitions exist; need reliable delivery to Claude |
+| Normalized evidence schema (proprietary) | **P3** | Claude has never seen it; must learn fields + rules from scratch |
+
 ### 14.5 — Sim walkthrough (from Course 4 Lesson 4)
 
 **Sim 1 — Service catalogue, 3 devs pasting drifting copies** → **P2** (materials exist, need reliable access).
