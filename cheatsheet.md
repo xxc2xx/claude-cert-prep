@@ -1009,3 +1009,668 @@ Anthropic explicitly tells its most capable model **not to be addictive**. This 
 
 ---
 
+## Block 7 — Anthropic Partner Training: Claude Code Product Foundations
+
+Source: Skilljar partner path *partner-badge-claude-code / product-foundations*. Only the CCAR-F-relevant parts captured here (the deployment-path material is partner-sales, not on the exam). Crawled from the page summary — video/slide depth is behind the partner login, so this is orientation-level content only.
+
+### 7.1 — What Claude Code is (relevant to D3)
+
+- Runs **in the terminal, not as an IDE plugin**.
+- Works **agentically**: reads files, writes code, runs commands, works through multi-step tasks.
+- That agentic posture is what shapes how work gets **scoped and configured** — the reason `.claude/` config, hooks, plan mode, and CLAUDE.md matter.
+
+### 7.2 — Model selection (relevant to D1 architecture choices)
+
+- Three models weighed on **cost, speed, reasoning depth**: Haiku, Sonnet, Opus.
+- **Most deployments start with Sonnet — but the recommendation needs a reason behind it.** (Exam-style framing: never pick a model by default; justify against the workload.)
+- Selection depends on the **given workload**, not a fixed rule.
+
+### 7.3 — Course shape (context only)
+
+- ~29 min instruction + ~15 min practice.
+- Assessment is **scenario-based**: three client profiles, pick the right model + deployment combo. Confirms Anthropic's whole training ecosystem leans scenario/judgment, not fact recall — same as CCAR-F.
+
+### 7.4 — Setup sequencing principle (judgment habit, from the assessment)
+
+- Sequence setup by **when it's actually needed**; don't front-load deployment-specific config.
+- Pre-session setup: authentication, proxy routing, TLS certificates, auto-update governance. *(These are partner/IT-admin concerns — **not CCAR-F testable**.)*
+- Bedrock/cloud routing: only relevant if the client runs through that path — **not CCAR-F**.
+- **Turn limits come later**, once developers are active and you need cost controls. *(This part — cost/latency guardrails — does touch D1/D5.)*
+
+### 7.5 — Installation & Environments lesson (course 2)
+
+Source: Skilljar path *installation-and-environments/486592*. CCAR-F-relevant items only; the corporate proxy/cert/fleet material is partner-deployment, not exam.
+
+- **Cross-platform CLI**: macOS, Linux, Windows (native path **or** WSL). Context only.
+- **IDE integrations**: VS Code and JetBrains — relevant to D3 (Claude Code runs in-editor as well as terminal).
+- **Headless / non-interactive mode** (D3, exam-relevant): for CI pipelines and automated scripts — this is the `-p`/`--print` + `--output-format stream-json` surface. API-key distribution for GitHub Actions covered here.
+- **Dev containers / sandboxed execution**: isolation built into the workflow for teams that need it — touches permissions/sandboxing.
+- **settings.json + container spec**: the practice deliverable is an "Installation Configuration Pack" (settings file + container spec) as the IT handoff checklist. `settings.json` is a real D3 config surface; the checklist framing is partner-only.
+- **Partner-only (skip for exam)**: corporate proxy + certificate handling, Windows-fleet management decisions.
+
+### 7.6 — Headless CI flags ⭐ EXAM-RELEVANT (D3 + D4)
+
+The single most testable item from Course 2. Scenario: *"Claude Code reviews every PR and outputs structured JSON for a security dashboard — what flags?"*
+
+**Correct combo = `-p` + `--output-format json` + schema described in the prompt.** Each piece does a distinct job:
+
+| Piece | Job |
+|---|---|
+| `-p` (`--print`) | **Non-interactive** execution — runs without waiting for input |
+| `--output-format json` | Emit **JSON, not prose** |
+| Schema **in the prompt text** | Defines the expected fields/types/nesting — there is no magic `--json-schema` flag that does this |
+
+Key traps:
+- `-p` **alone** → does *not* set output format. Wrong.
+- `--output-format json` **alone, no schema in prompt** → JSON shape is **undefined**; the dashboard won't know what to parse. Wrong.
+- A schema flag by itself is **not** how you shape output — structure goes in the prompt.
+- `--allowedTools` restricts tools; it does **not** produce structured output. Wrong for this ask.
+- **Production caveat**: schema-in-prompt shapes output but doesn't guarantee it — build **validation + retry** logic; never assume the shape always matches. (Mirrors the exam rule: *schema compliance ≠ guaranteed, and ≠ semantic correctness*.)
+
+Auth in CI is a **secrets-management** question, not a Claude Code one: headless auths via `ANTHROPIC_API_KEY` (no browser/interactive login). GitHub Actions → repo/org secret referenced as `${{ secrets.ANTHROPIC_API_KEY }}`; GitLab → CI/CD variables; Jenkins → credentials store.
+
+Output-format values seen: `--output-format json` (structured), `--output-format text` (plain). Pipe-in pattern: `echo "What does this function do?" | claude -p --stdin --output-format text`. Common pipe-in sources for pipelines: `git log`, test output, build artifacts.
+
+Container/CI handoff notes (partner-artifact, context only): devcontainer feature reference + version-pinning, an **override to disable automatic updates** for controlled update cycles, and the CI path (GitHub Actions trigger, workflow file location, `@claude` command pattern to invoke from a PR).
+
+### 7.7 — Deployment Architecture (Course 6) ⚠️ mostly NOT CCAR-F
+
+This whole course is **partner-sales / deployment-decision** methodology (billing routes, procurement, cloud commitments, credibility-meter sims). **Skip for exam study.** Only three facts transfer:
+
+- **Pin model versions in managed settings.** Unpinned aliases resolve to defaults that can lag new releases or break users when a model isn't enabled in their account. *(Real config discipline — D3-adjacent; same spirit as knowing exact model strings.)*
+- **Zero Data Retention (ZDR) = Claude for Enterprise (direct) only.** No cloud path (Bedrock/Vertex/Foundry) is ZDR-eligible. *(Data-governance fact → D5/security.)*
+- **Microsoft Foundry routes to Anthropic-operated infra**, unlike Bedrock and Vertex which keep traffic in the client's own tenancy — a data-residency nuance.
+- **Cloud-path parity gaps** — 6-item map of what you *lose* going Bedrock/Vertex/Foundry vs Enterprise direct (Lesson 3.2):
+
+| # | Gap | Scope | Note |
+|---|---|---|---|
+| 1 | **WebSearch unavailable** | Bedrock only | Built-in WebSearch tool doesn't work; needs approved MCP alternative |
+| 2 | **No bundled Claude on the web** | All cloud paths | Only Teams + Enterprise direct include the chat surface. Stakeholders have no demo UI unless bought separately |
+| 3 | **Anthropic ZDR does not apply** | All cloud paths | Retention follows the cloud provider's policies (AWS/GCP/Azure), *not* Anthropic. Frame as "different control, not absent control" |
+| 4 | **Client owns model version pinning** | All cloud paths | Aliases like `sonnet` resolve to defaults that can lag or point at un-enabled models. **Background tasks default to primary model, not cheaper Haiku** — pin explicitly in shared settings |
+| 5 | **Telemetry defaults to off** | All cloud paths | Anthropic metrics, error reporting, and `/feedback` submission are disabled. `/feedback` writes a **local bundle** instead. Need OTel or a gateway for CoE adoption metrics |
+| 6 | **Vertex fine print** | Vertex only | Model Garden approval 24–48h · MCP tool search off by default (large tool catalogs load upfront if left unconfigured) · prompt caching availability varies by region — cache counts at zero → check region |
+
+Exam-portable pieces of this map: **ZDR = Enterprise-direct only** (D5) · **pin your own model versions on cloud paths** (D3-adjacent, background tasks default to primary not Haiku is a cost trap) · **`/feedback` writes local bundle when telemetry is off** (D5 observability nuance) · **MCP tool search off by default on Vertex** (D2 detail). Rest is partner-comms.
+
+### 7.8 — Managed settings & corporate network (Course 6, Lesson 3.3)
+
+Most of the lesson is IT-admin (proxy env vars, MDM via Jamf/Kandji, TLS-inspecting proxies like Zscaler/Netskope). **Five facts transfer to the exam:**
+
+1. **Managed settings hierarchy** ⭐ (D3, real exam material). `managed-settings.json` sits at the **top of the Claude Code settings stack — above user and project settings.** Rules here **cannot be overridden by individual developers.** Used to lock permissions, enforce allowed MCP servers, require SSO login, pin version floors across the org. *(This confirms the exam's settings-precedence rule: Enterprise/managed > Personal > Project > Plugin.)*
+
+2. **Three managed-settings delivery paths** (D3): (a) **server-managed** via Anthropic admin console — **Enterprise only**; (b) **MDM / OS-level** — plist on macOS or registry on Windows, deployed via Jamf, Kandji, etc.; (c) **file-based** — write `managed-settings.json` directly to the OS system directory. All three require admin rights (the point).
+
+3. **`api.anthropic.com` is required on EVERY deployment path** — including Bedrock/Vertex/Foundry — because it's the **domain safety check** for the built-in **WebFetch** tool. Block it on Bedrock and WebFetch fails silently even though model traffic works fine. Preflight can be disabled via settings if the client insists. Subtle but exam-flavored.
+
+4. **Never disable TLS verification** — `NODE_TLS_REJECT_UNAUTHORIZED=0` is the wrong fix, always. For TLS-inspecting corporate proxies (Zscaler, Netskope), point **`NODE_EXTRA_CA_CERTS`** at the corporate root CA to trust the re-signed traffic explicitly. Turning verification off fails the client's own security review. D5 discipline.
+
+5. **`/status`** inside Claude Code verifies the final network / trust posture — useful slash command to know exists.
+
+**Architectural constraints that force the LLM gateway pattern** (Lesson 3.4 territory): **SOCKS proxies are not supported** by Claude Code; **NTLM/Kerberos authentication** requires an LLM gateway because Claude Code can't speak either protocol directly. Both are common enterprise stacks → gateway is the answer.
+
+**Sim result — Halvern Bank 7/8** (path 1C→2B→3B→4A). Only lost point: chose hotspot-isolation before calling the network team on Decision 1 — debrief called it "defensible, not wrong." Takeaway: in a live install clinic, **call the network team first**; hotspot-testing is fine instinct but slower than just asking the two questions that matter (is there a proxy? is TLS inspection on?).
+
+Reference-only (the four paths, don't memorize for exam): **Enterprise direct** (Anthropic default; seat-based, SSO/domain capture, RBAC, compliance API, bundles Claude web, only ZDR path) · **Amazon Bedrock** (in-AWS, PAYG, IAM auth, CloudTrail audit, Bedrock Guardrails) · **Google Vertex AI** (in-GCP, ADC/IAM auth, Cloud Audit Logs, Model Garden access takes 24–48h to approve) · **Microsoft Foundry** (Azure, Entra ID/RBAC, Azure Monitor, but routes to Anthropic infra). Path is driven by the client's cloud commitments + compliance posture; it's a pre-kickoff (Day -14) one-way-door decision. All partner-context, not exam.
+
+### 7.9 — LLM gateway pattern (Course 6, Lesson 3.4) ⭐ higher CCAR-F yield
+
+The session-header content is the exam-star of this lesson — connects directly to D1 multi-agent tracking and D5 observability.
+
+**Proxy vs Gateway** (D3 architectural distinction — memorize the one-liner):
+
+| | Proxy | Gateway |
+|---|---|---|
+| Layer | Network perimeter | Application (understands model traffic) |
+| Sees | Packets | Parsed requests |
+| Does | Forwards, firewalls, TLS, egress | Auth, attribution, budgets, routing, logging |
+| Owner | Network/security team | Platform team |
+
+**One-liner:** *"The proxy gets traffic out of the building. The gateway governs what happens to it."*
+
+**When to recommend a gateway:** more than one team, chargeback requirement, or multi-cloud routing — recommend **before the first invoice**, not after.
+
+**Session headers** ⭐⭐ (D1 + D5, real exam value). Claude Code **automatically** attaches three headers on every request — no config, no code required:
+
+| Header | Level | Purpose |
+|---|---|---|
+| `X-Claude-Code-Session-Id` | Session | Aggregates all requests in one Claude Code session |
+| `X-Claude-Code-Agent-Id` | Subagent | Attributes cost to individual agent threads within the session |
+| `X-Claude-Code-Parent-Agent-Id` | Subagent → parent | Links subagent to its parent → **full nested agent attribution** — a session that spawns 5 subagents still rolls up cleanly |
+
+Why this matters for D1: the parent-child ID pattern is how the exam's coordinator-worker (hub-and-spoke) architecture stays *observable* end-to-end. Gateway reads these headers **without parsing request bodies** — clean separation between routing and content.
+
+**Gateway configuration** (D3, concept-level — env-var names are IT-admin but the *pattern* is exam-relevant): identical across paths, only variable names change.
+
+- **Anthropic API path:** `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN`
+- **Bedrock behind gateway:** `CLAUDE_CODE_USE_BEDROCK=1` + `ANTHROPIC_BEDROCK_BASE_URL` + `CLAUDE_CODE_SKIP_BEDROCK_AUTH=1`
+- **Vertex behind gateway:** `CLAUDE_CODE_USE_VERTEX=1` + `ANTHROPIC_VERTEX_BASE_URL` + `CLAUDE_CODE_SKIP_VERTEX_AUTH=1`
+- **Skip-auth flag = the centralized-auth payoff in code.** Claude Code stops signing requests because the gateway injects provider credentials server-side.
+- **Rotating per-user tokens:** `apiKeyHelper` in settings runs a script that fetches from the client's vault (real settings key, D3-testable).
+
+**Gateway gotcha** (D3, exam-flavored): the gateway **MUST forward `anthropic-beta` and `anthropic-version` headers intact**. A gateway that strips them **silently degrades Claude Code features** — the failure looks like a product bug until someone inspects traffic. Set as a **pilot go/no-go acceptance criterion** for the gateway team.
+
+**LiteLLM** is Anthropic's reference gateway implementation — supports both Anthropic Messages and OpenAI-compatible pass-through, so one gateway can serve both workflows. *Security note (real-world, not exam): LiteLLM PyPI **1.82.7 and 1.82.8 were compromised** with credential-stealing malware — verify version against Anthropic's LLM gateway docs before any client deployment.*
+
+### 7.10 — Security questionnaire answers (Course 6, Lesson 3.5)
+
+Partner-comms wrapper around real D5 content. Exam-transferable pieces:
+
+**Training answer** (D5): "**No, unless you explicitly opt in.**" Anthropic does not train generative models on prompts/code sent to Claude Code under commercial terms (Team, Enterprise, API, all cloud paths). **One exception: Development Partner Program** — admin-level opt-in, actively joined, **not available on Bedrock or Vertex**. Say the qualified "no," not "no, never" — half-answers get fact-checked.
+
+**Local transcript caching** ⭐ (D5, testable, endpoint-security fact). Claude Code **caches session transcripts locally, in plaintext, under the user's home directory, configurable via settings**. This is *why* Claude Code sessions resume after the terminal closes — they aren't ephemeral. The exam-flavored trap: "ephemeral" is a demonstrably wrong answer to any retention question.
+
+**ZDR precise scope** ⭐⭐ (D5, the highest-yield item in Course 6):
+
+- **Enabled per organization** by Anthropic account team **after eligibility review**. **Not standard Enterprise by default. Not on cloud paths.** Each new org under the same account needs its own enablement — bites multi-org rollouts.
+- **Covers**: Claude Code inference — prompts + model responses processed in real time, **not stored after the response returns**, regardless of model.
+- **Does NOT cover**: claude.ai chat, Cowork, admin metadata (seat assignments), anything third-party MCP servers process.
+- **Disables outright** (require server-side storage): **Claude Code on the web**, remote sessions from the desktop app, `/feedback`.
+- **Flagged sessions**: can still be **retained up to 2 years** under the usage policy (abuse-handling exception).
+- **Analytics under ZDR**: shows **usage metrics but NOT contribution metrics** — design the Day 30 scorecard around what will actually be measurable.
+- **Exception path in the law**: "except where law or abuse-handling requires it" — real caveat, useful to remember.
+
+**Encryption by path** (D5 reference):
+
+| Path | At-rest | Notes |
+|---|---|---|
+| Anthropic direct | AES-256 | ZDR available (per-org enablement) |
+| Bedrock | AES-256 (AWS-managed) | Customer-managed via KMS optional |
+| Vertex | Google-managed default | CMEK optional |
+| Foundry | Azure-native billing/Entra/RBAC | **Routes to Anthropic infra** — data-residency gotcha (already in 7.7) |
+
+**Certifications** (reference only — all self-serve at `trust.anthropic.com`): SOC 2 Type 2 · ISO 27001:2022 · ISO/IEC 27017 (cloud security) · ISO/IEC 27018 (cloud privacy) · **ISO/IEC 42001 (AI management systems)** · CSA STAR Level 2 · HIPAA with BAA · GDPR · NIST 800-171 attestation · **FedRAMP High via Claude for Government** · annual third-party pen-test summaries. Memorizing the list is optional; knowing it's downloadable same-day is not.
+
+**Working rule** (partner-comms, not exam): answer from citable facts, name the one thing you'll verify, never improvise a guarantee. "I'll confirm the region commitment" beats a wrong yes.
+
+**Sim result — Corvane Health 7/10** (path 1A/2C/3B/4A/5A):
+- Q2 (-2): picked "sessions ephemeral" — Correct: 30-day server-side + **local plaintext transcripts on laptops**. Real D5 gap → captured above.
+- Q4 (-1): picked "broadly yes" on Foundry-in-Azure-tenancy — Correct: **"No, Foundry routes to Anthropic infrastructure."** You had this in 7.7 since Lesson 3.1 — **recall failure**, not knowledge gap. Re-read your own notes before capstone.
+- The Q4 miss is the more actionable one: knowing the fact isn't enough if you can't retrieve it under scenario pressure. **Practice active recall on 7.7 and 7.10 before Course 3.**
+
+---
+
+## Block 8 — Preamble control: system prompt vs assistant prefill (D4)
+
+Foundational prompt-engineering. Preamble = the "Sure!", "Of course!", "Here's what I found:" openers Claude adds before the actual answer. Great for chat UX; **breaks structured output** (parsers fail when the first char is `S` not `{`).
+
+**Why it happens:** RLHF training rewards polite, conversational tone. Preamble is a side effect of that training, not an intentional feature. Two techniques override it.
+
+### 8.1 — System-prompt instruction (soft / instruction-following)
+
+```python
+client.messages.create(
+    model="claude-sonnet-4-6",
+    system="Respond ONLY with valid JSON. No preamble, no markdown, no explanations.",
+    messages=[{"role": "user", "content": "Rate Inception 1-10 as JSON."}],
+    max_tokens=100,
+)
+```
+
+- **Mechanism:** Claude complies with the instruction.
+- **Reliability:** ~95%. Occasionally slips → `Here's the rating:\n{"rating": 9}`.
+- **Best for:** flexible style rules ("no markdown", "one paragraph", "British English").
+
+### 8.2 — Assistant prefill (hard / architectural)
+
+```python
+messages=[
+    {"role": "user", "content": "Rate Inception 1-10 as JSON."},
+    {"role": "assistant", "content": "{"},   # ← you write this
+]
+```
+
+- **Mechanism:** You physically write the first tokens. Claude's next token *must* follow your prefill — architecturally cannot back up and add "Sure!" before your `{`.
+- **Reliability:** ~100% for the prefilled characters.
+- **Best for:** bulletproof openings (JSON `{`, XML `<answer>`, forced format like `Rating:`).
+- **Gotcha:** you must **concatenate** the prefill back onto the response yourself → `"{" + response`.
+- **Legal only** if the *last* message is `role:'assistant'`. Starting a fresh conversation on assistant → error.
+
+### 8.3 — Difference table
+
+| | System instruction | Assistant prefill |
+|---|---|---|
+| Mechanism | Soft (obey request) | Hard (architectural) |
+| Reliability | ~95% | ~100% for opening chars |
+| Flexibility | Any style rule | Only guarantees opening |
+| Downside | Occasional slip | Must re-attach prefill to response |
+| Position | `system` param | Last message with `role:'assistant'` |
+
+### 8.4 — Rule of thumb
+
+- Need bulletproof opening character (JSON, XML)? → **prefill**.
+- Need flexible style rules ("no markdown, one paragraph")? → **system instruction**.
+- Production JSON at scale? → **both together**, plus validate + retry.
+
+### 8.5 — Modern path (Claude 4.6+)
+
+- **`output_config: { format: "json" }`** — first-class API parameter that guarantees JSON output. Replacing prefill for JSON use-cases specifically. Prefill is now considered **legacy for JSON** on 4.6+ family.
+- Prefill still valid and useful for **non-JSON** forced openings (`<answer>`, `Rating:`, `- `, section headers).
+- Forced tool call is the other modern route to guaranteed structured output.
+
+### 8.6 — Exam links
+
+- Block 13 Q3 (Claude vs OpenAI, `response_format` migration): correct answer combines **system instruction + prefill with `{`** — same two techniques.
+- Block 14 Q6 (prefill mechanics): prefill = Claude **continues from** your tokens, does **not repeat** them.
+- Anti-pattern: relying on system instruction alone for JSON in production → occasional preamble slip → parser breaks → no retry logic → silent bad data.
+
+---
+
+## Block 9 — Claude Code configuration scopes ⭐⭐ (D3 core, 20% of exam)
+
+Source: Partner Course 3 (Configuration & Customization), Lesson 1. This is the D3 spine — memorize scope, path, precedence, and the permission merge exception.
+
+### 9.1 — The four scopes at a glance
+
+| Scope | Location | Audience | Priority in stack |
+|---|---|---|---|
+| **Managed** | macOS `/Library/Application Support/ClaudeCode/` · Linux `/etc/claude-code/` | Every session on the machine; deployed by IT via MDM/GPO | **Highest — cannot be overridden** |
+| **Local** | `.claude/settings.local.json` in the repo | Only you, only this repo. **Git-ignored automatically** | Above project |
+| **Project** | `.claude/settings.json` in the repo | Everyone on the repo. **Committed to git** | Below local |
+| **User** | `~/.claude/settings.json` | You, across all projects | **Lowest — last resort** |
+
+### 9.2 — Precedence chain (top wins; Claude walks top-to-bottom, takes first value)
+
+1. **Managed** — system-level, MDM/IT-deployed, non-negotiable
+2. **CLI flags** (`--allowedTools`, `--model`) — session-level overrides, **not persisted**
+3. **Local** — personal project override (`.claude/settings.local.json`)
+4. **Project** — shared team baseline (`.claude/settings.json`)
+5. **User** — personal fallback across all projects (`~/.claude/settings.json`)
+
+Rule of thumb: **Managed can't be overridden. User is the last resort.**
+
+### 9.3 — Permission merge exception ⭐ (the trap-topic)
+
+Allow and deny rule lists **MERGE across scopes**, not override. A developer's local allow rule **adds to** the project's list — it doesn't replace it.
+
+Critical consequence: a developer can **expand** their own permissions locally, but **cannot remove a deny rule** set at project or managed scope. This is why Managed is the enforcement layer for hard security policies (block `curl`, deny risky tools, require SSO).
+
+### 9.4 — Decision heuristic
+
+*Scope is an ownership question before it's a technical one.* Three questions pick the scope automatically:
+
+1. Who **controls** this setting?
+2. Who should it **affect**?
+3. Can they **override** it?
+
+### 9.5 — Common scenarios → correct scope
+
+| Setting / requirement | Right scope | Why |
+|---|---|---|
+| Block `curl` org-wide, must survive uninstall | **Managed** | Only layer devs can't override; MDM survives reinstall |
+| Personal model preference | **User** | Follows you across all projects, isolated to you |
+| Team pre-approves `docker run` | **Project** | Ships with repo, applies to every clone, visible in code review |
+| Sandbox URLs, test creds, experiments not ready to share | **Local** | Git-ignored, private to you in this repo |
+| Approved MCP servers, hooks, deny lists for the team | **Project** | Committed team baseline |
+| Client compliance requirements | **Managed** | Non-negotiable enforcement |
+
+### 9.6 — Path-to-scope map (memorize — exam distractors mislabel these)
+
+- `/Library/Application Support/ClaudeCode/` or `/etc/claude-code/` → **Managed**
+- `.claude/settings.local.json` (in-repo, git-ignored) → **Local**
+- `.claude/settings.json` (in-repo, committed) → **Project**
+- `~/.claude/settings.json` (home dir) → **User**
+
+**Common trap**: distractor labels `~/.claude/` as "Local scope" — it's not, it's **User** scope. The word "local" ≠ the User path. Any option that pairs `~/.claude/` with the label "Local" is a decoy.
+
+### 9.7 — Sim: Meridian Rollout 4/6 (path 1A/2C/3A)
+
+- **Q1** — Block `curl` org-wide, must survive reinstall → ✓ **Managed** +2.
+- **Q2** — Developer's personal model preference → ❌ picked Project (visible to whole team). Correct: **User** scope. Personal preferences travel across your projects, isolated to you.
+    - Root cause: momentum from Q1's "IT enforcement" thinking → defaulted to team-visible scope when the scenario needed personal isolation. Also fell for the trap in 9.6 (option A labeled `~/.claude/` as "Local").
+- **Q3** — Team pre-approve `docker run` → ✓ **Project** +2.
+
+**Study tip:** when you read a scenario, name the scope from the *audience*, not from the *action*.
+- "Every developer" or "must survive uninstall" → Managed.
+- "Just me, this repo" → Local.
+- "Whole team, in this repo" → Project.
+- "Just me, all my repos" → User.
+
+---
+
+## Block 10 — CLAUDE.md memory hierarchy ⭐⭐ (D3 core)
+
+Source: Partner Course 3 (Configuration & Customization), Lesson 2. Twin of Block 9 — scope + CLAUDE.md are the D3 exam pair.
+
+### 10.1 — Five CLAUDE.md scopes (concatenate, don't override)
+
+| Scope | Location | Behavior |
+|---|---|---|
+| **Managed Policy** | macOS `/Library/Application Support/ClaudeCode/CLAUDE.md` (Linux equivalent) | Org-wide; every session on machine; **cannot be excluded by developers** |
+| **User** | `~/.claude/CLAUDE.md` | Personal defaults across all projects |
+| **Project** | `./CLAUDE.md` or `./.claude/CLAUDE.md` | Team-shared, committed to git — the most important one |
+| **Local** | `./CLAUDE.local.md` | Personal notes for this repo; **add to `.gitignore`** |
+| **Subdirectory** | Any `CLAUDE.md` in a subdirectory | **Loads on demand** when Claude reads files in that dir (NOT at session start) |
+
+**Critical distinction from Block 9 settings scopes**: CLAUDE.md files **CONCATENATE** — they don't override. Claude reads all of them, broadest to most specific. Later entries layer *on top of* earlier ones rather than replacing them.
+
+### 10.2 — CLAUDE.md is context, NOT enforcement ⭐⭐ (highest-yield trap-topic)
+
+CLAUDE.md content is **loaded as context, not enforced configuration.** Claude reads it and *tries* to follow it, but there's no guarantee — especially for vague or conflicting instructions.
+
+For **hard enforcement**, use:
+- **Hooks** — shell commands run at fixed lifecycle events (PreToolUse, etc.)
+- **Managed settings** — applied before Claude ever runs
+
+Rule of thumb (exam heuristic):
+- Behavior shaping / conventions → **CLAUDE.md**
+- Non-negotiable enforcement → **hooks** or **managed settings**
+
+### 10.3 — Writing rules that actually work
+
+- **Specific beats vague, always.** "Use 2-space indentation. Run `npm test` before commit." > "Format code properly."
+- **Target < 200 lines per file** — longer files degrade adherence and consume more context.
+- **Use `@path/to/file` syntax** to reference existing docs. Imported file loads at session start alongside the CLAUDE.md that references it. **Signal over volume.**
+- **Pruning rule**: if Claude does it right without the instruction, delete the instruction.
+- **"What NOT to do" sections** — explicit prohibitions are more reliable than hoping Claude infers from the codebase.
+
+### 10.4 — Operations to know
+
+- **`/init`** bootstraps a CLAUDE.md by analyzing the codebase (build commands, conventions, structure). **Safe to re-run**: on existing CLAUDE.md, it **suggests improvements, doesn't overwrite**.
+- **`claudeMdExcludes`** in local settings — skips noisy CLAUDE.md files from other teams. **Works from user/project/local scope, but NOT from managed policy.** Managed policy CLAUDE.md cannot be excluded by design.
+
+### 10.5 — Monorepo pattern (subdirectory loading)
+
+- **Root CLAUDE.md** → loads every session (system overview, team structure, strategy).
+- **Service-boundary CLAUDE.md** (`frontend/`, `backend/`, `test-cases/`) → loads **on demand** only when Claude touches files in that directory.
+- Keeps initial context lean; scales to enterprise monorepos.
+
+### 10.6 — True/False traps (exam-flavored misconceptions — all four FALSE)
+
+1. "CLAUDE.md instructions are enforced." → **False.** Context, not enforcement. Use hooks for hard rules.
+2. "Project CLAUDE.md is right for personal sandbox URLs." → **False.** That's `CLAUDE.local.md` (git-ignored).
+3. "Running `/init` overwrites existing CLAUDE.md." → **False.** It suggests improvements.
+4. "Developers can exclude a managed CLAUDE.md via `claudeMdExcludes`." → **False.** Managed policy cannot be excluded.
+
+### 10.7 — Content → scope mapping
+
+| Content | File |
+|---|---|
+| Org-wide policy (compliance, security norms) | **Managed** CLAUDE.md |
+| Personal coding style / defaults across all projects | **User** CLAUDE.md |
+| Build commands, arch decisions, coding standards for this repo | **Project** CLAUDE.md |
+| Personal sandbox URLs, test creds, uncommitted notes | **Local** CLAUDE.md (`CLAUDE.local.md`) |
+| Module-specific context (frontend/, backend/, tests/) | **Subdirectory** CLAUDE.md |
+
+### 10.8 — Sim: Whitmore Group 6/6 (path 1B/2B/3A)
+
+- **Q1** (60-page architecture log): **@-reference** the doc, don't paste — signal over volume. ✓
+- **Q2** (deprecated ORM pattern keeps recurring): add a **"What NOT to do"** entry to CLAUDE.md. Explicit prohibitions > hoping Claude infers. ✓
+- **Q3** (personal preferences bloating repo CLAUDE.md): move to **User-level** `~/.claude/CLAUDE.md`. Repo CLAUDE.md is for the project; personal follows you across projects. ✓
+
+Debrief: *"precision instrument — curated signal, not documentation storage."* That's the mental model for every CLAUDE.md decision on the exam.
+
+---
+
+## Block 11 — settings.json anatomy & permission evaluation ⭐ (D3 core)
+
+Source: Partner Course 3 (Configuration & Customization), Lesson 3. Builds on Block 9 with the concrete file shape and — new — the **permissions evaluation order**.
+
+### 11.1 — settings.json vs settings.local.json
+
+Same JSON format, opposite purposes. Both live in `.claude/` of the project.
+
+| | `.claude/settings.json` (shared) | `.claude/settings.local.json` (personal) |
+|---|---|---|
+| Committed to git? | **Yes** — team baseline | **No** — gitignored automatically when Claude Code creates it |
+| Audience | Every developer who clones the repo | Just you, in this repo |
+| Belongs here | Permission allow/deny rules · **Hook definitions** · Approved MCP server configs · Company announcements | Personal permission-mode preferences · Experimental config you're testing · Machine-specific tool paths · `claudeMdExcludes` for other teams' noise |
+
+### 11.2 — Permissions evaluation order ⭐ (memorize — exam-testable)
+
+Permission rules follow a **fixed** evaluation order, and they **merge across scopes** (see 9.3) rather than override. Order:
+
+1. **Deny** — evaluated first. If any deny rule matches → **blocked**, regardless of what allow rules say. Use for sensitive files (`Read(./.env)`) and risky commands (`Bash(curl *)`).
+2. **Ask** — evaluated next. Matching rule → **prompts for confirmation**. Use for potentially risky ops that need human sign-off (`Bash(git push *)`).
+3. **Allow** — evaluated next. Matching rule → **proceeds without prompt**. Use for safe, frequent commands (`Bash(npm run test *)`).
+4. **Default: ask** — no rule matched → Claude asks. Safe default: unknown tool use requires human approval.
+
+**Rule of thumb**: deny beats allow, always. A deny in Managed scope cannot be un-denied by any local allow rule (9.3 merge exception).
+
+### 11.3 — Sample project `settings.json` (memorize the shape)
+
+```json
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(npm run lint)",
+      "Bash(npm run test *)",
+      "Bash(git status)",
+      "Bash(git log *)"
+    ],
+    "deny": [
+      "Bash(curl *)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)"
+    ]
+  },
+  "companyAnnouncements": [
+    "Review our coding guidelines at docs.acme.com/claude"
+  ]
+}
+```
+
+- **`$schema` line** enables autocomplete + inline validation in VS Code/Cursor. Include it in every project settings file.
+- **Rule syntax**: `Tool(pattern)` — e.g. `Bash(pattern)`, `Read(path)`, `WebFetch(domain:host)`. Wildcards `*` and `**` supported.
+
+### 11.4 — What NEVER goes in shared settings.json ⭐ (trap-topic)
+
+- **Model preference** → belongs in **User** scope (`~/.claude/settings.json`) — travels across all your projects.
+- **Environment variables with credentials** → never in a committed file; use env or `apiKeyHelper` from a vault (see 7.9).
+- **`defaultMode` override** → belongs in the developer's **Local** file (`settings.local.json`).
+
+### 11.5 — Sim: Apex Logistics 5/6 (path 1A/2B/3A)
+
+- **Q1** (block `WebFetch(domain:internal-ledger.apex.com)` **across every engineer's machine**, not just the platform repo): ❌ picked Project deny (defensible +1). Correct: **Managed policy via IT**. Project scope only protects *this repo*; engineers working elsewhere lose the protection.
+- **Q2** (test new internal MCP server before recommending): ✓ **Local** (gitignored, personal). +2.
+- **Q3** (team agrees to pre-approve `Bash(docker compose up *)`): ✓ **Project** (committed, applies to every clone). +2.
+
+**Pattern flag — third recall failure in a row on Managed-vs-Project.** Corvane Q4 (Foundry-in-Azure), Meridian Q2 (User vs Project), now Apex Q1 (cross-machine). The knowledge exists in Block 9.6 — the retrieval doesn't. **Active-recall drill before next study block:** cover the notes, answer aloud:
+- *"Cross-machine, must survive uninstall → ?"* → Managed
+- *"Just me, all my projects → ?"* → User
+- *"Team baseline in this repo → ?"* → Project
+- *"Just me, this repo → ?"* → Local
+
+Ten reps and it sticks.
+
+---
+
+## Block 12 — Slash commands & output styles (D3, Course 3 Lessons 4–5)
+
+### 12.1 — Custom slash commands (Lesson 4)
+
+Any `.md` file in `.claude/commands/` (project) or `~/.claude/commands/` (user) becomes a slash command. **No registration or restart** — Claude discovers new command files automatically.
+
+- **Filename** → command name. `review-pr.md` → `/review-pr`.
+- **Nested folders** → namespace with `:`. `security/audit.md` → `/security:audit`.
+- **YAML frontmatter** (optional):
+  - `description` — shown in the command picker
+  - `allowed-tools` — restrict tool use for this command (e.g. `Read, Bash(git *)`)
+- **`$ARGUMENTS`** placeholder — substituted with text after invocation. `/review-pr 847` → `$ARGUMENTS` = `847`.
+
+**Example — the shape the exam expects:**
+
+```markdown
+---
+description: Review a pull request against the security checklist
+allowed-tools: Read, Bash(git *)
+---
+
+## PR Review: $ARGUMENTS
+
+You are reviewing PR $ARGUMENTS against Acme Corp's security checklist.
+
+Run `git diff main` to inspect the changed files, then evaluate:
+- No credentials, tokens, or API keys in changed files
+- No new eval() or dynamic code execution patterns
+- No new external network calls without logging
+
+Summarise as: approved / needs changes / blocked.
+```
+
+**Design principle**: write the command for the person who'll use it *on the worst day of a sprint* — specific enough to run without thinking, short enough to read in under 30 seconds.
+
+**Scope decisions**:
+- Repeated team ritual (standup command, PR review) → **project** (`.claude/commands/`)
+- Personal shortcut, formatting preference, notes helper → **user** (`~/.claude/commands/`)
+
+Sim: **Vantage Capital 6/6** (1B/2B/3B). No unpacking needed.
+
+### 12.2 — Output styles (Lesson 5) ⭐ new D3 exam topic
+
+**The distinction from CLAUDE.md** (memorize — exam-testable):
+
+- **CLAUDE.md = what Claude KNOWS** (project memory, architecture, conventions, build commands)
+- **Output style = how Claude COMMUNICATES** (tone, format, level of explanation, TODO markers)
+
+Both are injected into the system prompt at session start. Neither is enforcement.
+
+**Session-start constraint** ⭐: output styles modify the system prompt **at session start**. Changing mid-session has **no effect** — requires `/clear` or a new session for the change to take.
+
+**Setting the style**:
+- `/config` in a session → saves to `settings.local.json`
+- `"outputStyle": "Explanatory"` in any settings file at the appropriate scope (Block 9 precedence applies)
+
+**Four built-in styles**:
+
+| Style | Behavior | When to use |
+|---|---|---|
+| **Default** | Standard engineering mode. Efficient, precise, no added commentary. | Most production teams past initial adoption — leave here unless there's a specific reason to change. |
+| **Explanatory** | Adds "Insights" sections explaining implementation choices and codebase patterns. | **Adoption phase** — engineers need to understand *what* Claude is doing, not just accept the output. |
+| **Proactive** | Executes immediately with reasonable assumptions rather than asking. Still prompts for consequential actions. | Faster/more autonomous when the team already trusts Claude and the task is low-stakes. |
+| **Learning** | Explains reasoning **AND** places `TODO(human)` markers at key decision points. | Collaborative mode — devs complete critical pieces rather than accepting Claude's output wholesale. |
+
+**Custom output styles**:
+- `.md` files in `.claude/output-styles/` at project, user, or managed level
+- **`keep-coding-instructions: true`** → LAYER your format on top of Claude's engineering persona (keeps the engineering instructions, adds your format)
+- **`keep-coding-instructions: false`** (default) → REPLACE the engineering persona entirely (use when Claude isn't doing software engineering: writing assistant, data analyst, requirements formatter)
+
+**Three GSI engagement patterns** (all use `keep-coding-instructions: true` — still engineering, just formatted):
+- Engagement-docs style: client-ready artifacts with structured headers + next steps
+- Security-review style: every finding with severity, file, line, fix
+- Onboarding mode: explanatory commentary for juniors joining mid-engagement
+
+### 12.3 — Phase-reading heuristic (activation lifecycle)
+
+| Phase | Right style | Why |
+|---|---|---|
+| Day 1 adoption — engineers asking "why?" | **Explanatory** | Surfaces reasoning without waiting to be asked; addresses the trust gap at source |
+| Mid-adoption (want human ownership of key calls) | **Learning** | `TODO(human)` markers force devs to complete critical pieces |
+| Productivity push / handoff — team already trusts Claude | **Default** | Remove commentary, clean engineering mode |
+| Autonomous long-horizon, low-stakes | **Proactive** | Only when team trusts AND task is low-risk |
+
+**Common trap** ⭐: on **handoff day**, moving to Proactive to "let Claude go faster" is **wrong** — Proactive = more consequential actions with fewer prompts. Handoff calls for *removing commentary* (Default), not *adding autonomy*.
+
+### 12.4 — Sim: Hartfield 4/6 (path 1A/2B/3B) + PATTERN FLAG
+
+- **Q1** (Day 1, engineers asking why): ✓ **Explanatory** +2.
+- **Q2** (Day 3 productivity push, team confident): ❌ picked Proactive (defensible +1). Correct: **Default**. Judgment error — over-rotated toward more capability when the right call was to remove overhead. See 12.3 trap.
+- **Q3** (persistent client-format requirement across the team): ❌ picked "add to CLAUDE.md" (defensible +1). Correct: **custom output style with `keep-coding-instructions: true`** in `.claude/output-styles/`.
+
+**Q3 is a recall failure — fact was already in Block 10.2**: *"CLAUDE.md ≠ enforcement; use hooks or purpose-built mechanisms."* Plus 10.2's split: *"CLAUDE.md = what Claude knows. Output style = how Claude communicates."* A persistent output format is a *how*, not a *what*.
+
+---
+
+## ⚠️ PATTERN FLAG — Four recall failures in the past week
+
+| # | Sim | Miss | Fact was in |
+|---|---|---|---|
+| 1 | Corvane Q4 | Foundry routes to Anthropic infra | 7.7 |
+| 2 | Meridian Q2 | Personal preference → User scope | 9.5 |
+| 3 | Apex Q1 | Cross-machine → Managed | 9.6 |
+| 4 | Hartfield Q3 | Persistent format → output style, not CLAUDE.md | 10.2 |
+
+**Diagnosis**: knowledge is present, retrieval fails under scenario pressure. This is a **study-method issue**, not a knowledge issue. More reading won't fix it. Active recall will.
+
+**Fix (do before Course 4):**
+- Cover the notes. Answer aloud from prompts:
+  - "Cross-machine, must survive uninstall → ?" → Managed
+  - "Just me, all my projects → ?" → User
+  - "Team baseline in this repo → ?" → Project
+  - "Just me, this repo → ?" → Local
+  - "Foundry routes to whose infra?" → Anthropic (unlike Bedrock/Vertex)
+  - "Persistent output format across a team → ?" → custom output style (`.claude/output-styles/`), not CLAUDE.md
+  - "Team knows *what* → ?" → CLAUDE.md
+  - "Team communicates *how* → ?" → output style
+  - "Need guaranteed enforcement → ?" → hooks or managed settings, not CLAUDE.md
+- 10 reps of the cycle. Track which prompts you hesitate on — those are the retrieval bottlenecks.
+- Then, and only then, paste Course 4.
+
+---
+
+## Block 13 — MCP Extensibility ⭐⭐ (D2 core, 18% of exam)
+
+Source: Partner Course 4 (Extensibility), Lesson 1. **D2 is 18% of the exam and MCP is the spine of it** — this is the highest-yield remaining course.
+
+### 13.1 — MCP capabilities: three types (memorize)
+
+| Type | What it is | When used |
+|---|---|---|
+| **Tools** | Actions Claude can take (create ticket, query DB, trigger pipeline) | Model decides which to call + what to pass |
+| **Resources** | Data Claude can read (open tickets, error logs, API schemas) | Loaded into context **on demand**, not constantly |
+| **Prompts** | Reusable context templates the server exposes | e.g. standardized preamble that loads client's API docs before any coding task |
+
+**Model stays the same; what it can reach changes.**
+
+### 13.2 — Install & scope
+
+```bash
+# Ticketing — pull issue context before writing a fix
+claude mcp add linear
+
+# Browser automation
+claude mcp add --transport stdio playwright -- npx @playwright/mcp@latest
+
+# Verify + list connected servers and tools they exposed
+/mcp
+```
+
+**Scope → config file placement**:
+
+| Scope | Flag | File | Applies to |
+|---|---|---|---|
+| **Local** (default) | (none) | `~/.claude.json` — **keyed to current project** | Just you, this project |
+| **Project** | `--scope project` | `.mcp.json` in repo root | Everyone on the repo (committed) |
+| **User** | `--scope user` | `~/.claude.json` | You, all your projects |
+| **Org** | via `managed-settings.json` | IT-deployed | All developers on machine |
+
+**Trap**: default `local` and `--scope user` **both write to `~/.claude.json`** — the difference is whether it's keyed to current project or global.
+
+**`/mcp`** slash command at session start = verify what's connected + what tools each server actually exposed.
+
+### 13.3 — Three MCP archetypes for engagements
+
+Every activation asks: **what MCP servers does this client already use?**
+
+1. **Ticketing systems** — Jira, Linear, GitHub Issues. Enables "Ticket to PR" pattern; no manual copy-paste of ticket descriptions.
+2. **Error logs & observability** — OTel, Datadog, Sentry. Claude reads recent error traces directly. Compresses "error → fix underway" loop. High signal for modernisation work.
+3. **Internal systems** — private APIs, internal DBs, service catalogues, Confluence, proprietary tooling. Require **custom/client-built MCP server** OR the **MCP tunnel** (when system isn't reachable from developer's laptop).
+
+### 13.4 — Auth model ⭐ (security review question)
+
+**OAuth-scoped MCP servers** → Claude inherits **the user's own permissions**. MCP server surfaces what the user already has access to — nothing more. This is the answer that usually resolves security reviews' "what can Claude see?" question.
+
+**BUT** — servers using **static API keys, service accounts, or `headersHelper` credentials** may grant access that **differs from** the user's own. Always confirm authentication method + exposed tools before deploying to a team.
+
+**Client framing**: *"Properly scoped MCP servers should not grant access beyond what the user or configured credential can reach. It reduces context switches; it is not a new data-access channel."*
+
+### 13.5 — Transport types (D2 exam-testable)
+
+- **stdio** (local subprocess) — runs on developer's machine, **uses whatever network path the laptop already has**. If laptop reaches Jira via corporate VPN, the stdio MCP server can too. **No external calls, no new firewall exceptions.**
+- **SSE / HTTP** — remote MCP server. Traffic goes over network to the server, which then reaches the target system.
+
+**Scenario answer pattern** (Extensibility Lesson 1 practice):
+> *"Security policy blocks external network calls from developer laptops. We still want Claude Code to reach the internal Jira."*
+> **Correct: local stdio MCP server.** Runs as subprocess on laptop, uses corporate network path directly.
+> **Wrong**: cloud-hosted MCP proxy (still an external call from laptop). Wrong: skip MCP entirely (treats solvable config problem as blocker).
+
+### 13.6 — Key framings to remember
+
+- **"MCP is a context amplifier, not a data integration project."**
+- **"Model stays the same; what it can reach changes."**
+- **Pre-kickoff inventory question**: "What MCP servers does this client already use?" — belongs in the activation-plan checklist.
+
+---
+

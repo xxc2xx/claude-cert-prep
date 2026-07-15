@@ -18,7 +18,7 @@ import os
 import sys
 
 CERT = os.path.dirname(os.path.abspath(__file__))
-MD_FILES = ['cheatsheet.md', 'super_user_brief.md', 'field_manual.md', 'loops_manual.md']
+MD_FILES = ['cheatsheet.md', 'super_user_brief.md', 'field_manual.md', 'loops_manual.md', 'official_exam_guide.md']
 MARKED_JS_PATH = '/tmp/marked.min.js'
 
 if not os.path.exists(MARKED_JS_PATH):
