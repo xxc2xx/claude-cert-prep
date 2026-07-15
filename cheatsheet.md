@@ -2205,5 +2205,67 @@ The magic combo is **PreToolUse hook + exit code 2** — that's the deterministi
 
 **Rule**: any time an exam question involves **financial, security, or compliance consequences** — the answer is usually a **hook** (deterministic), not a prompt/skill instruction (probabilistic).
 
+### 15.9 — All five common lifecycle events (Course 4 Lesson 6)
+
+Block 15.3 only had two events. The full common set is **five**, with 20+ total in Claude Code:
+
+| Event | When it fires | Primary use |
+|---|---|---|
+| **`PreToolUse`** | Before Claude runs any tool | **Blocking enforcement** — check conditions before the action |
+| **`PostToolUse`** | After a tool run completes | Logging, auto-formatting, side-effect triggers |
+| **`Notification`** | When Claude sends a notification | Alerts: Slack message, desktop sound, webhook ping |
+| **`Stop`** | When the **main agent's** task completes | Summary logging, cleanup, end-of-session actions |
+| **`SubagentStop`** | When a **subagent** completes | Subagent result handling, parallel job coordination |
+
+**Advanced governance events** (beyond the common five, ~20 total): `SessionStart` (init), `PermissionRequest` / `PermissionDenied` (fine-grained approval), `FileChanged` (sensitive-file protection), `ConfigChange` (drift detection).
+
+### 15.10 — Exit codes revisited (add code 1)
+
+Block 15.6 was incomplete. Full table:
+
+| Exit code | Meaning | Effect |
+|---|---|---|
+| **0** | Success | Tool call proceeds normally |
+| **1** | Failure, **non-blocking** | Error surfaces in Claude's context but execution proceeds |
+| **2** | Blocking failure | **PreToolUse: blocks the tool call. Tool never runs.** |
+| Other non-zero | Warning / error | Logged; behavior varies by event |
+
+**Exit-code exam gotcha**: only **`PreToolUse` + exit 2** is the true enforcement combo. `PostToolUse + exit 2` doesn't undo the tool call (it already ran) — it just logs/errors.
+
+### 15.11 — Four hook use case categories
+
+The Activation Plan groups hooks into four archetypes:
+
+| Category | Example | Event | Effort |
+|---|---|---|---|
+| **Notifications** | Slack ping when Claude waits for input · sound on task complete | `Notification` or `Stop` | Trivial · Week 1 |
+| **Auto-formatting** | `prettier --write` on every `.ts` edit · `gofmt` on `.go` | `PostToolUse` on `Edit` | Trivial · Week 1 |
+| **Logging** | Timestamped record of every Bash call | `PostToolUse` on `Bash` | Low · Week 1–2 |
+| **Enforcement** | Block writes to `/config` without ticket · block refunds > $500 | `PreToolUse` + exit 2 | Higher · Week 4 packaging |
+
+### 15.12 — Activation Plan timing
+
+- **Day 3–5** of Week 1: **start with 2 low-risk, high-value hooks** — a Notification hook (Slack/sound when Claude needs input) + an Auto-format hook on the primary language. Zero developer overhead, immediate productivity win.
+- **Week 4 (packaging)**: security-logging hooks + custom compliance hooks go into the **team plugin**. These are the artifacts demonstrating the deployment is under governance — what the client's security team needs to see at engagement close.
+
+**Rule of thumb**: hooks are **baseline setup, not an advanced feature.** Have an opinion on hooks by Day 3.
+
+### 15.13 — Course 4 Lesson 6 sim answers (memorize the two)
+
+**Sim 1** — Block edits to `/config` unless session context has a ticket number:
+- ✅ **PreToolUse on `Edit`** with matcher/path check + exit 2 (blocks the edit before it happens)
+- ✗ PostToolUse on Edit — edit already happened, can only log the violation
+- ✗ Stop hook scanning at session end — too late, every edit already made
+
+**Sim 2** — Slack notification when a security-audit **subagent** completes:
+- ✅ **`SubagentStop`** — fires the moment that subagent returns results
+- ✗ Stop — fires when the *main* agent completes, potentially minutes later
+- ✗ PostToolUse on Bash — fires after *every* command; dozens of pings, not one
+
+**Trap patterns to remember**:
+- **PreToolUse blocks. PostToolUse reacts.** — the single most-tested distinction in D3/D5.
+- **Stop = main agent done. SubagentStop = subagent done.** Choose based on which agent triggers the event.
+- **Blocking requires PreToolUse + exit 2.** PostToolUse + exit 2 is not blocking; the tool already ran.
+
 ---
 
