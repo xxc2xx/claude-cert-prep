@@ -1965,5 +1965,79 @@ Can Claude already perform the task correctly SOMETIMES?
 
 **Marketplace check**: before building a Skill from scratch, check the client's existing Skills + Anthropic's marketplace. Don't build what's already available.
 
+### 14.9 — Authoring a Skill that works (Course 4 Lesson 5) ⭐⭐
+
+**The three-element description rule** (this is where the exam traps you):
+
+A good `description:` needs **all three**, not just two:
+
+| Element | Purpose | Example fragment |
+|---|---|---|
+| **1. Trigger condition (WHEN)** | Tells Claude *when* to load | "when writing or reviewing function signatures, API endpoints, or service interfaces" |
+| **2. Output / format (WHAT)** | What the Skill produces or applies | "JSDoc format, required fields, and example patterns" |
+| **3. Distinctive marker (WHICH)** | Distinguishes from other similar Skills | "the client's TypeScript documentation standard" |
+
+**Trap**: descriptions can *look* correct with just trigger + format but fail because they're indistinguishable from a sibling Skill. If the client has two documentation Skills (TypeScript vs OpenAPI), the description must name **which one** it is.
+
+Failure modes:
+- **Vague** ("Apply PR format") → Claude doesn't know when to load. Never triggers.
+- **Over-broad** ("Help with API documentation") → loads on unrelated tasks, creates context overhead.
+- **Missing distinctive marker** → correctly loads but Claude picks between similar Skills arbitrarily.
+
+### 14.10 — Five-step authoring process
+
+1. **Identify the trigger** — when does this Skill activate? Be specific.
+2. **Write the description** — three elements, in one sentence
+3. **Write SKILL.md core** — state format · show ONE complete example · list required fields · link to bundled reference (don't embed)
+4. **Bundle reference files** — schemas, templates, scripts loaded on demand
+5. **Test** — request the trigger prompt; verify (a) Skill loaded and (b) output matches standard
+
+**Debugging by symptom**:
+- Skill **doesn't load** when it should → fix the **description** (missing trigger condition or too vague)
+- Skill **loads but produces wrong output** → fix the **instructions** in SKILL.md body
+
+### 14.11 — Explicit constraints beat more examples ⭐⭐ (exam trap #2)
+
+**"Skills behave like staff — they follow the instructions they've been given."**
+
+When Claude *consistently produces wrong output* from a Skill:
+
+| Wrong fix | Right fix |
+|---|---|
+| Add more examples of the desired behavior | Add a **targeted explicit rule** |
+| "Show, don't tell" | Both. But rule first. |
+| Remove the Skill and go manual | Never — you'd lose all adoption |
+
+**Rule**: Claude applies **explicit written constraints FIRST**. It does NOT reliably infer behavioral rules from example patterns alone. If the Skill is adding a "Lessons Learned" section on minor incidents, write:
+
+> *"Only include the Lessons Learned section for P1 and P2 severity incidents."*
+
+One sentence fixes it. Adding more examples of minor-incident post-mortems just gives Claude more reference material for the pattern it's already misapplying.
+
+### 14.12 — Authoring principles (the difference between Skills that last and ones that drift)
+
+1. **Keep it focused** — one Skill per workflow. Don't bundle "coding standards + PR format + security review" into one file.
+2. **Start simple** — core guidance first, expand from real usage gaps.
+3. **Use examples** — one worked example beats three paragraphs of rules. But use it *in addition to* explicit constraints (not instead).
+4. **Test incrementally** — verify simple version before building multi-file complexity. A silently-failing Skill is worse than no Skill.
+5. **Version your Skills** — client standards change; when their PR template changes, the Skill needs updating. Treat Skills like production code.
+
+### 14.13 — The Skill Creator shortcut
+
+For a Knowledge Skill from scratch: **prompt Claude** with:
+> *"Build a Skill for [task]. Here are 5 examples: [examples]."*
+
+Claude generates the folder structure, SKILL.md, and example files. Faster than writing from scratch, and the description will reflect how Claude actually interprets the task (useful sanity check for description quality).
+
+### 14.14 — Common exam traps summary
+
+| Trap | Wrong intuition | Correct rule |
+|---|---|---|
+| "Add more examples to fix wrong output" | Examples always help | **Explicit constraints first, examples second** |
+| "Description with trigger + format is enough" | Two elements sound complete | **Three elements: trigger + format + distinctive marker** |
+| "If Skill loads but output is wrong, description is broken" | Both are description problems | **Loads wrong → fix description. Loads right, output wrong → fix instructions** |
+| "Bundle everything so Claude has full context" | More context = better output | **Focused Skills load precisely; bundled everything loads noisily** |
+| "Remove the Skill if it's misbehaving" | Cut losses | **One targeted rule usually fixes it; keep the adoption** |
+
 ---
 
