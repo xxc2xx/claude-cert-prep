@@ -2413,5 +2413,141 @@ Main agent's options (must be in its instructions):
 
 Combined with your Block 15 enforcement spectrum + Block 14 Skills two-layer model, that's the D1 + D3 core.
 
+### 16.10 — Glossary (Winston's synthesis + analytics-context mapping)
+
+| Term | Plain-English meaning | Winston's analytics example |
+|---|---|---|
+| **Subagent** | Specialized agent spawned by a parent agent to complete part of the same task and return structured results | Traffic, Product, CRM, and QC subagents supporting the Business Review agent |
+| **Parent agent** | Coordinating agent that delegates work and integrates results | Business Review orchestrator |
+| **Isolated context** | Each subagent sees only what it needs — reduces token usage and cross-domain interference | Traffic agent receives only traffic evidence, not merchandising or CRM detail |
+| **Context pollution** | Unnecessary information filling an agent's context window, making reasoning less efficient | Feeding raw SQL, campaign logs, and inventory data into one giant prompt |
+| **Parallel Claude instances** | Completely independent Claude sessions working on unrelated tasks | One Claude refactors validation while another builds a QC dashboard in separate terminals |
+| **Context compression** | Returning concise, structured findings instead of full reasoning or raw data | Traffic subagent returns findings + confidence + evidence IDs, not all intermediate analysis |
+
+---
+
+## Block 17 — Plugins ⭐⭐ (D3 packaging / distribution — Course 4 Lesson 8, capstone)
+
+**Definition**: a **folder with a `plugin.json` manifest + all Claude Code extensions bundled** into one installable unit. Developer installs it with **one command** and gets Skills, hooks, MCP configs, slash commands, and subagent specs together.
+
+### 17.1 — Plugin directory structure ⭐ (memorize)
+
+```
+my-plugin/
+├── .claude-plugin/
+│   └── plugin.json          ← required manifest
+├── commands/                ← custom slash commands
+│   └── code-review.md
+├── agents/                  ← subagent specs (Block 16.2)
+│   └── security-auditor.md
+├── skills/                  ← Skills (Block 14)
+│   └── coding-standards/
+│       └── SKILL.md
+├── hooks/                   ← hook config (Block 15)
+│   └── hooks.json
+└── .mcp.json                ← MCP server definitions (Block 13.8)
+```
+
+**Note the exact paths**: `.claude-plugin/plugin.json` (dot-prefix folder, singular file), then top-level `commands/`, `agents/`, `skills/`, `hooks/`, and root-level `.mcp.json`. Directory naming is exam-testable.
+
+### 17.2 — `plugin.json` manifest — 3 required fields
+
+```json
+{
+  "name": "finserv-activation",
+  "version": "1.0.0",
+  "description": "Claude Code activation plugin for FinServ Corp engineering team"
+}
+```
+
+Required: **`name` · `version` · `description`**.
+
+### 17.3 — Install commands (D3 slash commands)
+
+```
+/plugin install @org/plugin-name    ← install specific plugin
+/plugin browse                      ← browse available plugins
+/plugin update @org/plugin-name     ← update installed plugin
+```
+
+### 17.4 — Fitness test: what belongs in the plugin ⭐⭐ (Day 28 packaging call)
+
+Every component has a bundling bar. **A component that worked for one developer isn't ready for 12.**
+
+| Component | Bundle if… |
+|---|---|
+| **Skill** | Used by ≥ 2 team members AND proven in practice during activation |
+| **MCP config** | **Approved by client's security team** AND has stable, tested connection |
+| **Hook** | Working, tested, adds value for **whole team** (not just one developer's workflow) |
+| **Subagent** | Proven in ≥ 1 real engagement scenario during activation |
+| **Slash command** | Frequently used prompt pattern the team wants to preserve, not a one-off experiment |
+
+**Anti-patterns**:
+- ❌ "Bundle everything — it was all built during the activation"
+- ❌ "Skip MCPs and subagents to reduce maintenance complexity" (that's preference, not governance)
+- ❌ **"Label unreviewed MCP as 'experimental' and bundle it"** — the label doesn't substitute for security review. Developers assume bundled = safe.
+
+### 17.5 — Two distribution scopes (governance layers)
+
+**Don't couple these into one mega-plugin.** Different owners, different release cadences.
+
+| Scope | Owner | Contents | Release cycle |
+|---|---|---|---|
+| **Team plugin** | Team CoE-managed shared registry | Team-specific Skills, hooks, MCPs, subagent specs | Team iterates without CoE approval |
+| **Enterprise marketplace** | CoE-governed | Org-wide approved MCP configs, security hooks, compliance Skills | Stricter release cycle: CoE approves before pushing org-wide |
+
+**Rule**: never couple team + enterprise into one plugin — a change to any component would require a full CoE release cycle. Keep them independent.
+
+### 17.6 — SCIM integration & the "Day 1 governance pitch" ⭐
+
+**Enterprise marketplace plugin workflow** (three steps):
+1. **Create + approve** the plugin
+2. **Publish** it to the marketplace
+3. **Assign** it to relevant **SCIM groups** in Admin Console
+
+**Result**: any developer provisioned into those SCIM groups **receives the approved configuration automatically** on Day 1. No manual install. No shadow tooling. **Access to the tool and access to the governed configuration arrive together.**
+
+**The CISO pitch** (memorize the phrasing):
+> *"Your security team approves the plugin, your IT team assigns it to the right SCIM groups, and every new developer inherits the approved configuration on their first day."*
+
+### 17.7 — Dependency versioning (D3 + D5 reliability)
+
+Three practices to establish with the CoE at Day 30:
+
+1. **Pin MCP server versions in `plugin.json`.** MCP servers update independently; an upstream schema change can break workflows. Pin versions and let the CoE test + promote new ones deliberately.
+2. **Version the plugin itself.** When CoE releases a new version, developers run `/plugin update`; version number tells support which config a team runs.
+3. **Document the Day 30 package.** Record what's in the plugin + which MCP versions bundled + who owns it. This is the handoff document. **Without it, the plugin is a black box the CoE can't maintain.**
+
+### 17.8 — True/false traps (Course 4 Lesson 8)
+
+| Statement | Answer | Why |
+|---|---|---|
+| "Team plugin and CoE plugin should share a release cadence because they're distributed as a bundle" | **FALSE** | Separate owners, independent cadences. Coupling defeats the two-layer governance model. |
+| "An unreviewed MCP config can be bundled if labeled 'experimental'" | **FALSE** | Label doesn't substitute for security review. Developers treat bundled components as safe. Bypasses the governance the CISO endorsed. |
+
+### 17.9 — Course 4 Lesson 8 sim answer (Day 28 packaging)
+
+**Scenario**: 5 components. Which to bundle?
+
+| Component | Verdict | Reason |
+|---|---|---|
+| Security-auditor subagent (proven across 3 sprints) | ✅ Bundle | Passes subagent fitness |
+| API documentation Skill (8 of 10 engineers using) | ✅ Bundle | Passes Skill fitness |
+| Logging hook (tested, working) | ✅ Bundle | Passes hook fitness |
+| Jira MCP config (IT-approved last week) | ✅ Bundle | Passes MCP fitness (security approved) |
+| ISO 20022 Skill (2 of 10, still testing) | ❌ Leave in dev branch | Below Skill fitness threshold; revisit next sprint |
+
+**The rule**: **proven + approved goes in**. Borderline stays in dev branch. Never bundle unapproved MCPs or untested Skills — every developer receives them on install.
+
+### 17.10 — D3 packaging memory rules
+
+- **"Plugin = one folder, one manifest, one install command, everything bundled."**
+- **"Fitness first: proven usage + security approval, or it doesn't ship."**
+- **"Team plugin ≠ CoE plugin: separate owners, separate release cadences."**
+- **"SCIM groups + approved plugin = Day-1 governance."** (New devs get config automatically.)
+- **"Pin MCP versions. Version the plugin. Document the package. Then hand off."**
+
+**Cross-reference**: this ties together Blocks 13 (MCP), 14 (Skills), 15 (Hooks), 16 (Subagents) — the plugin is the packaging that makes all of them survive after the engagement ends. If a client asks "who owns this after Day 30?" — the answer is the CoE + the versioned plugin manifest.
+
 ---
 
