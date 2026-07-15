@@ -2039,5 +2039,41 @@ Claude generates the folder structure, SKILL.md, and example files. Faster than 
 | "Bundle everything so Claude has full context" | More context = better output | **Focused Skills load precisely; bundled everything loads noisily** |
 | "Remove the Skill if it's misbehaving" | Cut losses | **One targeted rule usually fixes it; keep the adoption** |
 
+### 14.15 — The two-layer model + memory rules ⭐⭐ (Winston's synthesis — the exam-day mental picture)
+
+**Every Skill has two layers, and each does a different job.** Getting these confused is what causes the two most common exam traps.
+
+| Layer | Purpose | The question it answers |
+|---|---|---|
+| **1. YAML `description`** | Gets the Skill **selected** (loaded) | *"Should this Skill load right now?"* |
+| **2. `SKILL.md` instructions** | Gets the task **performed correctly** | *"How should Claude do the work now that the Skill has loaded?"* |
+
+**Memory rule** (say this out loud before any Skills question):
+> **"Description gets the Skill *selected*. Instructions get the task *performed correctly*."**
+
+**Corollary**:
+> **"When the failure is specific, fix it with a specific rule — not more general examples."**
+
+**Debug ladder** — when Claude behaves incorrectly with a Skill, walk this in order:
+
+| Symptom | Which layer to fix | What to add |
+|---|---|---|
+| **Correct Skill fails to load** | Description metadata | Trigger condition · capability/output · distinctive marker (all three) |
+| **Skill loads, but Claude follows wrong behavior** | Instructions in SKILL.md | An **explicit rule** — allowed + disallowed behavior stated directly |
+| **Rule understood but Claude still varies** | Instructions in SKILL.md | Decision table · deterministic validation · edge-case examples |
+
+**Why this framework matters on the exam**:
+
+- Question asks "Skill loads but produces wrong output" → **the description is fine**; fix instructions (add explicit rule). Don't rewrite description.
+- Question asks "Skill never loads even when relevant" → **the instructions are fine**; fix description (add trigger / distinctive marker). Don't add more examples.
+- Question mentions "adding more examples fixes it" → almost always wrong. **Explicit rules beat implicit inference.**
+
+**The two-example diagnosis** (Course 4 Lesson 5 checks):
+
+| Sim | Correct fix | Why |
+|---|---|---|
+| "Claude keeps adding Lessons Learned to P3/P4 incidents" | Add explicit rule "Only include Lessons Learned for P1/P2" | Layer 2 fix (instructions) — Skill loads correctly; rule is missing |
+| "Which description triggers correctly?" | The one with **trigger + format + distinctive marker** | Layer 1 fix (metadata) — needs a differentiator vs sibling Skills |
+
 ---
 
