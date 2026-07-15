@@ -1672,5 +1672,263 @@ Every activation asks: **what MCP servers does this client already use?**
 - **"Model stays the same; what it can reach changes."**
 - **Pre-kickoff inventory question**: "What MCP servers does this client already use?" — belongs in the activation-plan checklist.
 
+### 13.7 — Two MCP control planes (Course 4 Lesson 2) ⭐
+
+**User-installed** vs **Org-deployed** are governed differently — clients conflate them, so the CISO's "can developers install anything?" question has a nuanced answer.
+
+| Plane | Mechanism | Scope | Who controls |
+|---|---|---|---|
+| **User-installed** | `~/.claude.json` or project `.mcp.json` | Only that developer's sessions | Developer; blocked centrally only if admin sets deny in `managed-settings.json` |
+| **Org-deployed — deployment** | `managed-mcp.json` | Pushes fixed servers to every user automatically — no user action | IT/admin |
+| **Org-deployed — filtering** | `allowedMcpServers` in `managed-settings.json` | Restricts which servers devs may add themselves | IT/admin |
+
+**Two separate controls; configure both on Day 0.**
+
+### 13.8 — `managed-settings.json` MCP allowlist ⭐⭐ (D3+D2 exam-testable config)
+
+```json
+{
+  "allowManagedMcpServersOnly": true,
+  "allowedMcpServers": [
+    { "serverUrl": "https://api.github.com/*" },
+    { "serverUrl": "https://linear.app/mcp/*" },
+    { "serverCommand": ["npx", "-y", "@playwright/mcp@latest"] },
+    { "serverUrl": "https://*.client-internal.com/*" }
+  ]
+}
+```
+
+Key facts (memorize):
+
+- **`allowManagedMcpServersOnly: true`** → allowlist is **enforced**. Devs cannot install servers outside it. **Without this flag → list is advisory, not enforced.** This flag is the answer to the CISO's question.
+- **`allowedMcpServers` entries must be objects** — `{ "serverUrl": "..." }` or `{ "serverCommand": [...] }`. **NOT bare strings.**
+- `serverUrl` supports wildcards (`*`).
+- `serverCommand` is an argv array (e.g. `["npx", "-y", "@playwright/mcp@latest"]`) for stdio local servers.
+
+### 13.9 — Independent governance layers (defense-in-depth)
+
+Governance works through **two independent** layers. Both must be configured:
+
+1. **Server allowlist** (`allowedMcpServers`) — what CAN be installed.
+2. **Egress domain allowlist** — where installed servers CAN CONNECT (network-layer).
+
+If a server is somehow installed but its egress domain isn't allowed → the network call fails. Layers work independently.
+
+**Plus** OAuth scoping (from 13.4): Claude inherits **user's own permissions**. If dev can't read a private repo, neither can Claude via MCP.
+
+**Client framing**: *"MCP governance isn't a trust conversation. It's a configuration. The allowlist controls what can be installed, egress controls limit where it can call, and OAuth scoping means Claude reaches only what the developer already can."*
+
+### 13.10 — Day 0 rule + true/false traps
+
+**Rule**: MCP allowlist is a **Day 0 task**, alongside SSO/SCIM and spend reporting. **NOT** Day 30, NOT "experiment freely first." Retrofitting governance after developers form habits is harder than setting it up cleanly at kickoff.
+
+True/false traps from the lesson (all straightforward):
+
+| Statement | Answer |
+|---|---|
+| With default settings, developers can install any MCP server locally | **TRUE** — default is permissive; `allowManagedMcpServersOnly: true` is what locks it |
+| Egress domain allowlists can block unapproved installed servers' outbound calls | **TRUE** — independent layers |
+| MCP allowlist is a Week 4 task; safer to experiment first | **FALSE** — Day 0 prerequisite |
+| OAuth-scoped MCP = Claude accesses only what the dev is authorized to reach | **TRUE** — key security-review closer |
+
+**Sim heuristic**: launch Day 0 with **approved-only allowlist**, log pending servers (e.g. Playwright still under IT review) as CoE agenda items. Don't delay cohort for a single pending server. Don't bypass process for expedited approvals. Same-week turnaround via CoE is the target.
+
+### 13.11 — Remote MCP relay: when to use (Course 4 Lesson 3) ⭐
+
+**The problem it solves**: system is approved for MCP access + legitimate, BUT only accepts connections from inside the corporate network. Claude Code on developer's laptop can't reach it directly.
+
+**Architectural decision** (D2 exam pattern):
+
+| Direct connection | Remote relay |
+|---|---|
+| Target reachable from developer's environment | Target behind network boundary laptop can't cross |
+| SaaS tools (GitHub, Linear, Slack), VPN-accessible systems | Internal APIs restricted to specific subnets, air-gapped envs, no firewall rule for dev laptops |
+| `claude mcp add` → done | Deploy MCP server inside corporate network, expose via HTTP/SSE, connect via VPN |
+
+**Rule**: **relay adds latency and a failure point** — don't use it if direct connection works. GitHub = SaaS = direct. Confluence-behind-VPN = relay.
+
+### 13.12 — `.mcp.json` HTTP/SSE server config + CLI
+
+```json
+{
+  "mcpServers": {
+    "internal-api": {
+      "type": "sse",
+      "url": "https://mcp.client-internal.com/sse"
+    }
+  }
+}
+```
+
+CLI equivalent:
+```bash
+claude mcp add --transport sse internal-api https://mcp.client-internal.com/sse
+```
+
+**Transport types recap** (all 3 now covered):
+
+| `type` | Use case | Auth |
+|---|---|---|
+| **`stdio`** | Local subprocess on dev's machine (uses laptop's existing network path) | OAuth possible, or process env vars |
+| **`sse`** | Remote MCP over server-sent events | OAuth · static headers · `headersHelper` |
+| **`http`** | Remote MCP over HTTP | OAuth · static headers · `headersHelper` |
+
+**Auth options for HTTP/SSE MCP servers** (memorize):
+- **OAuth** — for servers that support it; Claude inherits user's permissions (see 13.4)
+- **Static headers** — API keys or bearer tokens in `.mcp.json`
+- **`headersHelper`** — custom auth: internal SSO, Kerberos, short-lived tokens, dynamic credentials
+
+### 13.13 — Relay security framing (D5-adjacent)
+
+**What the relay carries**: MCP protocol traffic only — tool call requests + responses. **Not a VPN. Not general network access.** The security boundary stays at the **MCP server** running inside the network, which controls exactly which tools/resources are exposed.
+
+**Common client objection**: *"We can't allow Claude Code to make calls through a tunnel. We don't know what traffic is flowing through it."*
+
+**Correct response**: explain what the relay carries. It's not a VPN. **The MCP server inside the network is the actual security boundary**, and it enforces exactly which tools/resources are exposed to Claude. Log-review after deployment doesn't address the architectural concern; explain the mechanism first, monitoring second.
+
+**Anti-patterns**:
+- Adding relay for GitHub (SaaS, direct works)
+- Confusing relay (network problem) with `managed-mcp.json` (distribution problem)
+- Removing relay after client objection instead of explaining what it carries
+
+---
+
+## Block 14 — Skills ⭐⭐ (D3 core — Course 4 Lesson 4)
+
+**Definition**: a **folder** of files (instructions, scripts, templates) that gives Claude a specific reusable capability. **Loaded only when relevant** to the current task — not loaded when not needed = zero overhead.
+
+### 14.1 — Two categories
+
+| Category | What it solves | Examples |
+|---|---|---|
+| **Capability Skills** | Things Claude *can't do well* without specialized instructions | PDF generation in client format, complex Office layouts, proprietary output templates, ISO 20022 XML payment messages |
+| **Knowledge Skills** | Org-specific workflows/standards Claude needs to *apply consistently* | Coding conventions, PR description templates, incident post-mortem format, compliance language, brand guidelines |
+
+**One-liner framing**: *"A Skill turns a document nobody reads consistently into something Claude applies automatically."*
+
+### 14.2 — File anatomy
+
+**Minimum viable Skill** = 1 file:
+```
+my-skill/
+└── SKILL.md      ← required
+```
+
+**Real engagement Skill** = SKILL.md + bundled resources loaded on demand:
+```
+api-docs-skill/
+├── SKILL.md
+├── endpoint-template.yaml   ← loaded on demand
+├── example-spec.yaml        ← loaded on demand
+└── apply_template.py        ← run if needed
+```
+
+**SKILL.md structure** = YAML frontmatter + body:
+```markdown
+---
+name: API Documentation Standards
+description: Apply client's internal REST API documentation format
+             when writing or reviewing any endpoint specification
+---
+
+## Overview
+[Instructions Claude follows when this skill loads]
+
+## Format Requirements
+[Specifics: header format, field definitions, required fields]
+
+## Example
+[One worked example of a compliant spec]
+
+Read ./endpoint-template.yaml for the full schema
+```
+
+Frontmatter fields (from earlier Course 3 Lesson 2 + this lesson):
+- **`name`** — the Skill's identifier
+- **`description`** ⭐⭐ — **the trigger**. Most important line. Determines whether Claude loads it.
+- **`context: fork`** — run in isolated sub-agent context (skill outputs don't pollute main conversation)
+- **`allowed-tools`** — restrict tool access during Skill execution
+- **`argument-hint`** — prompt for required params when invoked without args
+
+### 14.3 — Progressive disclosure ⭐⭐ (the exam-testable mechanism)
+
+Claude uses a **three-step loading protocol** — it does NOT load all Skills into every session.
+
+| Step | What Claude sees | Result |
+|---|---|---|
+| **1. Scan** | name + description ONLY | Decides: relevant to this task? |
+| **2. Load** | Full SKILL.md body | Reads instructions + examples |
+| **3. Fetch** | Linked bundled files (if needed) | Accesses templates, specs, scripts |
+
+**Consequence**: a library of **10–20 Skills doesn't degrade performance** on every task. Overhead is proportional to relevance, not to library size.
+
+**Consequence #2**: `description` quality determines whether the Skill triggers correctly. **Vague description → Skill doesn't load when it should, or loads when it shouldn't.** Description-writing is the most important authoring decision.
+
+**Invocation paths**:
+1. **Automatic** — Claude scans descriptions, decides relevance (default)
+2. **Direct** — user invokes by name: `/skill-name`
+3. **Explicit reference** — user mentions in prompt: "use my-skill for this"
+
+### 14.4 — Three engagement Skill patterns ⭐ (memorize the pattern selection heuristics)
+
+| Pattern | Signal | Fix |
+|---|---|---|
+| **Pattern 1 — Refined through experience** | Repeated task · established quality standard · **output varies across team** | Encode the standard as instructions in SKILL.md |
+| **Pattern 2 — Quality depends on materials** | Reference material exists · **isn't reaching Claude reliably** (people paste it inconsistently, personal copies drift) | Bundle the reference file; SKILL.md tells Claude when to consult it |
+| **Pattern 3 — Capability gap** | Claude **can't do the task correctly at all** · missing knowledge of a format/schema/protocol · every attempt fails | Build Skill with schema + required fields + worked example |
+
+**Pattern selection heuristic** (this is the exam trap where Winston got 3/3 wrong):
+
+| Symptom | Pattern |
+|---|---|
+| Output is **consistently wrong / fails validation** | **P3** (capability gap — Claude doesn't know the format) |
+| Output is **consistent when applied but people don't apply it uniformly** | **P1** (established standard, needs encoding) |
+| Reference **exists** but **access is unreliable** (paste drift, forgotten steps) | **P2** (bundle for on-demand loading) |
+
+### 14.5 — Sim walkthrough (from Course 4 Lesson 4)
+
+**Sim 1 — Service catalogue, 3 devs pasting drifting copies** → **P2** (materials exist, need reliable access).
+- Not P1: symptom is inconsistent *access*, not inconsistent writing.
+- Not P3: catalogue already exists; Claude doesn't need it built from scratch.
+
+**Sim 2 — Post-mortem severity classifications vary (P2 vs P4 for same incident)** → **P1** (established standard, inconsistent application).
+- Not P2: bundling the runbook still leaves Claude interpreting prose. **Fix is encoding the rubric as instructions**, not just making it accessible.
+- Not P3: Claude *can* write post-mortems; consistency is the problem, not capability.
+
+**Sim 3 — ISO 20022 XML with wrong field names, missing nested elements, every test fails schema** → **P3** (capability gap).
+- Not P1: output is *consistently wrong*, not inconsistent. Pattern 1 applies when quality varies; here every test fails.
+- Not P2 alone: reference file isn't enough — Claude can't navigate a 200-page spec on demand. **P3 goes further: schema + required fields + complete worked example — like briefing an engineer who's never seen the format.**
+
+**Root heuristic**: **P3 is for "can't do at all" · P1 is for "does it inconsistently" · P2 is for "materials exist but don't reach Claude reliably."**
+
+### 14.6 — True/false traps (from lesson check)
+
+| Statement | Answer | Why |
+|---|---|---|
+| "Claude loads every Skill's full SKILL.md on every task" | **FALSE** | Progressive disclosure — Claude reads description first, loads body only if relevant. 10+ Skills = zero overhead on unrelated tasks. |
+| "A Skill can include executable scripts Claude runs as part of the workflow" | **TRUE** | Python, shell, any executable. SKILL.md instructs when/how. This is how Capability Skills work. |
+| "The description field is cosmetic — Claude doesn't use it to decide whether to load the Skill" | **FALSE** | Description is **the trigger**. Vague description = Skill doesn't fire when it should. Most important authoring decision. |
+
+### 14.7 — Skills vs CLAUDE.md — pick the right layer (D3 crossover)
+
+| Use CLAUDE.md when… | Use a Skill when… |
+|---|---|
+| Instructions apply to **every** session in this project | Instructions apply only when a **specific task** comes up |
+| Universal standards (tech stack, build commands, tone) | Task-specific expertise (PDF gen, ISO 20022, post-mortem rubric) |
+| Always-loaded context, cheap | On-demand loading via progressive disclosure |
+| Same team, same shared file (project scope) | Team-shared OR personal (`~/.claude/skills/` for personal variants) |
+
+**Rule**: if applying it every session wastes context, it's a Skill. If it's applicable every session, it's CLAUDE.md.
+
+### 14.8 — Skills library placement (D3 scope, ties to Block 9)
+
+- **Project-scoped** — `.claude/skills/` in repo (committed, shared)
+- **User-scoped** — `~/.claude/skills/` (personal variants; different name than team's to avoid conflict)
+- **Managed** — org-deployed via IT (similar to `managed-settings.json` pattern)
+
+**Personal customization workflow**: if the team's `<name>` skill doesn't fit your workflow, create `~/.claude/skills/<my-name>/` with different name. Doesn't affect teammates.
+
+**Marketplace check**: before building a Skill from scratch, check the client's existing Skills + Anthropic's marketplace. Don't build what's already available.
+
 ---
 

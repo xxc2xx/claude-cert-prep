@@ -9888,6 +9888,232 @@ const QUESTIONS = [
     ],
     answer: 1,
     explain: "Splitting reviews into focused passes directly addresses the root cause: attention dilution when processing many files at once. File-by-file analysis ensures consistent depth, while a separate integration pass catches cross-file issues. Option A shifts burden to developers without improving the system. Option D misunderstands that larger context windows don't solve attention quality issues. Option C would actually suppress detection of real bugs by requiring consensus on issues that may only be caught intermittently."
+  },
+
+  // ===== BLOCK 28 — Skills Deep Drill (14 Qs, D3 pattern-selection + progressive disclosure) =====,
+  {
+    id: "b28-q01",
+    block: "🔴 EXAM · 28 — Skills Deep Drill",
+    topic: "D3 · Progressive disclosure",
+    domain: "D3",
+    tier: "exam",
+    q: "A team has 25 custom Skills installed in .claude/skills/. When a developer asks Claude to fix a bug in a Python function, what content from those Skills does Claude examine at the start of that turn?",
+    choices: [
+      "Claude picks 5 Skills at random each turn and loads their full bodies",
+      "Only Skills invoked with a slash-command are ever loaded",
+      "Only the name and description fields of each Skill are scanned; the full SKILL.md body loads only if the Skill is relevant to the current task",
+      "All 25 SKILL.md bodies are loaded into the system prompt at session start"
+    ],
+    answer: 2,
+    explain: "Progressive disclosure: Claude first scans name + description of every installed Skill (cheap, small tokens), then loads full SKILL.md body ONLY if the Skill's description matches the task. This is why a library of 20+ Skills doesn't degrade performance on unrelated tasks."
+  },
+  {
+    id: "b28-q02",
+    block: "🔴 EXAM · 28 — Skills Deep Drill",
+    topic: "D3 · Description as trigger",
+    domain: "D3",
+    tier: "exam",
+    q: "A Skill for API documentation is installed correctly, but developers report it never seems to activate — even when they explicitly ask Claude to write API endpoint specifications. What's the most likely root cause?",
+    choices: [
+      "The SKILL.md body is too long and Claude skips loading it",
+      "Bundled files exceed the token budget for on-demand loading",
+      "The Skill needs to be re-registered with claude skill add",
+      "The description field is vague or doesn't clearly state when to use the Skill"
+    ],
+    answer: 3,
+    explain: "The description field is the trigger. Claude reads descriptions to decide relevance during scan. If the description is generic ('helper for developer tasks'), it won't match specific queries about API endpoints. Description quality is the single most important authoring decision in any Skill."
+  },
+  {
+    id: "b28-q03",
+    block: "🔴 EXAM · 28 — Skills Deep Drill",
+    topic: "D3 · Bundled file loading",
+    domain: "D3",
+    tier: "exam",
+    q: "A Skill folder contains SKILL.md, api-schema.yaml, and validator.py. When are the bundled files (yaml + py) actually read by Claude?",
+    choices: [
+      "Only when the user runs /skill-name explicitly",
+      "Every turn, regardless of relevance",
+      "At session start alongside all other Skills",
+      "On demand, only when SKILL.md instructs Claude to fetch them — and only if the Skill itself has been triggered"
+    ],
+    answer: 3,
+    explain: "Step 3 of progressive disclosure: bundled files fetch only after (Step 1) the description scan triggered the Skill and (Step 2) SKILL.md body loaded and referenced the file. Bundled resources are the on-demand tail of the loading chain — they cost nothing when the Skill isn't active."
+  },
+  {
+    id: "b28-q04",
+    block: "🔴 EXAM · 28 — Skills Deep Drill",
+    topic: "D3 · Skill pattern selection",
+    domain: "D3",
+    tier: "exam",
+    q: "Three developers on a client team each maintain their own trimmed copy of a 60-page internal service catalogue that they paste into Claude sessions. The copies are starting to drift, and under deadline pressure the paste step gets skipped. Which Skill pattern fits this problem?",
+    choices: [
+      "Pattern 3 — Claude doesn't know the service architecture; teach it the schema from scratch",
+      "Not a Skill problem — better solved with an MCP server",
+      "Pattern 2 — bundle the canonical catalogue as a reference file; the Skill loads it on demand from a single source",
+      "Pattern 1 — encode a shared service-documentation format as instructions in SKILL.md"
+    ],
+    answer: 2,
+    explain: "The materials EXIST — the problem is that access is unreliable (drift + skipped pastes). Pattern 2 bundles the reference file so Claude loads it on demand from a canonical source. Pattern 1 would be wrong because writing isn't inconsistent — access is. Pattern 3 doesn't apply because Claude doesn't need to be taught the architecture; it already exists in the catalogue."
+  },
+  {
+    id: "b28-q05",
+    block: "🔴 EXAM · 28 — Skills Deep Drill",
+    topic: "D3 · Skill pattern selection",
+    domain: "D3",
+    tier: "exam",
+    q: "A senior engineer flags an issue: two team members ran the same incident through Claude for post-mortem generation and got P2 and P4 severity ratings. The team has a severity rubric documented in their internal runbook. Which Skill pattern applies?",
+    choices: [
+      "Pattern 3 — severity assessment is a capability gap; Claude needs to be trained on this domain",
+      "Pattern 2 — bundle the runbook as a reference file so Claude can look it up",
+      "Pattern 1 — repeated task with an established standard but inconsistent output; encode the rubric as instructions",
+      "Not fixable with a Skill; needs prompt engineering in every session"
+    ],
+    answer: 2,
+    explain: "All Pattern 1 signals present: task is repeated · standard exists · output varies across engineers. Fix by encoding the rubric AS INSTRUCTIONS in SKILL.md — not just as a bundled reference. Bundling (Pattern 2) leaves Claude interpreting rubric prose freshly each time; variation continues. Pattern 3 doesn't apply — Claude can write post-mortems; consistency is the gap."
+  },
+  {
+    id: "b28-q06",
+    block: "🔴 EXAM · 28 — Skills Deep Drill",
+    topic: "D3 · Skill pattern selection",
+    domain: "D3",
+    tier: "exam",
+    q: "Developers ask Claude to generate ISO 20022 XML payment messages. The output is well-structured XML but uses invented field names and misses required nested elements. Every test fails schema validation. Which pattern applies?",
+    choices: [
+      "Not a Skill fit — this requires a fine-tuned model",
+      "Pattern 2 — bundle the ISO 20022 spec as a reference file so Claude can consult it",
+      "Pattern 1 — inconsistent output across the team; encode a shared standard",
+      "Pattern 3 — capability gap; build a Skill with the schema, required fields, and a complete worked example"
+    ],
+    answer: 3,
+    explain: "Output is CONSISTENTLY WRONG (every test fails), not inconsistent. Claude works from general XML knowledge, not the actual ISO 20022 spec. Pattern 3 goes further than Pattern 2's bundled reference: Claude can't navigate a 200-page spec to find right fields on demand. A P3 Skill gives Claude the SCHEMA + REQUIRED FIELDS + COMPLETE WORKED EXAMPLE — like briefing an engineer who's never seen the format."
+  },
+  {
+    id: "b28-q07",
+    block: "🔴 EXAM · 28 — Skills Deep Drill",
+    topic: "D3 · Skills vs CLAUDE.md",
+    domain: "D3",
+    tier: "exam",
+    q: "A client's platform team documents the tech stack (React + Node.js), build commands, and coding conventions in a document that applies to EVERY development session in the project. Should this be a Skill or CLAUDE.md?",
+    choices: [
+      "A Skill in .claude/skills/, so it doesn't always load",
+      "Split it: half as CLAUDE.md, half as a Skill",
+      "CLAUDE.md — applies to every session, so it should always be in context",
+      "A managed-policy CLAUDE.md"
+    ],
+    answer: 2,
+    explain: "Rule: if applying it every session wastes context, it's a Skill. If it's applicable EVERY session, it's CLAUDE.md. Universal team standards (stack, build commands, tone) belong in CLAUDE.md — they're needed constantly. Skills are for task-specific expertise loaded on demand. Making them Skills would just add lookup latency for content that's always relevant."
+  },
+  {
+    id: "b28-q08",
+    block: "🔴 EXAM · 28 — Skills Deep Drill",
+    topic: "D3 · Skills scoping",
+    domain: "D3",
+    tier: "exam",
+    q: "A developer needs a `/commit` Skill customized for their personal workflow — but the team has a shared `/commit` Skill in `.claude/skills/commit/`. How should they add their customization without affecting teammates?",
+    choices: [
+      "Create `~/.claude/skills/<my-name>/` with a different Skill name so both coexist without conflict",
+      "Edit the shared Skill in .claude/skills/commit/ and add a personal-mode flag",
+      "Fork the entire repository and use their fork",
+      "Override the team Skill by placing a same-named file in `~/.claude/skills/commit/`"
+    ],
+    answer: 0,
+    explain: "Personal customization: put your variant in `~/.claude/skills/` with a DIFFERENT name (to avoid stepping on the team's Skill). Same-named override (option D) is fragile and confusing when the team Skill changes. Option B affects teammates. Option C is overkill. Naming your personal Skill differently lets both coexist cleanly."
+  },
+  {
+    id: "b28-q09",
+    block: "🔴 EXAM · 28 — Skills Deep Drill",
+    topic: "D3 · context: fork",
+    domain: "D3",
+    tier: "exam",
+    q: "A `/scaffold` Skill runs many exploratory file reads and Bash commands during execution, producing hundreds of lines of intermediate output that pollutes the main conversation and burns context. Which SKILL.md frontmatter option addresses this?",
+    choices: [
+      "description: quiet — tells Claude to suppress output",
+      "argument-hint: verbose",
+      "allowed-tools: [] to disable tools",
+      "context: fork — runs the Skill in an isolated sub-agent context so verbose output doesn't pollute the main conversation"
+    ],
+    answer: 3,
+    explain: "`context: fork` isolates skill execution in a sub-agent context. Verbose output stays inside the fork; only the summarized result returns to the main conversation. Purpose-built for Skills that produce large exploratory output (codebase analysis, brainstorming, deep file reads). Options C/B/D are wrong: they'd break the Skill or reference fields that don't exist."
+  },
+  {
+    id: "b28-q10",
+    block: "🔴 EXAM · 28 — Skills Deep Drill",
+    topic: "D3 · argument-hint",
+    domain: "D3",
+    tier: "exam",
+    q: "A team's `/migration` Skill generates database migration files based on a name passed via `$ARGUMENTS`. A developer invokes `/migration` without providing an argument. Which frontmatter field ensures they get a prompt for the missing parameter?",
+    choices: [
+      "name: migration",
+      "context: fork",
+      "allowed-tools: [Write]",
+      "argument-hint: prompts the user for the required parameter when the Skill is invoked without arguments"
+    ],
+    answer: 3,
+    explain: "`argument-hint` is the frontmatter field that prompts developers for required parameters when they invoke the Skill without arguments. Purpose-built for parameterized Skills using `$ARGUMENTS` in their body. Other fields don't affect argument handling."
+  },
+  {
+    id: "b28-q11",
+    block: "🔴 EXAM · 28 — Skills Deep Drill",
+    topic: "D3 · Executable Skills",
+    domain: "D3",
+    tier: "exam",
+    q: "A team wants to build a Skill that validates output against a proprietary schema using a Python script. Is this supported?",
+    choices: [
+      "Only if the script is invoked through a slash command wrapper",
+      "Yes — Skills can bundle Python, shell, or any executable, and SKILL.md instructs when/how to run them",
+      "No, Skills are markdown-only; scripts belong in slash commands",
+      "Only shell scripts are supported, not Python"
+    ],
+    answer: 1,
+    explain: "Skills can bundle executables (Python, shell, anything). SKILL.md instructs when and how to invoke them. This is the standard mechanism for Capability Skills: generating complex documents, applying proprietary transformations, running custom validators. Restricting scripts would defeat the point of Capability Skills."
+  },
+  {
+    id: "b28-q12",
+    block: "🔴 EXAM · 28 — Skills Deep Drill",
+    topic: "D3 · Skills scoping",
+    domain: "D3",
+    tier: "exam",
+    q: "A project has `.claude/skills/summarize/` and the developer also has `~/.claude/skills/summarize/` with the same name. Which one takes effect when they invoke `/summarize`?",
+    choices: [
+      "The project-scoped one always wins",
+      "Both merge automatically",
+      "The user-scoped one always wins",
+      "Behavior is undefined / conflict — best practice is to use different names for personal variants to avoid ambiguity"
+    ],
+    answer: 3,
+    explain: "Same-name conflicts create ambiguous or version-dependent behavior. Best practice (from the Skills lesson): create personal variants with DIFFERENT names in `~/.claude/skills/` to avoid affecting the team Skill or being affected by it. Explicit naming is the workaround; overriding by same-name is fragile."
+  },
+  {
+    id: "b28-q13",
+    block: "🔴 EXAM · 28 — Skills Deep Drill",
+    topic: "D3 · Skill invocation",
+    domain: "D3",
+    tier: "exam",
+    q: "Which of the following are valid ways to trigger a Skill in Claude Code? Choose the best answer.",
+    choices: [
+      "All three: automatic scan, direct /skill-name invocation, and explicit prompt reference",
+      "Explicit reference in the user's prompt (e.g. 'use my-skill for this')",
+      "Direct invocation by name (e.g. /skill-name)",
+      "Automatic (Claude scans descriptions to decide relevance)"
+    ],
+    answer: 0,
+    explain: "Three valid invocation paths: (1) automatic — Claude scans descriptions, decides relevance; this is the default. (2) Direct — user invokes `/skill-name` to force it. (3) Explicit reference — mention it in the prompt. All three trigger the Skill; the difference is who chooses (Claude vs user) and how deterministic the trigger is."
+  },
+  {
+    id: "b28-q14",
+    block: "🔴 EXAM · 28 — Skills Deep Drill",
+    topic: "D3 · Skill authoring workflow",
+    domain: "D3",
+    tier: "exam",
+    q: "A client needs a Skill for their Jira ticket-to-PR workflow. Before authoring one from scratch, what should the consultant do first?",
+    choices: [
+      "Recommend the team use manual copy-paste instead",
+      "Copy CLAUDE.md content into a new Skill file",
+      "Check whether the client already has such a Skill in inventory, OR check Anthropic's Skills marketplace for a reusable one",
+      "Author it from scratch — bespoke is always better for client engagements"
+    ],
+    answer: 2,
+    explain: "The Activation Plan explicitly says: don't build Skills from scratch if the client or Anthropic's marketplace already has one. Pre-kickoff inventory captures existing Skills. Marketplace check comes before authoring. Building from scratch when a working Skill exists wastes engagement time and creates maintenance overhead."
   }
 ];
 
