@@ -2269,3 +2269,149 @@ The Activation Plan groups hooks into four archetypes:
 
 ---
 
+## Block 16 — Subagents & Multi-Agent Orchestration ⭐⭐⭐ (D1 core, 27%)
+
+### 16.1 — Subagents vs Parallel Claude instances (the D1 trap-topic)
+
+**The single most-confused distinction in agentic architecture.** Both involve multiple Claude processes running at once. The difference is **whether they communicate**.
+
+| | **Subagents** | **Parallel Claude instances** |
+|---|---|---|
+| **What it is** | Specialized mini-agents spawned within your session | Independent Claude Code instances in separate terminals |
+| **Context** | Isolated sub-context; **returns results to main agent** | Full independent context per instance; **never communicate** |
+| **When to use** | Delegate specialized work without polluting main context | Multiple tasks that could each ship as separate PRs; hours of independent work |
+| **Coordination** | Automatic: main agent waits for results | Manual: you manage across terminals; TMUX for awareness |
+
+**Memory rule** ⭐:
+> **"Subagents return results. Parallel instances ship work."**
+
+**Getting this wrong is the most common subagent design error on engagement teams.** Any exam scenario about "how should I run these two independent workstreams?" reduces to this table.
+
+### 16.2 — Subagent spec anatomy (D1 mechanics)
+
+Each subagent = a **markdown spec file** in the project's `agents/` directory:
+
+```
+my-project/
+├── CLAUDE.md
+├── agents/
+│   ├── code-reviewer.md
+│   ├── security-auditor.md
+│   └── researcher.md
+└── src/
+```
+
+**Spec format** (example `security-auditor.md`):
+
+```yaml
+name: security-auditor
+description: Scans for SQL injection, XSS, CSRF, and OWASP
+             Top 10 vulnerabilities in modified code. Returns
+             a structured findings report.
+tools: Read, Grep, Bash
+```
+
+**Two exam-testable fields**:
+
+| Field | Role | Parallel with Skills |
+|---|---|---|
+| **`description`** | Main agent decides which subagent to spawn by scanning descriptions | Same three-element rule: **trigger + capability + distinctive marker** |
+| **`tools`** | Scopes the subagent to exactly the tools it needs | Security auditor doesn't get `Edit`/`Write` — principle of least privilege |
+
+**Cross-reference**: subagents are spawned via the **`Task` tool**. Coordinator's `allowedTools` **must include `Task`** for spawning to work (see Block 13.4 / Ch 15 field manual). **Parallel subagents = multiple Task calls in ONE coordinator response**, not across turns.
+
+### 16.3 — Canonical pattern: three-agent security audit ⭐
+
+The canonical D1 pattern to propose when a client needs governance on AI-generated code:
+
+```
+Main agent (writing feature)
+   ↓  spawns audit subagent when feature ready for review
+Audit subagent (OWASP scan)
+   ↓  isolated context; returns structured findings report
+Remediation subagent (applies fixes)
+   ↓  receives findings; applies targeted fixes; returns remediated code
+Main agent (secure feature complete)
+   Main context stayed clean; audit detail never entered main window
+```
+
+**Value proposition** (exam framing): produces an **auditable trail** (each subagent's task + output loggable) without slowing the main dev flow. Demonstrates security governance without architectural changes.
+
+### 16.4 — Context isolation model (what subagent sees / doesn't see)
+
+**Subagent SEES** (its inputs):
+- Its own **system prompt** (from the spec file)
+- The **task description** passed by the main agent
+- Its **own tool results** as it works
+
+**Subagent does NOT see** (must be passed explicitly if needed):
+- Prior conversation messages
+- MCP connections established in the main session (unless explicitly passed)
+- Main agent's current file state beyond what's in the task description
+
+**Design consequence**: **design subagent tasks to be self-contained.** Include all findings, source URLs, file contents needed for the subagent's work directly in the task prompt. See Ch 15 field manual: "subagent context is never inherited."
+
+### 16.5 — Isolation is NOT process/network isolation ⚠️
+
+**Common client misconception** (and an exam-testable trap):
+
+Subagents share the **same Claude Code session** and use **separate context windows**. This is:
+- ✅ Context isolation (that's the whole point)
+- ❌ NOT process-level isolation
+- ❌ NOT network-level isolation
+
+**Consequence**: proxy rules, credentials, session-level policies, and network configuration **STILL APPLY** to subagent operations. Don't assume isolation that hasn't been explicitly confirmed with the client's platform team.
+
+### 16.6 — Failure handling: no automatic retry ⭐⭐
+
+**Rule**: when a subagent fails, Claude Code returns an **error result** to the main agent. There is **no automatic retry**. The main agent decides what to do.
+
+Error result format:
+```json
+{ "status": "error", "message": "Parse failed: minified file at /dist/app.min.js" }
+```
+
+Main agent's options (must be in its instructions):
+- **Retry** with a different approach
+- **Skip** and continue with partial results
+- **Escalate** to human review
+- **Flag** the failure and proceed with other subagent results
+
+**Anti-patterns**:
+- Silent skip (masks the error)
+- Halt the entire pipeline for one subagent failure (discards unrelated clean results)
+- Passing failed result downstream to next subagent (audit → remediation cascade)
+
+**Design principle** (memorize): **design subagent tasks to be atomic** — each returns either a result or an error, handled independently.
+
+### 16.7 — True/false traps (Course 4 Lesson 7)
+
+| Statement | Answer |
+|---|---|
+| "The main agent's instructions determine how a subagent failure is handled — no automatic recovery built into Claude Code" | **TRUE** |
+| "If a subagent fails, Claude Code automatically retries it until it succeeds" | **FALSE** (no automatic retry; explicit main-agent handling required) |
+
+### 16.8 — Course 4 Lesson 7 sim answers (memorize the two)
+
+**Sim 1 — IT says proxy policy will block subagent spawning**:
+- ✅ **Ask IT what specifically is being blocked** first. Subagents spawn *within the session process* — they don't make outbound API calls to spin up. Proxy usually applies to HTTP/S calls, not in-process spawning. **Investigate before redesigning.**
+- ✗ Switch to parallel terminals — solves the wrong problem (loses coordination + result-collection)
+- ✗ Accept the restriction without interrogating — most costly option; a clarifying question may dissolve the concern
+
+**Sim 2 — Security audit subagent fails on minified file; lint + test subagents returned clean**:
+- ✅ **Receive error, log failure, flag file for manual review, proceed with lint + test results.** Atomic task design means one failure doesn't invalidate unrelated work.
+- ✗ Mark entire pipeline failed — discards clean results
+- ✗ Automatic retry — doesn't exist; main agent must handle
+
+### 16.9 — D1 memory rules (say aloud before D1 questions)
+
+- **"Subagents return results. Parallel instances ship work."**
+- **"Subagents share the session, not the network — proxy/credentials still apply."**
+- **"No automatic retry. Main agent's instructions handle failure."**
+- **"Multiple Task calls in ONE response = parallel spawning."**
+- **"Subagent context is never inherited — pass everything explicitly."**
+
+Combined with your Block 15 enforcement spectrum + Block 14 Skills two-layer model, that's the D1 + D3 core.
+
+---
+
