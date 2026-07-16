@@ -3076,3 +3076,115 @@ Memorize the 4 surface defaults — this is exam-testable:
 
 ---
 
+## Block 23 — Compliance, Trust Center & Ownership Model ⭐⭐ (D5 capstone — Course 6 Lesson 6)
+
+Cross-refs: **Block 7.10** already has the certification list from the Corvane sim; **Block 19.2** has the two-bucket ownership model. This block adds the *grouping-by-purpose* framing + operational controls (audit logs, Compliance API) + trust-center rule.
+
+### 23.1 — Certification stack, grouped by purpose (memorize the buckets)
+
+Full list (available at `trust.anthropic.com`):
+
+| Purpose | Certifications | How to answer |
+|---|---|---|
+| **Security baseline** | SOC 2 Type 2 · ISO 27001:2022 | *"Yes, both, audited annually — see trust.anthropic.com"* — the opener every questionnaire uses |
+| **Cloud + privacy** | ISO 27017 (cloud security) · ISO 27018 (cloud privacy) · CSA STAR Level 2 | Beyond SOC 2 — same move, direct to trust center |
+| **Regulated industries** | HIPAA (BAA available) · **FedRAMP High (Claude for Government only!)** · GDPR | Framework-specific. Flag FedRAMP scope caveat. |
+| **Standards** | NIST 800-171 · **ISO 42001:2023 (AI management systems)** | ISO 42001 = AI-specific — strong signal for AI-governance maturity evals |
+| **UK-specific** | UK Cyber Essentials | Regional cert for UK-based clients |
+
+### 23.2 — The trust center rule ⭐⭐
+
+**Rule**: for any client certification / attestation / compliance-artifact question → **direct them to `trust.anthropic.com`**.
+
+- Never quote certification details from memory — trust center is always current
+- **The site is always the source of truth**, not your recall
+- Full set: reports · attestation letters · questionnaire responses · pen-test summaries
+
+### 23.3 — FedRAMP scope caveat ⭐ (exam-testable trap)
+
+**FedRAMP High applies to Claude for Government, NOT standard Enterprise plans.**
+
+Trap answer: *"Yes, we're FedRAMP High"* on a standard Enterprise deployment question. **Always confirm which product the client needs** before quoting FedRAMP coverage.
+
+**Corollary**: any true/false statement claiming "FedRAMP applies to all Enterprise plans" is **FALSE**.
+
+### 23.4 — Two operational controls (Audit Logs + Compliance API) ⭐
+
+**Neither is configured by default. Both are Enterprise features.**
+
+| Control | Purpose | Retention | Export |
+|---|---|---|---|
+| **Audit logs** | User activity · conversations · admin changes | **180-day rolling window** | **SIEM export available** |
+| **Compliance API** | Programmatic access to conversation content for DLP, eDiscovery, legal hold | **Up to 6 years** | Programmatic access |
+
+**Rule**: **configure access to both during pre-launch setup**. Logs accumulate **from first use**, so waiting to configure means the first weeks of data have no admin access.
+
+**Trap**: neither exists by default. Any exam question implying "audit logs are on out of the box" is wrong at the *access* level (log data may exist but admin access to it isn't automatic).
+
+### 23.5 — Client questionnaire routing (the 3-way answer) ⭐⭐
+
+For every security-review question, route it to one of three answers:
+
+| Question type | Route to | Example |
+|---|---|---|
+| **"Do you hold [certification]?"** | **`trust.anthropic.com`** | SOC 2, ISO 27001, HIPAA BAA — direct to the trust center |
+| **"Can admins disable/reconfigure [Anthropic's control]?"** | **Anthropic owns it** — cannot be disabled | Runtime classifiers · Constitutional AI · usage policy enforcement · pre-release eval |
+| **"Where is [client control] configured?"** | **Client configures it** — via managed settings / admin console | Retention windows · SSO/SCIM · audit log access · connector governance · IP allowlist · permission rules |
+
+**Rule**: know before the client asks. Answering hesitantly = losing credibility in the room.
+
+### 23.6 — Client vs Anthropic ownership recap (see Block 19.2 for full model)
+
+**Anthropic owns** (cannot be disabled):
+- Model safety (Constitutional AI, RLHF, weight-level refusal, usage policy enforcement)
+- Runtime classifiers
+- Platform integrity + pre-release eval
+
+**Client configures** (via managed settings + admin console):
+- Managed settings (Block 18)
+- SSO + SCIM (Block 21)
+- Data retention windows (Block 22)
+- Audit log access + Compliance API (this block)
+- Connector governance (Block 13.7–13.10)
+- IP allowlisting + tenant restrictions (Block 21.4)
+- Permission rules (Block 19)
+
+### 23.7 — True/false traps
+
+| Statement | Answer | Why |
+|---|---|---|
+| "FedRAMP High authorization applies to all Claude Enterprise plans" | **FALSE** | Claude for Government only |
+| "A client's system prompt can reconfigure runtime safety classifiers" | **FALSE** | Anthropic-owned floor; no config can go below it |
+| "SOC 2 Type 2 reports are publicly available at trust.anthropic.com" | **TRUE** | Full reports + attestation letters live there |
+
+### 23.8 — Memory rules ⭐
+
+- **"Trust center for certifications. Anthropic-owned for the floor. Managed settings for everything else."**
+- **"FedRAMP = Claude for Government only. Standard Enterprise is NOT FedRAMP-covered."**
+- **"ISO 42001:2023 = AI-specific. Signal for AI-governance maturity evaluations."**
+- **"Audit logs: 180-day rolling · SIEM export · Configure access BEFORE go-live."**
+- **"Compliance API: 6-year retention · programmatic · Enterprise feature · not default."**
+- **"Every certification question → `trust.anthropic.com`. Never quote from memory."**
+- **"Every 'can we disable X?' about runtime safety → NO, and that's a feature."**
+
+---
+
+### Course 6 (Security & Governance) — complete map
+
+You now have the full Course 6 governance stack across Blocks 18–23:
+
+| Block | Lesson | Focus | Client answer |
+|---|---|---|---|
+| **18** | L1 | Managed settings fields | "Fields live in `managed-settings.json`" |
+| **19** | L2 | Permissions + roles | "Two-bucket model + four roles + connector consent" |
+| **20** | L3 | Sandbox | "5 keys · deny > allow · org-level only" |
+| **21** | L4 | Identity governance | "SSO + Domain capture + SCIM + IP allowlist + Tenant restrictions" |
+| **22** | L5 | Data controls | "3 levers + HIPAA needs BAA + ZDR · default retention indefinite" |
+| **23** | L6 | Compliance + trust | "trust.anthropic.com for certs · 3-way routing · FedRAMP caveat" |
+
+**One master framing rule** that covers 80% of Course 6 questions:
+
+> **"For any security-review question: route to `trust.anthropic.com` (certifications), Anthropic-owned (can't disable), or Client configures (managed-settings.json + admin console). Three answers, always."**
+
+---
+
