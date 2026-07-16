@@ -2905,3 +2905,83 @@ Three things the sandbox does:
 
 ---
 
+## Block 21 — Identity Governance: SSO, SCIM, Network Controls ⭐⭐ (D3/D5 — Course 6 Lesson 4)
+
+### 21.1 — SSO fundamentals
+
+- **Protocols**: SAML 2.0 or OIDC — routes all users through the client's IdP
+- **Governance benefit**: one identity · one audit trail · one off-boarding flow
+- **Deprovisioning**: developer leaves → Claude access revoked with everything else via IdP
+
+**Critical rule** ⭐: **"SSO alone is not enough."** Without domain capture, users can still sign up with a personal Gmail on the company domain and land in a shadow workspace. Enable **domain capture** to close this gap.
+
+### 21.2 — Three provisioning models (know the tradeoffs)
+
+| Model | What it does | Deprovisioning | When to use |
+|---|---|---|---|
+| **SCIM** ⭐ **recommended default** | IdP-driven automatic sync for full lifecycle: provisioning · group changes · deprovisioning | **AUTOMATED** — key deciding factor | Any production deployment at scale |
+| **JIT** (Just-in-Time) | User created on first SSO login | ❌ **NONE** — creates accounts, never removes them. No group sync either | Getting started only; leaves lifecycle half-managed |
+| **Manual** | Admin-managed seat invitations | Manual, error-prone | Pilots of 20–50 users only; never destination |
+
+**The deciding factor is automated deprovisioning.** Any exam question about "at-scale governance" or "security-review-defensible" points to **SCIM**, regardless of size.
+
+**SCIM rollout pattern**: pilot 50–100 users → monitor 2–4 weeks → expand by department → org-wide. Run identity config **in parallel with pilot design**, not after.
+
+### 21.3 — Domain capture (the "SSO alone" gap-closer)
+
+**Without domain capture**: a developer can sign up with a personal Gmail (or personal Claude account tied to work email) and bypass SSO entirely — the account exists but doesn't route through the IdP.
+
+**With domain capture**: all logins from the company domain automatically route into the corporate workspace. No individual configuration required.
+
+**Rule**: SSO + domain capture is **one pair of controls**, not two independent ones. Deploy them together.
+
+### 21.4 — Network controls (two separate questions)
+
+| Control | Question it answers | Effect |
+|---|---|---|
+| **IP allowlisting** | *"Who can reach Claude at all?"* | Restricts Claude access to corporate IP ranges (VPN-gated / on-prem) — network-perimeter enforcement |
+| **Tenant restrictions** ⭐ | *"Which Claude org can they log into?"* | Prevents users on corporate network from logging into **unauthorized Claude organizations** — blocks shadow AI even when IP allowlisting is active |
+| **Domain capture** | (identity, per 21.3) | Forces company-domain logins into the corporate workspace |
+| **Session security** | Session hygiene | Configurable session timeout + re-auth intervals |
+
+**Trap**: IP allowlisting alone doesn't stop shadow AI. A developer connected via VPN can still log into a *personal* Claude workspace. **Tenant restrictions is what closes that loop.** Both should be in scope for enterprise deployments where shadow AI is a concern.
+
+### 21.5 — Go-live requirements (from Lesson 4 sim, memorize the four musts)
+
+For an 1,800-dev FinCo-style enterprise, **required before go-live**:
+
+1. **SSO through the corporate IdP** (Okta at FinCo) — every account traces back to IdP
+2. **Domain capture** — closes the personal-account loophole (SSO alone doesn't do it)
+3. **SCIM provisioning** — 1,800 devs is not a manual-invite scale; automated deprovisioning is non-negotiable at scale
+4. **IP allowlisting to corporate VPN** — network-layer enforcement alongside SSO
+
+**Post-launch (can wait)**:
+- Session timeout configuration (post-launch optimization; doesn't block go-live)
+
+**Wrong approach**:
+- **Manual seat invitations at scale** — not viable for 1,800 devs; SCIM already handles it
+
+**Rule**: go-live checklist = **SSO + domain capture + SCIM + IP allowlisting**. Anything you'd defer (session timeout tuning) or hand-do (manual invites) is a wrong answer to "what's required before go-live?"
+
+### 21.6 — FinCo alignment (Course 6 recurring scenario)
+
+Ties Block 21 controls to FinCo's three non-negotiables (Block 18.9):
+
+| FinCo requirement | Control |
+|---|---|
+| Every developer account traces to Okta | SSO (SAML/OIDC) + Domain capture + `forceLoginOrgUUID` (Block 18.2) |
+| Access disappears when employment ends | **SCIM automated deprovisioning** |
+| Corporate tooling must route through VPN | IP allowlisting to corporate ranges |
+| No shadow AI on corporate network | **Tenant restrictions** (blocks unauthorized Claude orgs from VPN) |
+
+### 21.7 — Memory rules ⭐
+
+- **"SSO alone is not enough. Domain capture closes the personal-account loophole."**
+- **"SCIM is the default at scale. JIT creates accounts but never removes them."**
+- **"IP allowlisting says WHO can reach Claude. Tenant restrictions say WHICH Claude org they may use."**
+- **"Go-live 4 = SSO + Domain capture + SCIM + IP allowlisting. Session timeout waits. Manual invites don't scale."**
+- **"Deprovisioning is the deciding factor. Any 'audit-defensible at scale' answer = SCIM."**
+- **"Run identity config in parallel with pilot design, not after."**
+
+---
+
