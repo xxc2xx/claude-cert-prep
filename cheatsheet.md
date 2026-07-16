@@ -2807,3 +2807,101 @@ Engineers get pre-approved connectors by default. **Governed and deployed before
 
 ---
 
+## Block 20 — Sandbox: Filesystem + Network Scoping ⭐⭐ (D3/D5 — Course 6 Lesson 3)
+
+### 20.1 — Sandbox mental model (reframe)
+
+**The sandbox is NOT a restriction on capability. It's what LETS you authorize autonomous operation.**
+
+Three things the sandbox does:
+
+| Function | Effect |
+|---|---|
+| **Define boundaries** | Explicitly scope which directories + hosts are accessible. No ambiguity during an autonomous task. |
+| **Reduce approval prompts** | **Counterintuitive**: good scoping *increases* autonomy. Inside a trusted boundary, nothing to ask about. Remaining prompts are the ones that matter. |
+| **Contain failure** | Blast radius bounded by the boundary you drew. Client asks "worst case?" → the boundary is your answer. |
+
+**Rule**: the sandbox is the security team's answer to *"can we authorize autonomous operation?"* Without it, you can't defend the deployment in a security review.
+
+### 20.2 — Five sandbox keys (memorize the exact paths in `managed-settings.json`)
+
+```json
+{
+  "sandbox": {
+    "filesystem": {
+      "allowWrite": [ ... ],   // paths Claude may read + write
+      "denyWrite":  [ ... ],   // never modify (even inside allowed parent)
+      "denyRead":   [ ... ]    // never read (credential stores)
+    },
+    "network": {
+      "allowedDomains": [ ... ],   // approved endpoints; supports wildcards (*.finco.internal)
+      "deniedDomains":  [ ... ]    // explicit block; takes precedence over allowedDomains
+    }
+  }
+}
+```
+
+| Key | Purpose |
+|---|---|
+| **`sandbox.filesystem.allowWrite`** | Project working directories where Claude may operate |
+| **`sandbox.filesystem.denyWrite`** | Never modify (Dropbox sync folders, protected paths) |
+| **`sandbox.filesystem.denyRead`** | Never read (`.aws/credentials`, `.env`, secret stores) |
+| **`sandbox.network.allowedDomains`** | Internal registries, approved corporate endpoints (wildcards OK) |
+| **`sandbox.network.deniedDomains`** | Personal cloud storage, public registries, exfiltration paths |
+
+### 20.3 — Precedence rules ⭐
+
+- **`deniedDomains` takes precedence over `allowedDomains`.** Both listed → deny wins.
+- **`denyRead` / `denyWrite` enforced even inside allowed paths.** If `~/finco-app` is `allowWrite` but `~/finco-app/.env` is `denyRead`, Claude cannot read the env file despite the parent being allowed.
+
+### 20.4 — Two-layer egress control (D5 reliability + platform frame)
+
+| Layer | Owner | What it does |
+|---|---|---|
+| **Baseline** | **Anthropic** (universal) | Domain allowlists · URL sanitization · exfiltration defense — applies to every deployment |
+| **Org-level** | **Client** in `managed-settings.json` | The 5 sandbox keys above — configured once, applies across the deployment |
+
+**Key clarification** (exam-testable): the sandbox is **NOT a per-developer setting**. Security team owns the network boundary at the org level. Individual devs can't loosen it locally.
+
+### 20.5 — Common resource categorizations (memorize the mapping)
+
+| Resource type | Correct sandbox slot | Why |
+|---|---|---|
+| Project working directory (`~/finco-app`) | **`filesystem.allowWrite`** | Task needs read + write |
+| Cloud sync folders (`~/Dropbox`, `~/OneDrive`) | **`filesystem.denyWrite`** | Data-exfiltration path even if inside allowed parent |
+| Credential stores (`~/.aws/credentials`, `~/.ssh/`, `.env`) | **`filesystem.denyRead`** | No place in an assisted coding task |
+| Internal registries (`npm.finco.internal`, `nexus.finco.internal`) | **`network.allowedDomains`** | Approved tooling task needs |
+| Public registries (`registry.npmjs.org`, `pypi.org`) | **`network.deniedDomains`** | Even if not in allowlist by default, **explicit deny creates the audit record** the security team needs |
+
+### 20.6 — Course 6 Lesson 3 sim answers ⭐
+
+**Sim 1 — "Prevent Claude from touching `~/Dropbox` while allowing test-run + git commit"**:
+
+- ✅ **`managed-settings.json` with directory deny rule (`denyWrite`)**
+- ✗ CLAUDE.md instruction to avoid the folder — that's *guidance*, not policy; user can ignore or Claude can slip up
+- ✗ User's personal `settings.json` — dev could remove it; not admin-enforced
+- ✗ "Not configurable" — always wrong when sandbox exists
+
+**Rule**: **settings files are POLICY. Prompt instructions are GUIDANCE.** When a client asks where a control lives → the answer is *settings*, not *instructions*.
+
+**Sim 2 — "Internal npm registry access + block public registries"**:
+
+- ✅ **Both**: add `npm.finco.internal` to `allowedDomains` AND public registries to `deniedDomains`
+- ✗ Remove all network restrictions — defeats the sandbox
+- ✗ `allowedDomains` only, rely on default block — security team wants an **explicit deny record** in the audit trail. Implicit block ≠ auditable
+- ✗ Proxy route instead — proxy is a valid network architecture but doesn't replace the sandbox config decision
+
+**Rule**: **explicit allow + explicit deny = audit trail.** Two entries, one for what's approved, one for what's specifically blocked. Even if the default would block the domain, the explicit entry creates the record.
+
+### 20.7 — Memory rules
+
+- **"Sandbox enables autonomy. It's not a restriction — it's the boundary that lets you authorize."**
+- **"5 sandbox keys: allowWrite · denyWrite · denyRead · allowedDomains · deniedDomains."**
+- **"Deny always wins. Deny enforced even inside an allowed parent."**
+- **"Sandbox is org-level via managed-settings. Never per-developer."**
+- **"Explicit deny creates the audit trail. Implicit block is not auditable."**
+- **"Settings are policy. Prompt instructions are guidance. Client boundary questions → answer with settings."**
+- **"Cloud sync = denyWrite. Credential stores = denyRead. Internal registries = allowedDomains. Public registries = deniedDomains."**
+
+---
+
