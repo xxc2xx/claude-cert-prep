@@ -2666,3 +2666,144 @@ Three practices to establish with the CoE at Day 30:
 
 ---
 
+## Block 19 — Permission System & Roles ⭐⭐ (D3 core — Course 6 Lesson 2)
+
+Cross-ref: Block 11.2 has the permission evaluation order (Deny → Ask → Allow → default Ask). Block 18.5 has the managed-settings toggle. This block has the **classification principles + role hierarchy + ownership model**.
+
+### 19.1 — The Allow/Ask/Deny classification principle ⭐
+
+Operations are classified by **risk**, not by "how often does the developer want a prompt":
+
+| Category | Rule | Examples |
+|---|---|---|
+| **Allow** | **Non-destructive, high-frequency** — reversible, local, no external side effects | Run test suite (`npm test`) · read source file (`cat src/app.js`) |
+| **Ask** | **Irreversible OR external network call OR shared-resource write** — first-use gate keeps boundary visible | `git push origin` (irreversible, shared) · POST to Jira API (external) |
+| **Deny** | **Catastrophic and irreversible** — no legitimate use in an assisted workflow | `rm -rf /` (nothing recoverable) · production-config wipes |
+
+**Design principle**: **"allow non-destructive high-frequency; ask on irreversible/external; deny what should never run."** Gating everything defeats the purpose — the value is deliberate classification, not universal prompting.
+
+**Locking mechanism** (from Block 18.5): `allowManagedPermissionRulesOnly: true` prevents users from adding/modifying their own allow/ask/deny entries.
+
+### 19.2 — Two-bucket ownership model ⭐⭐ (client security-review framing)
+
+For every question about "who's responsible for what?" in a security review, split into two buckets:
+
+**Anthropic owns** (client cannot configure or disable):
+
+| Layer | What it is |
+|---|---|
+| **Model safety** | Constitutional AI, RLHF safety training, weight-level refusal, usage policy enforcement |
+| **Platform integrity** | Runtime classifiers, pre-release eval, platform-level protections (universal, not per-tenant) |
+
+*"In a security review: this is the line you point to when a client asks whether they can weaken safety behavior. They can't, and that's a feature."*
+
+**Client configures**:
+
+| Layer | What it is |
+|---|---|
+| **Operation gating** | Allow/Ask/Deny rules, role-based access, connector consent, permission policies |
+| **Audit & governance** | Managed settings, SSO + SCIM, data retention, Compliance API, review workflows |
+
+**Rule**: when a client asks "can we weaken/turn off X?" — if X is Anthropic's layer, the answer is no (and that's the point). If X is the client's layer, show them the field.
+
+### 19.3 — Four built-in roles ⭐
+
+| Role | Scope | Who typically holds it |
+|---|---|---|
+| **Primary Owner** | Full org control · billing · all settings. **One per org.** | The person accountable for the whole deployment |
+| **Owner** | Member management · connector approval · **edits `managed-settings.json`** · day-to-day governance | Security or platform team lead |
+| **Admin** | (between Owner and Member — implied intermediate admin capabilities) | Team leads |
+| **Member** | Uses Claude Code · configures **personal settings within admin bounds** · cannot override managed settings | Regular developers (all 1,800 at FinCo) |
+
+**Rule**: for any "who can change this?" question, use this mapping:
+- If it's in `managed-settings.json` → **only Owner** can change it
+- If it's a user-configurable setting → **user** can change it, but only within the constraints the Owner already set
+
+### 19.4 — Connector consent (separate governance gate) ⭐
+
+**OAuth-scoped MCP connections require Owner approval per-user** before activating that user's resource access.
+
+**Two gates, not one**:
+
+| Gate | Governs |
+|---|---|
+| **MCP allowlist** (`allowedMcpServers`) | Which servers **may exist** in the deployment |
+| **Connector consent** | Whether a **specific user's resources** can actually be accessed by an approved server |
+
+**Consequence**: even if an MCP server is on the allowlist, a specific user's OAuth grant requires separate consent. This gives per-user granular control on top of the org-wide allowlist.
+
+### 19.5 — Roles vs Groups (D3 organizational modeling)
+
+| | **Roles** | **Groups** |
+|---|---|---|
+| **Purpose** | Access controls — *what a user can do* | Multi-purpose containers of users |
+| **What they do** | Define permissions (4 built-in + custom) | Govern **access** (via role assignment) · **spend limits** by team/dept · **plugin distribution** targeting |
+| **Assignment** | Additive across groups a user belongs to | Manual creation OR SCIM-synced from IdP |
+| **Custom** | Admins can create custom roles beyond the 4 built-ins | — |
+
+**Trap**: groups are **not purely** access-control containers. A group might exist just for spend attribution with **no role assignment at all**. Any exam scenario saying "groups map 1:1 to permissions" is wrong.
+
+### 19.6 — Roles are additive → over-assignment risk
+
+**Rule**: a user in multiple groups **accumulates all roles from each group**. Over-assigning groups → unintended permission accumulation.
+
+**Right question** on most deployments: *"Which group owns this function, and does this person belong in it?"* — NOT *"What role does this person need?"* Function-first thinking prevents role sprawl.
+
+### 19.7 — Day-1 governance at scale (current best path)
+
+The current mechanism for controlling which connectors/skills a group can access:
+
+**Bundle approved tools into an enterprise plugin + assign that plugin to relevant groups via RBAC.**
+
+Ties together:
+- **Block 17** (plugin structure + fitness test)
+- **Block 18** (managed-settings enforcement)
+- **This block** (RBAC via groups)
+
+Engineers get pre-approved connectors by default. **Governed and deployed before anyone logs in.**
+
+### 19.8 — On the roadmap: connector-level role controls (not yet)
+
+- **Planned**: restrict which roles can use a specific connector · scoped capabilities per connector
+- **Current model**: on/off access per connector (no role-level granularity yet)
+- **Workaround today**: plugin + RBAC via groups (from 19.7)
+
+**Client conversation**: when asked "can we control connector access by role?" — flag as **coming**, offer plugin + RBAC pattern as **current path**.
+
+### 19.9 — Course 6 Lesson 2 sim answer ⭐
+
+**Scenario**: FinCo dev workflow — (1) auto-run tests after save · (2) push commits to corporate GitLab · (3) call internal Jira API for ticket status.
+
+**Correct classification**: **B — Test allow · GitLab push ask · Jira API call ask**
+
+| Op | Category | Why |
+|---|---|---|
+| Test suite (`npm test`) | **Allow** | Non-destructive, reversible, local |
+| GitLab push | **Ask** | **Irreversible + shared repo** — needs deliberate sign-off |
+| Jira API call | **Ask** | External network call — first-use gate keeps boundary visible |
+
+**Trap**: option C (push = allow, API = ask) is close but wrong. **Even to a "corporate" GitLab, push is irreversible and touches a shared resource.** Ask.
+
+**Trap**: option D (all three = ask) creates alert fatigue. Gating everything defeats the purpose of classification.
+
+### 19.10 — True/false traps
+
+| Statement | Answer | Why |
+|---|---|---|
+| "Member can configure their own personal `settings.json`" | **TRUE** | Members control their personal layer, within managed bounds |
+| "Admin can prevent users from setting own allow/deny via managed-settings" | **TRUE** | `allowManagedPermissionRulesOnly: true` locks the permission model |
+| "Claude Code always asks approval before ANY bash command" | **FALSE** | `Allow` category runs silently; only Ask/Deny trigger prompts |
+| "Groups function purely as access-control containers — 1 group ↔ 1 set of permissions" | **FALSE** | Multi-purpose: RBAC · spend limits · plugin distribution. Groups can exist with no role assignment at all. |
+
+### 19.11 — Memory rules
+
+- **"Allow non-destructive high-frequency · Ask irreversible/external · Deny catastrophic."**
+- **"Anthropic owns safety + platform. Client owns gating + audit."** (Two-bucket model)
+- **"Primary Owner: one per org, accountable. Owner: edits managed-settings. Member: personal only, within bounds."**
+- **"Two MCP gates: allowlist says WHICH servers may exist · consent says WHO can access."**
+- **"Roles are additive across groups. Over-assign → unintended permission accumulation."**
+- **"Push to shared repo = ASK, always. External API call = ASK, always."** (First-use gate)
+- **"Plugin + RBAC via groups is the current scale-governance path. Connector-level role controls are roadmap only."**
+
+---
+
