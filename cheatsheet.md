@@ -2985,3 +2985,94 @@ Ties Block 21 controls to FinCo's three non-negotiables (Block 18.9):
 
 ---
 
+## Block 22 — Data Controls: ZDR, Custom Retention, No-training, HIPAA ⭐⭐ (D5 — Course 6 Lesson 5)
+
+Cross-ref: Block 7.10 already has the ZDR *precise scope* from the Corvane Health sim (what ZDR covers/doesn't/disables/enables). This block adds the *comparison framework* + custom retention + surface defaults + parsing heuristic.
+
+### 22.1 — The three data controls (memorize the comparison)
+
+**Clients often ask for all three when they need one.** Know the distinction cold.
+
+| Control | Type | What it is | Self-serve? |
+|---|---|---|---|
+| **No-training commitment** | Default policy | Enterprise data never used to train Claude models. Applies to **all enterprise plans by default**. | Yes — already on, no config |
+| **Custom data retention** | Admin-set | Admin configures retention windows per surface, **1 day to indefinite**. Console-configurable. | Yes — via admin console |
+| **ZDR (Zero Data Retention)** | **Contract** | Anthropic stores **NO inputs or outputs**. Requires separate Anthropic agreement. | **No — not self-serve** |
+| **HIPAA path** | **Contract** | **BAA + ZDR both active.** BAA extends automatically to Claude Code only when ZDR is on. | **No — sales cycle** |
+
+**Rule of confusion** ⭐: clients ask for ZDR when they usually mean **custom retention**. Distinguish:
+- **Custom retention**: *"You control how long it's held"* — configurable
+- **ZDR**: *"Anthropic holds nothing at all"* — contractual
+
+**Both can coexist with no-training**, which all enterprise clients already have.
+
+### 22.2 — HIPAA dependency ⭐
+
+**A BAA alone is NOT sufficient for Claude Code HIPAA coverage.** Full requirement:
+
+```
+Healthcare client needs Claude Code under HIPAA
+        ↓
+   BAA + ZDR must BOTH be active
+        ↓
+   Then BAA automatically extends to Claude Code
+```
+
+**Anti-pattern**: assuming a signed BAA covers Claude Code by itself. Doesn't. ZDR is the prerequisite.
+
+**Rule**: healthcare client in scope → raise **both BAA and ZDR** with the Anthropic AE early. This is a sales-cycle conversation, not a go-live checkbox.
+
+### 22.3 — Parsing the client ask (sales heuristic) ⭐
+
+When a client asks about data, the words are often ambiguous. Distinguish first, then answer:
+
+| Client says… | They usually mean… | Control |
+|---|---|---|
+| *"How long do you hold on to our conversations?"* | Duration + control | **Custom retention** |
+| *"Can we ensure our code is never used to improve your models?"* | Model training | **No-training** (already on) |
+| *"Anthropic must not store our inputs or outputs at all, anywhere"* | Literally zero storage | **ZDR** (contract) |
+| *"We need Claude Code covered under our BAA"* | HIPAA | **BAA + ZDR** (both) |
+
+**Discovery question** (memorize the phrasing): *"Are you concerned about Anthropic staff accessing your data, or about data being used to train future models?"* The answer tells you which lever they actually need.
+
+### 22.4 — Default retention by surface ⭐ (the go-live surprise)
+
+Memorize the 4 surface defaults — this is exam-testable:
+
+| Surface | Default | Configurable? |
+|---|---|---|
+| **Claude.ai Enterprise** | **Indefinite** by default (admin-configurable, minimum 30 days) | Yes |
+| **Claude Code** | **Indefinite** if no policy set — configure BEFORE go-live | Yes |
+| **Cowork** (desktop productivity agent) | **Local device only** — no server-side retention | N/A (client-side) |
+| **Office Agents** (MS Office integrations) | **30-day product-enforced auto-deletion** | **No — NOT configurable** |
+
+**The go-live surprise**: default for both Claude.ai Enterprise and Claude Code is **indefinite**. If a client expects a bounded window, **someone has to set it**. Don't assume a shorter default exists.
+
+**Rule for exam**: any question about "how long is data kept?" → answer depends on **which surface + whether admin has configured it**. The default is indefinite for the two configurable server-side surfaces; only Office Agents has a fixed 30-day product enforcement.
+
+### 22.5 — ZDR is not self-serve (timing rule)
+
+**Rule**: ZDR requires a separate Anthropic agreement — **not something you toggle in the admin console**. Raise it in the **sales cycle**, not at go-live. A client expecting to enable it in-console will be blocked waiting on contract.
+
+**Anti-pattern**: promising ZDR at go-live when it hasn't been contractually arranged.
+
+### 22.6 — True/false traps (Course 6 Lesson 5)
+
+| Statement | Answer | Why |
+|---|---|---|
+| "ZDR means the org's data is not used to train Claude" | **FALSE** | That's **no-training**. ZDR is stronger — no storage at all. Two separate controls. |
+| "Enterprise can configure Claude Code to delete after 7 days" | **TRUE** | Custom retention is 1 day to indefinite; 7 is valid. |
+| "Healthcare needs BAA + ZDR both for Claude Code HIPAA coverage" | **TRUE** | BAA alone insufficient; ZDR must also be active. |
+
+### 22.7 — Memory rules ⭐
+
+- **"Three levers: no-training (default) · custom retention (admin) · ZDR (contract)."**
+- **"No-training ≠ ZDR. No-training already on; ZDR is a separate contract for 'nothing stored at all.'"**
+- **"HIPAA on Claude Code = BAA + ZDR. A BAA alone is not enough."**
+- **"Default retention is indefinite for Claude Code + Claude.ai Enterprise. Set it before go-live."**
+- **"Office Agents = 30-day fixed. Cowork = local only. Both non-configurable server-side."**
+- **"ZDR is not self-serve — sales cycle, not console toggle."**
+- **"Client says 'how long you keep our data' → custom retention. Client says 'store nothing at all' → ZDR. Client says 'never train on our code' → no-training (already on)."**
+
+---
+
