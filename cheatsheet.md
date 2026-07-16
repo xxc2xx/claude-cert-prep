@@ -2551,3 +2551,118 @@ Three practices to establish with the CoE at Day 30:
 
 ---
 
+## Block 18 — Managed Settings Security Controls ⭐⭐ (D3/D5 — Course 6 Lesson 1)
+
+`managed-settings.json` complete reference — every field the security team can lock. **Sits above every other layer; no user or project setting can override it** (see Block 9.2).
+
+### 18.1 — Delivery mechanisms (three ways to push)
+
+| Mechanism | When to use | Client fit |
+|---|---|---|
+| **Server-managed** (Claude.ai admin console) | Central control without existing MDM. **Available on Teams + Enterprise** (Enterprise unlocks full feature set). | No Jamf/Intune in place |
+| **MDM / OS policies** — macOS via Jamf managed prefs · Windows via Intune / Group Policy (registry) | Existing device management already in place | **FinCo (Jamf for macOS)** — natural fit |
+| **File-based** (manual filesystem install) | Pilots · small deployments · staged testing | Non-scalable; plan the move to MDM before full rollout |
+
+### 18.2 — Day 0 Auth controls ⭐
+
+| Field | Purpose | FinCo mapping |
+|---|---|---|
+| **`forceLoginMethod`** | Enforces `"claudeai"` (SSO) or `"console"` auth. **Blocks API key login**, which bypasses SSO + audit controls | Set to `"claudeai"` so every login routes through Okta SSO |
+| **`forceLoginOrgUUID`** | Login fails unless account belongs to specified org UUID. Prevents shadow personal accounts on company domain | Pins logins to corporate org — dev can't sign in with personal Claude account on work email |
+
+**Rule**: whenever the client says "every account must trace to [SSO provider]" → `forceLoginMethod` + `forceLoginOrgUUID`. API keys bypass SSO by design.
+
+### 18.3 — MCP controls (recap of Block 13.8)
+
+| Field | Effect |
+|---|---|
+| **`allowedMcpServers`** | Allowlist of approved MCP server names. Empty array = total lockdown during review |
+| **`allowManagedMcpServersOnly`** ⭐ | **Only admin-defined MCP servers can activate.** User-added servers blocked regardless of allowlist state. Category-level control. |
+
+**Rule**: to close **the entire class** of "developer added their own MCP server" risk → `allowManagedMcpServersOnly: true`, NOT `deniedMcpServers` per-name (per-name only patches one server; new unapproved servers can still appear).
+
+### 18.4 — Hook controls (new field pair)
+
+| Field | Effect |
+|---|---|
+| **`allowManagedHooksOnly`** | Ships approved automation while blocking anything a developer wires up on their own. Category-level parallel to `allowManagedMcpServersOnly` |
+| **`disableAllHooks`** | Kill switch. Blocks all hooks from running. |
+
+### 18.5 — Permission controls (new)
+
+| Field | Effect |
+|---|---|
+| **`allowManagedPermissionRulesOnly`** | Prevents users from overriding tool approval rules set by the admin |
+| **`disableAutoMode`** | Stops developers from turning off approval prompts entirely — keeps human in the loop on tool calls in regulated environments |
+
+**Rule**: for regulated clients (finance, healthcare) → `disableAutoMode: true`. Human-in-the-loop is not optional.
+
+### 18.6 — Version enforcement (new — enforcement, not documentation)
+
+| Field | Effect |
+|---|---|
+| **`requiredMinimumVersion`** | Claude Code **exits at startup** if installed version below this. Not a warning — a hard block. |
+| **`requiredMaximumVersion`** | Claude Code exits at startup if installed version above this |
+
+**Rule**: for tested-version compliance rules (SOC 2, ISO 27001) → these are the enforcement mechanism. `>= X.Y.Z` compliance policy becomes literal, machine-checked at boot.
+
+### 18.7 — Org-wide CLAUDE.md via `claudeMd` ⭐⭐ (new key)
+
+**The `claudeMd` key** in `managed-settings.json` injects **organization-wide instructions** into every session as **managed memory**.
+
+- Loads **BEFORE** any project or user CLAUDE.md
+- **Cannot be overridden** by lower layers (matches Block 10.2 rule)
+- The place for **non-negotiable instructions** — not preferences a developer can quietly ignore
+
+**Cross-reference with Block 10 CLAUDE.md hierarchy** — this is the **managed** level, above all others. Adding `claudeMd` to `managed-settings.json` is how an admin enforces org-wide instructions that Claude reads BEFORE any local CLAUDE.md file.
+
+### 18.8 — Writing effective org CLAUDE.md (4 principles)
+
+1. **Policy, not preferences.** Test: *"would violating this create a compliance/legal issue?"* Yes → org level. No → project/user level.
+2. **Use Claude to draft.** Share the client's Acceptable Use Policy / data-handling guidelines with Claude → ask for a draft managed CLAUDE.md → review + tighten. Faster and calibrated to the client's own policy language.
+3. **Avoid over-restriction.** Overly prescriptive instructions dilute the signal. If security adds 30 lines of stylistic rules alongside 3 compliance requirements, Claude tries to satisfy all equally and dilutes the important ones.
+4. **Include the *why*.** Add rationale ("due to regulatory requirements", "per IP policy") alongside each constraint. Devs who understand *why* are less likely to work around it, and audits are easier.
+
+### 18.9 — FinCo client scenario (Course 6 recurring context)
+
+**FinCo Financial Services** — 1,800 devs, AWS-native (us-east-1 + us-west-2), Okta SSO, Jamf MDM.
+
+**Three security non-negotiables**:
+1. All data processing stays in approved AWS regions
+2. Every developer account traces to Okta
+3. Any new AI tooling clears a written security review
+
+**Managed settings for FinCo** (memorize the mapping):
+
+| Requirement | Field |
+|---|---|
+| Every login through Okta | `forceLoginMethod: "claudeai"` + `forceLoginOrgUUID: <FinCo UUID>` |
+| Only approved MCP servers | `allowManagedMcpServersOnly: true` + populated `allowedMcpServers` |
+| Human-in-loop on tool calls | `disableAutoMode: true` |
+| Only approved hooks | `allowManagedHooksOnly: true` |
+| Version compliance | `requiredMinimumVersion` + `requiredMaximumVersion` |
+| Org-wide compliance instructions | `claudeMd: <finco-org-instructions>` |
+| Delivery | Jamf → macOS managed preferences |
+
+### 18.10 — Sim answer (Course 6 Lesson 1)
+
+**Scenario**: developers connected a personal GitHub MCP server accessing repos outside the approved list. One setting to close the **category** of risk?
+
+- ✅ **`allowManagedMcpServersOnly: true`** — closes the whole class ("developer added their own server")
+- ✗ `disableAllHooks: true` — wrong category (hooks, not MCP)
+- ✗ Add server name to `deniedMcpServers` — patches ONE server; next unapproved one still slips through
+- ✗ `forceLoginMethod: "claudeai"` — auth control, doesn't restrict MCP servers
+
+**Trap rule**: **category-level fixes beat symptom-level fixes** whenever the exam frames the problem as "close the class of risk" or "the security team keeps seeing new instances." Per-name deny lists are always the wrong answer when the client's issue is a policy gap, not a specific server.
+
+### 18.11 — Memory rules
+
+- **"managed-settings.json is the file users cannot override."**
+- **"When a client says 'no personal servers, ever' → `allowManagedMcpServersOnly: true`. Category, not per-name."**
+- **"API key login bypasses SSO — block it via `forceLoginMethod`."**
+- **"`claudeMd` in managed-settings loads BEFORE any local CLAUDE.md. Non-overridable."**
+- **"`requiredMinimumVersion` is enforcement, not documentation — Claude Code exits at startup."**
+- **"Regulated client → `disableAutoMode: true`. Human-in-the-loop is not optional."**
+
+---
+
