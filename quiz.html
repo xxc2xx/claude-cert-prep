@@ -140,6 +140,67 @@
   .mock-results th, .mock-results td { padding: 8px 12px; border-bottom: 1px solid var(--border); text-align: left; }
   .mock-results th { color: var(--muted); font-weight: 500; }
 
+  /* Confidence + Blind spot badges */
+  .conf-badge {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(139, 148, 158, 0.15);
+    color: var(--muted);
+  }
+  .conf-badge.conf-high { color: var(--green); background: rgba(63, 185, 80, 0.12); }
+  .conf-badge.conf-med { color: var(--blue); background: rgba(88, 166, 255, 0.12); }
+  .conf-badge.conf-low { color: var(--accent); background: rgba(214, 143, 58, 0.12); }
+  .blind-spot-badge {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--red);
+    font-weight: 600;
+  }
+  .lucky-badge {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(214, 143, 58, 0.15);
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .mock-badge {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--red);
+  }
+  .confidence-picker {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin: 10px 0 12px 0;
+    padding: 8px 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .confidence-picker .conf-label {
+    color: var(--muted);
+    font-size: 12px;
+    margin-right: 4px;
+  }
+  .confidence-picker label {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    cursor: pointer;
+  }
+  .confidence-picker input[type="radio"] {
+    margin: 0;
+  }
+  .choice.chosen span { color: var(--accent); font-weight: 500; }
+
   .card {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -596,6 +657,10 @@
           <option value="unanswered">Unanswered</option>
           <option value="wrong">Got wrong</option>
           <option value="correct">Got correct</option>
+          <option value="last-mock-wrong">🔴 Last mock — misses only</option>
+          <option value="last-mock-all">🔴 Last mock — all 60</option>
+          <option value="blind-spot">🎯 Blind spot (wrong + high confidence)</option>
+          <option value="close-call">⚠️ Close call (right + low confidence)</option>
         </select>
       </label>
       <label><input type="checkbox" id="shuffle" /> Shuffle</label>
@@ -10144,7 +10209,15 @@ try {
 } catch (e) {
   progress = {};
 }
-// progress[questionId] = { chosen: <int>, correct: <bool> }
+// progress[questionId] = { chosen: <int>, correct: <bool>, confidence?: 'low'|'med'|'high', fromMock?: bool }
+
+// Last mock exam metadata for review filters and Progress tab
+let lastMock = null;
+try {
+  lastMock = JSON.parse(__storage.getItem('claude-cert-lastmock') || 'null');
+} catch (e) {
+  lastMock = null;
+}
 
 function saveProgress() {
   try {
@@ -10193,6 +10266,10 @@ function getFiltered() {
   const status = document.getElementById("filter-status").value;
   const shuf = document.getElementById("shuffle").checked;
 
+  // Precompute last-mock qid set if that filter is active
+  const lastMockQidSet = (status.startsWith("last-mock") && lastMock && lastMock.qids)
+    ? new Set(lastMock.qids) : null;
+
   let list = QUESTIONS.filter(q => {
     if (tier && q.tier !== tier) return false;
     if (domain && q.domain !== domain) return false;
@@ -10202,6 +10279,21 @@ function getFiltered() {
     if (status === "unanswered" && p) return false;
     if (status === "wrong" && (!p || p.correct)) return false;
     if (status === "correct" && (!p || !p.correct)) return false;
+    if (status === "last-mock-wrong") {
+      if (!lastMockQidSet || !lastMockQidSet.has(q.id)) return false;
+      if (!p || p.correct) return false;
+    }
+    if (status === "last-mock-all") {
+      if (!lastMockQidSet || !lastMockQidSet.has(q.id)) return false;
+    }
+    if (status === "blind-spot") {
+      if (!p || p.correct) return false;
+      if (p.confidence !== "high") return false;
+    }
+    if (status === "close-call") {
+      if (!p || !p.correct) return false;
+      if (p.confidence !== "low") return false;
+    }
     return true;
   });
 
@@ -10319,13 +10411,38 @@ function endMockExam(timedOut = false) {
   const state = { ...mockState };
   mockState = { active: false, qids: state.qids, startedAt: 0, progress: state.progress, timerHandle: null };
   document.getElementById("mock-banner").style.display = "none";
+
+  // Save last mock metadata to localStorage so filters + Progress tab can reference it
+  lastMock = {
+    qids: state.qids,
+    timestamp: Date.now(),
+    scaledScore: scaled,
+    passed,
+    answered,
+    correct,
+    total,
+    perDomain,
+    timedOut,
+  };
+  try { localStorage.setItem('claude-cert-lastmock', JSON.stringify(lastMock)); } catch(e) {}
+
+  // Merge mock progress into main progress so "Got wrong" filter includes the 11 misses
+  // Only overwrite if user hasn't already answered this question outside the mock
+  for (const [qid, mp] of Object.entries(state.progress)) {
+    if (!progress[qid]) {
+      progress[qid] = { chosen: mp.chosen, correct: mp.correct, fromMock: true, ts: Date.now() };
+    }
+  }
+  saveProgress();
+
   const quizEl = document.getElementById("quiz");
   quizEl.innerHTML = banner;
   document.getElementById("mock-close").addEventListener("click", () => {
-    // Show only wrong/unanswered from mock so user can review
-    mockState.qids = state.qids;  // keep list but not active
+    mockState.qids = state.qids;
     mockState.progress = state.progress;
     mockState.active = false;
+    // Auto-set filter to Last mock misses so the review starts immediately on the wrong ones
+    document.getElementById("filter-status").value = "last-mock-wrong";
     render();
   });
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -10348,11 +10465,19 @@ function renderQuestion(q, idx) {
   const card = document.createElement("div");
   card.className = "card";
   const inMock = mockState.active;
-  // In mock: use mockState.progress for answered-tracking but never reveal correctness
   const p = inMock ? mockState.progress[q.id] : progress[q.id];
   const locked = !!p;
   const showVerdict = locked && !inMock;
   const showAnswerHighlight = locked && !inMock;
+  const conf = p && p.confidence;
+
+  const confBadge = conf
+    ? `<span class="conf-badge conf-${conf}" title="Your confidence when you answered">${conf === 'high' ? '⭐⭐⭐ High' : conf === 'med' ? '⭐⭐ Med' : '⭐ Low'}</span>`
+    : "";
+  const blindSpotBadge = (locked && !inMock && !p.correct && conf === 'high')
+    ? `<span class="blind-spot-badge" title="Wrong AND you were confident — highest-priority miss">🎯 BLIND SPOT</span>` : "";
+  const luckyBadge = (locked && !inMock && p.correct && conf === 'low')
+    ? `<span class="lucky-badge" title="Right but you weren't sure — worth re-checking">⚠️ CLOSE CALL</span>` : "";
 
   card.innerHTML = `
     <div class="qmeta">
@@ -10360,6 +10485,10 @@ function renderQuestion(q, idx) {
       <span class="tag topic">${q.topic}</span>
       <span>Q${idx + 1}</span>
       ${showVerdict ? `<span class="verdict ${p.correct ? 'ok' : 'bad'}">${p.correct ? '✓ Correct' : '✗ Wrong'}</span>` : (locked && inMock ? `<span class="verdict">Answered</span>` : "")}
+      ${confBadge}
+      ${blindSpotBadge}
+      ${luckyBadge}
+      ${p && p.fromMock ? `<span class="mock-badge" title="Answered during Mock Exam">🔴 mock</span>` : ""}
     </div>
     <div class="qtext">${q.q}</div>
     <div class="choices">
@@ -10380,6 +10509,13 @@ function renderQuestion(q, idx) {
           </label>`;
       }).join("")}
     </div>
+    ${!locked ? `
+    <div class="confidence-picker" data-qid="${q.id}">
+      <span class="conf-label">Confidence:</span>
+      <label><input type="radio" name="conf-${q.id}" value="low"> ⭐ Low</label>
+      <label><input type="radio" name="conf-${q.id}" value="med"> ⭐⭐ Med</label>
+      <label><input type="radio" name="conf-${q.id}" value="high"> ⭐⭐⭐ High</label>
+    </div>` : ""}
     <div class="actions">
       <button data-action="submit" data-qid="${q.id}" ${locked ? "disabled" : ""}>${locked ? (inMock ? "Locked" : "Answered") : "Submit"}</button>
       ${inMock ? "" : `<button class="secondary" data-action="reveal" data-qid="${q.id}">${locked ? "Hide explanation" : "Reveal answer"}</button>`}
@@ -10419,13 +10555,16 @@ document.addEventListener("click", (e) => {
     if (!checked) { alert("Pick an answer first."); return; }
     const chosen = parseInt(checked.value, 10);
     const correct = chosen === q.answer;
+    // Read confidence (optional but strongly encouraged)
+    const confChecked = document.querySelector(`input[name="conf-${qid}"]:checked`);
+    const confidence = confChecked ? confChecked.value : null;
     if (mockState.active) {
-      // Mock mode: store in isolated mockState.progress, don't reveal answer
-      mockState.progress[qid] = { chosen, correct };
+      // Mock mode: store in isolated mockState.progress
+      mockState.progress[qid] = { chosen, correct, confidence };
       updateMockAnswered();
       render();
     } else {
-      progress[qid] = { chosen, correct };
+      progress[qid] = { chosen, correct, confidence, ts: Date.now() };
       saveProgress();
       render();
     }
@@ -10791,6 +10930,29 @@ function renderProgress() {
   const wrong = answered - correct;
   const pct = answered ? Math.round(100 * correct / answered) : 0;
 
+  // By domain
+  const domains = {};
+  QUESTIONS.forEach(q => {
+    if (!q.domain) return;
+    if (!domains[q.domain]) domains[q.domain] = { total: 0, answered: 0, correct: 0 };
+    domains[q.domain].total++;
+    const p = progress[q.id];
+    if (p) {
+      domains[q.domain].answered++;
+      if (p.correct) domains[q.domain].correct++;
+    }
+  });
+
+  // Blind spots + close calls (need confidence)
+  const blindSpots = [];
+  const closeCalls = [];
+  QUESTIONS.forEach(q => {
+    const p = progress[q.id];
+    if (!p || !p.confidence) return;
+    if (!p.correct && p.confidence === 'high') blindSpots.push({id: q.id, topic: q.topic, block: q.block});
+    if (p.correct && p.confidence === 'low') closeCalls.push({id: q.id, topic: q.topic, block: q.block});
+  });
+
   // By block
   const blocks = {};
   QUESTIONS.forEach(q => {
@@ -10831,6 +10993,69 @@ function renderProgress() {
       </div>
     </div>
   `;
+
+  // Last mock summary (if any)
+  if (lastMock) {
+    const daysAgo = Math.floor((Date.now() - lastMock.timestamp) / (1000*60*60*24));
+    const when = daysAgo === 0 ? 'today' : daysAgo === 1 ? '1 day ago' : daysAgo + ' days ago';
+    const scoreClass = lastMock.scaledScore >= 720 ? 'ok' : 'bad';
+    let dRows = '';
+    for (const [d, s] of Object.entries(lastMock.perDomain || {})) {
+      const dp = s.t ? Math.round(100 * s.c / s.t) : 0;
+      const dpClass = dp >= 80 ? 'ok' : dp >= 60 ? '' : 'bad';
+      dRows += `<tr><td><b>${d}</b></td><td>${s.c}/${s.t}</td><td class="${dpClass}">${dp}%</td></tr>`;
+    }
+    html += `
+      <div class="progress-row" style="border: 1px solid var(--accent);">
+        <h3>🔴 Last Mock Exam · <span style="font-weight: normal; color: var(--muted); font-size: 13px;">${when}</span></h3>
+        <div class="progress-stats">
+          <span class="${scoreClass}"><b>${lastMock.scaledScore} / 1000</b></span> &nbsp;·&nbsp;
+          ${lastMock.passed ? '<span class="ok">PASS</span>' : '<span class="bad">FAIL</span>'} &nbsp;·&nbsp;
+          ${lastMock.correct}/${lastMock.total} correct &nbsp;·&nbsp;
+          ${lastMock.timedOut ? '<span class="bad">⏱ timed out</span>' : ''}
+        </div>
+        <table class="mock-domain-table" style="width:100%; border-collapse: collapse; margin-top: 10px; font-size: 13px;">
+          <thead><tr><th style="text-align:left; padding:4px 8px; color: var(--muted);">Domain</th><th style="text-align:left; padding:4px 8px; color: var(--muted);">Score</th><th style="text-align:left; padding:4px 8px; color: var(--muted);">%</th></tr></thead>
+          <tbody>${dRows}</tbody>
+        </table>
+        <div style="margin-top: 10px; font-size: 12px; color: var(--muted);">→ In Quiz tab, use <b>Show: 🔴 Last mock — misses only</b> to review the ${lastMock.total - lastMock.correct} wrong answers.</div>
+      </div>
+    `;
+  }
+
+  // Per-domain accuracy across ALL answered questions
+  if (Object.keys(domains).length) {
+    html += `
+      <div class="progress-row">
+        <h3>Accuracy by Domain (all sessions)</h3>
+        <table style="width:100%; border-collapse: collapse; font-size: 13px;">
+          <thead><tr><th style="text-align:left; padding:4px 8px; color: var(--muted);">Domain</th><th style="text-align:left; padding:4px 8px; color: var(--muted);">Answered</th><th style="text-align:left; padding:4px 8px; color: var(--muted);">Correct</th><th style="text-align:left; padding:4px 8px; color: var(--muted);">%</th></tr></thead>
+          <tbody>
+    `;
+    const domainOrder = ['D1', 'D2', 'D3', 'D4', 'D5'];
+    for (const d of domainOrder) {
+      const s = domains[d];
+      if (!s) continue;
+      const dp = s.answered ? Math.round(100 * s.correct / s.answered) : 0;
+      const dpClass = dp >= 80 ? 'ok' : dp >= 60 ? '' : 'bad';
+      html += `<tr><td><b>${d}</b></td><td>${s.answered}/${s.total}</td><td>${s.correct}</td><td class="${dpClass}">${dp}%</td></tr>`;
+    }
+    html += `</tbody></table></div>`;
+  }
+
+  // Blind spots + close calls
+  if (blindSpots.length || closeCalls.length) {
+    html += `<div class="progress-row"><h3>Confidence calibration</h3>`;
+    if (blindSpots.length) {
+      html += `<div style="margin-bottom: 10px;"><b class="bad">🎯 Blind spots (wrong + high confidence): ${blindSpots.length}</b>`;
+      html += `<div style="font-size: 12px; color: var(--muted); margin-top: 4px;">Your highest-priority misses. You were sure and wrong. → Quiz tab → <b>Show: Blind spot</b> to review.</div></div>`;
+    }
+    if (closeCalls.length) {
+      html += `<div><b style="color: var(--accent);">⚠️ Close calls (right + low confidence): ${closeCalls.length}</b>`;
+      html += `<div style="font-size: 12px; color: var(--muted); margin-top: 4px;">Right but not sure why. Worth re-checking the reasoning. → Quiz tab → <b>Show: Close call</b>.</div></div>`;
+    }
+    html += `</div>`;
+  }
 
   for (const [block, s] of Object.entries(blocks)) {
     const bp = s.answered ? Math.round(100 * s.correct / s.answered) : 0;
