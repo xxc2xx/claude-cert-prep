@@ -245,18 +245,19 @@ if(__exports != exports)module.exports = exports;return module.exports}));
   }
   .confidence-picker {
     display: flex;
-    gap: 12px;
+    gap: 14px;
     align-items: center;
+    flex-wrap: wrap;
     margin: 10px 0 12px 0;
-    padding: 8px 12px;
+    padding: 10px 14px;
     background: var(--panel-2);
     border: 1px solid var(--border);
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 15px;
   }
   .confidence-picker .conf-label {
     color: var(--muted);
-    font-size: 12px;
+    font-size: 14px;
     margin-right: 4px;
   }
   .confidence-picker label {
@@ -290,14 +291,15 @@ if(__exports != exports)module.exports = exports;return module.exports}));
     border: 1px solid var(--border);
     padding: 2px 8px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: 13px;
     color: var(--accent);
     letter-spacing: 0.3px;
   }
   .tag.topic { color: var(--blue); }
   .qtext {
-    font-size: 15px;
+    font-size: 17px;
     margin-bottom: 14px;
+    line-height: 1.55;
   }
   .qtext code {
     background: var(--panel-2);
@@ -316,13 +318,14 @@ if(__exports != exports)module.exports = exports;return module.exports}));
     display: flex;
     align-items: flex-start;
     gap: 10px;
-    padding: 10px 12px;
+    padding: 12px 14px;
     background: var(--panel-2);
     border: 1px solid var(--border);
     border-radius: 6px;
     cursor: pointer;
     transition: background 0.1s;
-    font-size: 14px;
+    font-size: 16px;
+    line-height: 1.5;
   }
   .choice:hover { background: #242b35; }
   .choice input { margin-top: 3px; }
@@ -345,8 +348,8 @@ if(__exports != exports)module.exports = exports;return module.exports}));
     color: #0e1116;
     border: none;
     border-radius: 6px;
-    padding: 8px 16px;
-    font-size: 13px;
+    padding: 10px 18px;
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
     font-family: inherit;
@@ -362,11 +365,12 @@ if(__exports != exports)module.exports = exports;return module.exports}));
   }
   .explanation {
     margin-top: 14px;
-    padding: 12px 14px;
+    padding: 14px 16px;
     background: var(--panel-2);
     border-left: 3px solid var(--blue);
     border-radius: 4px;
-    font-size: 13px;
+    font-size: 15px;
+    line-height: 1.55;
     color: var(--text);
     display: none;
   }
@@ -379,7 +383,7 @@ if(__exports != exports)module.exports = exports;return module.exports}));
     color: #ffb86c;
   }
   .verdict {
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 600;
     margin-left: auto;
   }
