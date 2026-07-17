@@ -10315,6 +10315,14 @@ try {
   lastMock = null;
 }
 
+// Multi-mock history (append-only array of mock summaries)
+let mockHistory = [];
+try {
+  mockHistory = JSON.parse(__storage.getItem('claude-cert-mockhistory') || '[]');
+} catch (e) {
+  mockHistory = [];
+}
+
 function saveProgress() {
   try {
     __storage.setItem(STORAGE_KEY, JSON.stringify(progress));
@@ -10521,6 +10529,18 @@ function endMockExam(timedOut = false) {
     timedOut,
   };
   try { localStorage.setItem('claude-cert-lastmock', JSON.stringify(lastMock)); } catch(e) {}
+  // Append to permanent mock history so past runs aren't overwritten
+  mockHistory.push({
+    timestamp: lastMock.timestamp,
+    scaledScore: scaled,
+    passed,
+    answered,
+    correct,
+    total,
+    perDomain,
+    timedOut,
+  });
+  try { localStorage.setItem('claude-cert-mockhistory', JSON.stringify(mockHistory)); } catch(e) {}
 
   // Merge mock progress into main progress so "Got wrong" filter includes the 11 misses
   // Only overwrite if user hasn't already answered this question outside the mock
@@ -11078,6 +11098,12 @@ function renderProgress() {
   const pctClass = pct >= 80 ? '' : pct >= 60 ? 'mid' : 'low';
 
   let html = `
+    <div class="progress-toolbar" style="display:flex; gap:8px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+      <button id="btn-export-progress" class="secondary" style="background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; font-size: 14px; font-family: inherit; cursor:pointer;">📥 Export progress JSON</button>
+      <button id="btn-import-progress" class="secondary" style="background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; font-size: 14px; font-family: inherit; cursor:pointer;">📤 Import progress JSON</button>
+      <input type="file" id="progress-file-input" accept="application/json,.json" style="display:none">
+      <span style="font-size:12px; color: var(--muted);">Snapshot survives browser wipe · commit to repo for permanent history</span>
+    </div>
     <div class="progress-row overall">
       <h3>Overall</h3>
       <div class="progress-bar"><div class="progress-fill ${pctClass}" style="width: ${pct}%"></div></div>
@@ -11115,6 +11141,64 @@ function renderProgress() {
           <tbody>${dRows}</tbody>
         </table>
         <div style="margin-top: 10px; font-size: 12px; color: var(--muted);">→ In Quiz tab, use <b>Show: 🔴 Last mock — misses only</b> to review the ${lastMock.total - lastMock.correct} wrong answers.</div>
+      </div>
+    `;
+  }
+
+  // Mock exam history — trend across runs
+  if (mockHistory.length > 0) {
+    let historyRows = '';
+    mockHistory.slice().reverse().forEach((m, i) => {
+      const idx = mockHistory.length - i;
+      const d = new Date(m.timestamp);
+      const dateStr = d.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+      const scoreClass = m.scaledScore >= 720 ? 'ok' : 'bad';
+      const passLabel = m.passed ? '<span class="ok">PASS</span>' : '<span class="bad">FAIL</span>';
+      // Delta vs previous mock (chronological previous)
+      let delta = '';
+      const prev = mockHistory[mockHistory.length - i - 2];
+      if (prev) {
+        const diff = m.scaledScore - prev.scaledScore;
+        const sign = diff > 0 ? '+' : '';
+        const cls = diff > 0 ? 'ok' : diff < 0 ? 'bad' : '';
+        delta = ` <span class="${cls}" style="font-size:11px;">(${sign}${diff})</span>`;
+      }
+      const domainCells = ['D1','D2','D3','D4','D5'].map(d => {
+        const s = m.perDomain && m.perDomain[d];
+        if (!s) return '<td>—</td>';
+        const dp = s.t ? Math.round(100 * s.c / s.t) : 0;
+        const cls = dp >= 80 ? 'ok' : dp >= 60 ? '' : 'bad';
+        return `<td class="${cls}" style="font-size:12px;">${dp}%</td>`;
+      }).join('');
+      historyRows += `
+        <tr>
+          <td>#${idx}</td>
+          <td>${dateStr}</td>
+          <td class="${scoreClass}"><b>${m.scaledScore}</b>${delta}</td>
+          <td>${passLabel}</td>
+          <td>${m.correct}/${m.total}</td>
+          ${domainCells}
+        </tr>
+      `;
+    });
+    html += `
+      <div class="progress-row">
+        <h3>Mock Exam History <span style="font-weight:normal; color:var(--muted); font-size:13px;">(${mockHistory.length} run${mockHistory.length===1?'':'s'})</span></h3>
+        <table style="width:100%; border-collapse: collapse; font-size:13px;">
+          <thead><tr style="color:var(--muted);">
+            <th style="text-align:left; padding:4px 8px;">#</th>
+            <th style="text-align:left; padding:4px 8px;">Date</th>
+            <th style="text-align:left; padding:4px 8px;">Score</th>
+            <th style="text-align:left; padding:4px 8px;">Result</th>
+            <th style="text-align:left; padding:4px 8px;">Correct</th>
+            <th style="text-align:left; padding:4px 8px;">D1</th>
+            <th style="text-align:left; padding:4px 8px;">D2</th>
+            <th style="text-align:left; padding:4px 8px;">D3</th>
+            <th style="text-align:left; padding:4px 8px;">D4</th>
+            <th style="text-align:left; padding:4px 8px;">D5</th>
+          </tr></thead>
+          <tbody>${historyRows}</tbody>
+        </table>
       </div>
     `;
   }
@@ -11191,6 +11275,77 @@ function renderProgress() {
   }
 
   body.innerHTML = html;
+
+  // Wire up export/import buttons after DOM insertion
+  const exportBtn = document.getElementById('btn-export-progress');
+  const importBtn = document.getElementById('btn-import-progress');
+  const fileInput = document.getElementById('progress-file-input');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
+      const payload = {
+        schema: 'claude-cert-progress-v1',
+        exportedAt: new Date().toISOString(),
+        progress: progress,
+        lastMock: lastMock,
+        mockHistory: mockHistory,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {type: 'application/json'});
+      const a = document.createElement('a');
+      const ts = new Date().toISOString().slice(0,10) + '-' + new Date().toTimeString().slice(0,5).replace(':','');
+      a.href = URL.createObjectURL(blob);
+      a.download = `progress-${ts}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+  }
+  if (importBtn && fileInput) {
+    importBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          if (data.schema !== 'claude-cert-progress-v1') {
+            if (!confirm('This JSON does not match the expected schema. Import anyway (may corrupt state)?')) return;
+          }
+          const currentQCount = Object.keys(progress).length;
+          const incomingQCount = Object.keys(data.progress || {}).length;
+          const incomingMocks = (data.mockHistory || []).length;
+          if (!confirm(`Import will merge:\n- ${incomingQCount} question answers\n- ${incomingMocks} mock exam records\n\nCurrent state: ${currentQCount} answers, ${mockHistory.length} mocks.\n\nContinue?`)) return;
+          // Merge — imported progress wins for matching qids
+          if (data.progress) {
+            for (const [qid, p] of Object.entries(data.progress)) {
+              progress[qid] = p;
+            }
+            saveProgress();
+          }
+          if (data.lastMock) {
+            lastMock = data.lastMock;
+            try { localStorage.setItem('claude-cert-lastmock', JSON.stringify(lastMock)); } catch(e) {}
+          }
+          if (data.mockHistory && Array.isArray(data.mockHistory)) {
+            // Merge by timestamp, dedupe
+            const seen = new Set(mockHistory.map(m => m.timestamp));
+            for (const m of data.mockHistory) {
+              if (!seen.has(m.timestamp)) {
+                mockHistory.push(m);
+                seen.add(m.timestamp);
+              }
+            }
+            mockHistory.sort((a,b) => a.timestamp - b.timestamp);
+            try { localStorage.setItem('claude-cert-mockhistory', JSON.stringify(mockHistory)); } catch(e) {}
+          }
+          alert(`Imported. Total now: ${Object.keys(progress).length} answers, ${mockHistory.length} mocks.`);
+          renderProgress();
+        } catch (err) {
+          alert('Import failed: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    });
+  }
 }
 </script>
 </body>
