@@ -3420,3 +3420,90 @@ Deploy managed-settings.json **before** developers install Claude Code — telem
 
 ---
 
+## Block 27 — Course 7 L3: Compliance API & Observability Stack
+
+**One-liner:** Compliance API is the only surface that captures conversation content. Every other mechanism captures metadata only.
+
+Cross-refs: Block 21 (SSO/SCIM identity) · Block 22 (data controls / ZDR / retention) · Block 25 (Primary Owner role) · Block 26 (OTel + Analytics).
+
+### 27.1 — The Five-Mechanism Observability Stack ⭐⭐
+
+| Mechanism | What it captures | Content? | Retention | Access | Real-time? |
+|---|---|---|---|---|---|
+| **Compliance API** | Conversation content · file uploads · activity feed events | ✅ **Yes — only one** | 1 day to indefinite (Enterprise default: indefinite) · Legal hold up to 6 years | **Primary Owner only** | Pull (polling) |
+| **Audit Logs** | Sign-ins · project/file events · member changes · admin setting changes | ❌ Metadata only | 180-day rolling window | Owners + Primary Owners | CSV export from Org Settings |
+| **Admin API** | User provisioning · workspace mgmt · API keys · spend limits | ❌ Metadata only | — | Primary Owners + Owners | Programmatic |
+| **OTel** | Tool calls · bash commands · MCP invocations · API requests | ❌ Metadata only | Opt-in stream | Opt-in via MDM or env var | ✅ Real-time OTLP stream |
+| **Analytics** | Aggregated adoption · seat utilization · feature usage · spend | ❌ Metadata only | — | Owners + Primary Owners via dashboard + API | Daily snapshots |
+
+**Master framing rule:** "What was *discussed*?" → Compliance API. "What was *executed*?" → OTel. "Admin events?" → Audit Logs. "Adoption signals?" → Analytics. **Never conflate Analytics API with Compliance API in a security review.**
+
+### 27.2 — Compliance API Details ⭐
+
+| Property | Value |
+|---|---|
+| **What it captures** | Chat inputs · outputs · file uploads · activity feed events |
+| **Who can enable** | **Primary Owner only** (Owners cannot see the option) |
+| **Retention** | Enterprise default = indefinite · Configurable 1 day → indefinite · Legal hold = specific user/conversation preserved past standard window |
+| **Max retention** | Up to 6 years |
+| **Where to enable** | Organization Settings › API › Enable under Compliance API |
+| **Access keys** | Create one key per integration · Shown once, store securely · Rotate = new key, other integrations unaffected |
+| **Plan availability** | SIEM = Enterprise + Platform · DLP/eDiscovery/AI posture = Enterprise only |
+| **Vendor integrations** | 28+ across all four categories |
+
+### 27.3 — Four Compliance API Use Cases
+
+| Use case | Endpoint | Integration examples | Plan |
+|---|---|---|---|
+| **SIEM** | `GET /v1/organizations/{id}/audit-events` | Splunk · Microsoft Sentinel · OTLP backend | Enterprise + Platform |
+| **DLP / CASB** | `GET /v1/organizations/{id}/conversations` | Nightfall · Microsoft Purview · Symantec | Enterprise only |
+| **eDiscovery** | `GET .../conversations/{conversation_id}` | Relativity · Exterro | Enterprise only |
+| **AI Security Posture** | Same endpoints | Behavioral risk flagging tools | Enterprise only |
+
+**Shared interface model:** Customer security team and their security vendors access the same Compliance API endpoints, surfaced within tools the client already operates.
+
+### 27.4 — Routing Compliance Requests (quick decision table) ⭐
+
+| Client request | Right surface | Why |
+|---|---|---|
+| Employee conversation content for HR/legal | **Compliance API** | Only surface with conversation content |
+| Real-time alert on bash commands from Claude Code | **OTel** (`OTEL_LOG_TOOL_DETAILS=1` → SIEM) | Real-time stream; Compliance API is pull-only |
+| Legal hold for specific user pending investigation | **Compliance API legal hold** | Pins specific user/conversation regardless of org retention policy |
+| Scan conversations for PII (DLP) | **Compliance API** (DLP/CASB integration) | OTel has identity metadata but NOT conversation content |
+| Admin change history (who changed what setting) | **Audit Logs** | Admin events, 180-day window |
+| Day 30 adoption readout | **Admin Console / Analytics** | Aggregated DAU, sessions, seat utilization |
+| Per-developer cost tracking | **OTel** (`cost.usage`) | Admin Console shows org-level only |
+
+### 27.5 — Enablement Path (5 steps)
+
+```
+1. Identify requirement  (SIEM / DLP / eDiscovery / AI posture)
+   └── Each drives different endpoint + integration
+
+2. Confirm Primary Owner on the call
+   └── Owners cannot see the enablement option — wrong person = wasted call
+
+3. Enable in Organization Settings
+   └── Org Settings › API › Enable (Compliance API) — under 1 minute, no engineering needed
+
+4. Create compliance access key
+   └── + Create key · One key per integration · Shown once · Rotate = new key
+
+5. Wire to integration
+   └── DLP tool / SIEM / eDiscovery platform
+   └── Platform docs: platform.claude.com/docs/en/manage-claude/compliance-api
+```
+
+### 27.6 — Your scenario debrief (6/8)
+
+| # | Your call | Score | Lesson |
+|---|---|---|---|
+| 1 — HR investigation | Compliance API by user ID | ✅ +2 | Only surface with conversation content |
+| 2 — Real-time bash alerting | OTel + OTEL_LOG_TOOL_DETAILS=1 → SIEM | ✅ +2 | OTel = real-time execution stream; Compliance API = pull only |
+| 3 — Legal hold | Set org-wide retention to 3 years | ⚠️ +1 | **Wrong tool.** Org-wide retention ≠ legal hold. Legal hold = Compliance API targeted pin for specific user/conversation, regardless of org policy |
+| 4 — DLP / PII monitoring | OTel → SIEM scan for PII patterns | ⚠️ +1 | **OTel has metadata, not content.** Can flag unusual session patterns but cannot scan conversation text for PII. Content-level DLP = Compliance API |
+
+**Memory anchor for decisions 3+4:** Legal hold ≠ retention setting. PII in conversations = Compliance API (not OTel). OTel knows *what* ran; Compliance API knows *what was said*.
+
+---
+
