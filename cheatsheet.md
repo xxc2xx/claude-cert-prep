@@ -3188,3 +3188,71 @@ You now have the full Course 6 governance stack across Blocks 18–23:
 
 ---
 
+## Block 24 — Winston's Glossary (from ChatGPT sync, v2.0 · 2026-07-16)
+
+The living glossary you've been co-authoring with ChatGPT. Preserved verbatim in your structure. Anchors examples to your analytics work (Traffic Agent · Business Review Orchestrator · QC severity rubric).
+
+Cross-refs: Block 16 (Subagents mechanics) · Block 14 (Skills patterns) · Block 15 (Hooks + enforcement spectrum) · Block 22 (Data controls) · Block 19 (Ownership model).
+
+### 24.1 — Foundation Models
+
+| Term | Plain-English meaning | Example |
+|---|---|---|
+| **LLM — Large Language Model / Foundation Model** | The core model that predicts and generates language, code, and reasoning | Claude, GPT, Gemini |
+| **Pre-training** | Large-scale initial training that gives the model broad language, coding, knowledge, and reasoning capability | Claude learns general analytics and business concepts |
+| **Post-training** | Training after pre-training that shapes instruction-following, tool use, safety, and reasoning behavior | Claude learns to follow QC rules and use tools |
+| **Hallucination** | A plausible-sounding claim that is unsupported, invented, or wrong | Claiming inventory caused a decline without evidence |
+| **Grounding** | Connecting claims to trusted evidence or approved sources | Every factual claim links to an evidence ID |
+| **Deterministic** | Same input → fixed rules → same result | SQL calculates revenue variance |
+| **Non-deterministic** | Same input may produce different but still valid outputs | Claude writes slightly different executive summaries |
+
+### 24.2 — Agent Architecture
+
+| Term | Plain-English meaning | Example |
+|---|---|---|
+| **Agent** | An AI worker that can reason, use tools, and complete a task | Traffic Agent |
+| **Agentic AI** | AI that plans and executes multi-step work toward an objective | Builds an end-to-end business review |
+| **Orchestrator / Parent Agent** | Coordinates specialist agents, tools, sequencing, and recovery | Business Review Orchestrator |
+| **Subagent** | Specialised child agent spawned by a parent; returns structured results (cross-ref Block 16) | Security Auditor · Product Agent |
+| **Parallel Claude Instances** | Independent Claude sessions working separately, not communicating (cross-ref Block 16.1) | QC build in one instance · docs in another |
+| **Worker Agent** | Executes a bounded specialist task | SQL extraction agent |
+| **Synthesis Agent** | Combines multiple findings into one conclusion or recommendation | Creates executive performance narrative |
+| **Domain Agent** | Specialist agent focused on one business domain | Traffic · Product · CRM · Media |
+
+### 24.3 — Compliance & Data Governance (Section 12)
+
+| Term | Plain-English meaning | Example |
+|---|---|---|
+| **BAA — Business Associate Agreement** | A US contract required under HIPAA when a vendor handles PHI on a covered entity's behalf | Contract required when the vendor may process PHI |
+| **HIPAA — Health Insurance Portability and Accountability Act** | US healthcare privacy/security law covering PHI and regulated entities | Determines whether healthcare data needs HIPAA controls |
+| **PHI — Protected Health Information** | Individually identifiable health information protected under HIPAA | Patient diagnosis linked to an identity |
+| **No-training** | Policy: customer inputs and outputs are not used to train or improve foundation models. **Separate from retention.** | Business data may be retained for service/safety, but not used for model training |
+| **Custom Retention** | Organization-configurable policy: how long customer content is stored before deletion | Enterprise admin selects approved retention period |
+| **Retention vs Training** | **Retention** = how long data is stored · **No-training** = whether that data is used for model improvement | 30-day retention can still be no-training |
+
+Cross-ref Block 22 for the full three-lever framework (no-training / custom retention / ZDR) + HIPAA path (BAA + ZDR both required).
+
+### 24.4 — Winston's 10 Golden Rules ⭐⭐ (personal design principles)
+
+Rules built from your architecture experience. These are the ones to say out loud before making design calls on the exam.
+
+1. **Use deterministic code for calculations and LLMs for reasoning.** — Official metrics stay in SQL or Python.
+2. **Every factual claim must be grounded in evidence.** — Require evidence IDs.
+3. **Normalize all agent outputs into a common schema.** — Traffic · Product · CRM return compatible objects.
+4. **Keep subagent contexts isolated; return structured summaries, not raw reasoning.** — Main agent receives findings, not full audit detail.
+5. **Validation checks correctness · QC judges quality · evals improve the system over time.** — Separate run-level checks from portfolio-level measurement.
+6. **Use explicit rules before adding more examples.** — State P1/P2 behavior directly. (Ties to Block 14.11 Skills authoring rule.)
+7. **Choose the right skill pattern: consistency · reliable access · capability gap.** — Diagnose the failure before building the skill. (Ties to Block 14.4 P1/P2/P3 tree.)
+8. **Use hooks and validators to enforce critical behavior, not instructions alone.** — Block protected writes with PreToolUse. (Ties to Block 15's enforcement spectrum.)
+9. **The orchestrator coordinates; specialists specialise.** — Keep Traffic and Product responsibilities bounded.
+10. **Treat failures as structured data, not vague exceptions.** — Return error context, severity, origin, and next action. (Ties to Block 16.6 subagent failure handling.)
+
+### 24.5 — Missing sections (pending)
+
+The paste you sent had 129 lines hidden between §2 and §12 — likely Sections 3–11. When you paste them, I'll append here. Candidate topics based on your v2.0 structure:
+- §3–5: Reasoning · Tool Use · Retrieval (RAG)
+- §6–8: Prompt Engineering · Structured Output · Evaluation
+- §9–11: Deployment · Safety · Reliability
+
+---
+
