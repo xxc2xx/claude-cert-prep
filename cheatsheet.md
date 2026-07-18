@@ -3334,3 +3334,89 @@ Cross-refs: Block 21 (SSO/SCIM/Domain capture) · Block 18 (managed-settings.jso
 
 ---
 
+## Block 26 — Course 7 L2: Analytics, Measurement & Day 30 Readout
+
+**One-liner:** Admin Console answers "Is it working?" OTel answers "Is it working for the business?" Day 30 readout = four metrics, Green/Amber/Red, headline first.
+
+Cross-refs: Block 25 (managed-settings.json deploy) · Block 18 (managed-settings.json fields).
+
+### 26.1 — Two-Tool Measurement Stack ⭐
+
+| Tool | Setup required | What it gives you | Best for |
+|---|---|---|---|
+| **Admin Console** | None — available to Owners immediately | DAU · Sessions · Seat utilization · Org spend · Cohort retention | Day 7/14/30 readouts · Champion briefs · Quick adoption checks |
+| **OTel Pipeline** | `CLAUDE_CODE_ENABLE_TELEMETRY=1` in dev env · Route to Prometheus/Grafana/OTLP backend | session.count · active_time · lines_of_code · commit.count · pull_request.count · cost.usage · token.usage per dev | Engineering metrics · ROI models · Per-developer cost tracking · Large deployments |
+| **Analytics Chat** | None — within Admin Console | Conversational queries ("which teams had highest session counts last week?") on same underlying data | Ad hoc questions without exporting CSVs |
+
+**Working rule:** Admin Console = "Is it working?" OTel = "Is it working for the business?"
+
+**Critical data source distinction ⭐:** Anthropic Analytics API = aggregate usage for general Claude (claude.ai). For **Claude Code deployments**, session and cost metrics come via **OTel or Admin Console — not the Analytics API**.
+
+### 26.2 — Four Scorecard Metrics ⭐⭐
+
+| Metric | Target | Amber signal | Red signal | Source |
+|---|---|---|---|---|
+| **DAU** | 60% by Week 3 | Plateau below 50% in Week 2 | Below 40% at Week 4 = change management problem, not product | Admin Console > Analytics > Active users |
+| **Sessions/User** | 2–3/day | Below 1.5/day | Not integrated into workflow — pair with active_time.total | Admin Console or OTel active_time.total |
+| **Week 2 Retention** | 80%+ | — | Below 80% past Week 2 predicts churn at expansion | Admin Console cohort view |
+| **Cost/Developer** | Track weekly | — | Spike without matching sessions = runaway usage or misconfigured spend limit | Admin Console > Billing or OTel cost.usage |
+
+**Super-user pattern:** 10–15 developers drive disproportionate cost and output. Cost spike without adoption increase → **check per-developer breakdown first, not aggregate.** Lever = model matching (lighter model for workflows that don't need frontier capability).
+
+### 26.3 — OTel Deployment Paths
+
+| Path | When to use | Config |
+|---|---|---|
+| **Console exporter** | Debug only — single developer | Default; no config needed |
+| **Prometheus** | Standard team deployment | Set exporter endpoint in dev environment |
+| **Enterprise OTLP via managed-settings.json** | 50+ developers · Org-wide consistency required | Add `telemetry.enabled` + `otlpEndpoint` to managed-settings.json — applies to every machine, can't be overridden by developers |
+
+```json
+// managed-settings.json OTel config
+{
+  "telemetry": {
+    "enabled": true,
+    "otlpEndpoint": "https://otel.your-backend.com"
+  }
+}
+```
+
+Deploy managed-settings.json **before** developers install Claude Code — telemetry config is non-retroactive.
+
+### 26.4 — Day 30 Readout Structure
+
+```
+1. Lock baselines  (Day -14 to Day 0)
+   └── Tickets closed/sprint · PRs/developer · self-reported time on repetitive tasks
+   └── If missed: note in readout + recommend capturing at next rollout
+
+2. Pull Week 4 data  (Admin Console)
+   └── Settings > Analytics → DAU, sessions/user, Week 2 cohort retention
+   └── Cross-reference OTel cost.usage if pipeline was deployed
+
+3. Structure scorecard
+   └── Rate each metric: Green (at/above target) · Amber (within 15%) · Red (below threshold)
+   └── One sentence per metric explaining the number — never raw numbers without context
+
+4. Brief the champion
+   └── Lead with headline: overall Green/Amber/Red
+   └── Follow with the metric most directly supporting expansion decision
+   └── Hold detail for questions
+   └── If Red: come with remediation plan, not just a number
+```
+
+### 26.5 — Your scenario debrief (6/8)
+
+| # | Your call | Score | Lesson |
+|---|---|---|---|
+| 1 — Pull adoption data | Admin Console > Analytics | ✅ +2 | Fastest path, no setup, 48 hrs to readout |
+| 2 — Read the numbers | Amber on DAU+sessions, Green on retention+cost, push plan | ✅ +2 | Honest scorecard names gaps and comes with a plan |
+| 3 — Missing baselines | Delay readout for retrospective baseline | ❌ +0 | **Window closed Day 1.** Retrospective baseline = impractical. Use what you have, flag for next rollout |
+| 4 — ROI question | Anchor to cost/session vs dev day rate | ✅ +2 | Give CFO the inputs ($2/session vs $400-800/day); they do the math themselves |
+
+**Memory anchor for Decision 3:** Baseline window = Day -14 to Day 0. Once deployment starts, it's gone. Never delay readout to manufacture data that doesn't exist.
+
+**ROI frame shortcut:** `$3.10/day ÷ 1.6 sessions = ~$2/session` vs developer day rate $400–800 fully loaded. Frame as ratio, let CFO close.
+
+---
+
