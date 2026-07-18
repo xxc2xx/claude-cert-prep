@@ -3256,3 +3256,81 @@ The paste you sent had 129 lines hidden between §2 and §12 — likely Sections
 
 ---
 
+## Block 25 — Course 7 L1: Claude Enterprise Administration (Pre-kickoff)
+
+**One-liner:** Role mismatches + $0 spend limit are the two Day-1 failure causes. Catch both before kickoff, not at it.
+
+Cross-refs: Block 21 (SSO/SCIM/Domain capture) · Block 18 (managed-settings.json fields).
+
+### 25.1 — Role Hierarchy ⭐ (exam trap — "Admin ≠ admin")
+
+| Role | Count | Can do | Cannot do |
+|---|---|---|---|
+| **Primary Owner** | Exactly 1 | Provision + purchase seats · Data exports · Transfer ownership · Everything Owner can do | — |
+| **Owner** | Unlimited | Configure SSO + SCIM · Audit logs · Data retention · Usage analytics · Invite/remove Admins + Owners | — |
+| **Admin** | Unlimited | Invite + remove members · Usage analytics (Enterprise only, not Team) | **Configure SSO or SCIM** · **Provision seats** · Audit logs |
+| **User** | Everyone | Chat · Projects · Claude Code (if right seat type) | No admin settings visible |
+
+**The trap:** IT contacts get Admin "by default" — but Admin can't configure SSO or provision seats. **Catch in discovery, not on kickoff morning.**
+
+**Memory rule:** Pre-kickoff config task → Owner minimum. Seat provisioning → Primary Owner only.
+
+### 25.2 — Seat Types ⭐ (exam trap — "Standard blocks Claude Code entirely")
+
+| Billing model | Seat type | Claude Code? | Notes |
+|---|---|---|---|
+| Seat-based (Legacy) | **Standard** | ❌ | Chat only. Auth errors on `claude` = check seat type first |
+| Seat-based (Legacy) | **Premium** | ✅ | Primary Owner assigns. Converts at next renewal |
+| Usage-based (Transitional) | **Chat** | ❌ | Being phased out |
+| Usage-based (Transitional) | **Chat + Code** | ✅ | Being phased out |
+| Usage-based (Current) | **Claude Enterprise** | ✅ | All-inclusive. **Default spend limit = $0** |
+
+**The trap:** Current Enterprise plan is all-inclusive but org spend limit defaults to **$0** — set it before the first API call or every call fails.
+
+### 25.3 — Pre-kickoff Checklist (Day -14 to Day 0)
+
+```
+1. Configure identity  (Owner or Primary Owner)
+   ├── SAML 2.0 or OIDC SSO → pilot test before broad rollout
+   ├── Domain capture → auto-routes all users from org domain
+   └── SCIM (>20 devs) → auto-provision + de-provision from IdP
+       (JIT = simpler, less control)
+
+2. Assign seats + set spend limit  (Primary Owner for seats)
+   ├── Settings > Organization > Members
+   └── Set org-level spend limit first (default $0 = all API calls fail)
+
+3. Deploy managed-settings.json  (BEFORE developers install — non-retroactive)
+   └── Sits above user + project settings, cannot be overridden
+   └── Lock permissions · enforce auth · pin version floor · MCP allowlists
+
+4. Verify developer authentication
+   ├── Developer runs `claude` → selects "Claude account with subscription" → Enterprise SSO
+   ├── Run `/status` inside Claude Code to confirm seat + auth provider
+   └── If previously used personal account: `/logout` first
+```
+
+### 25.4 — Failure Pattern Diagnosis ⭐⭐
+
+| Symptom | Root cause | Fix |
+|---|---|---|
+| **One** developer can't use Claude Code | Wrong seat type (Standard on legacy) | Upgrade seat |
+| **Everyone** fails simultaneously | Org spend limit = $0 | Set spend limit first |
+| IT can't configure SSO | Role is Admin, not Owner | Elevate to Owner |
+| IT can't provision seats | Role is Owner, not Primary Owner | Primary Owner must do it |
+| Developers bypass MCP policy | Policy in docs only, not enforced | Add to `managed-settings.json` |
+| Developers on personal accounts | No `/logout` before Enterprise auth | `/logout` then re-auth via SSO |
+
+**Key signal:** One failure = individual (seat/auth). **Everyone fails simultaneously = org-level ($0 spend limit).**
+
+### 25.5 — Your scenario debrief (7/8)
+
+| # | Your call | Score | Lesson |
+|---|---|---|---|
+| 1 — First call | Confirm her role | ✅ +2 | Role is gating — can't build plan without it |
+| 2 — Admin revealed | Both blocked, elevate now | ✅ +2 | Admin can't do SSO or seats; both blocked |
+| 3 — Everyone fails Day 1 | SSO issue | ⚠️ +1 | **Wrong signal.** Everyone = org-level = $0 spend limit |
+| 4 — MCP policy | managed-settings.json allowlist | ✅ +2 | Only enforceable layer; docs can't override dev behavior |
+
+---
+
