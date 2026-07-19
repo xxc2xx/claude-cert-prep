@@ -3917,3 +3917,90 @@ Set via `/config` in session (saves to settings.local.json) or `"outputStyle": "
 
 ---
 
+## Block 31 — Course 7 L4: OTel Pipeline Setup ⭐⭐
+
+**One-liner:** OTel = what was executed. Enable with one master switch, configure exporters, deploy via managed-settings.json. Prompt content is NOT captured by default — three separate opt-in flags control progressively more detail.
+
+Cross-refs: Block 26 (OTel overview + scorecard metrics) · Block 27 (5-mechanism observability stack) · Block 25 (managed-settings.json deployment).
+
+### 31.1 — What OTel Captures vs Other Surfaces
+
+| Surface | Captures | Real-time? |
+|---|---|---|
+| **OTel** | Every tool call · bash command · MCP invocation · API request | ✅ Streaming |
+| **Compliance API** | Conversation content (what was said) | Pull only |
+| **Audit logs** | Admin events (sign-ins, setting changes) | 180-day CSV |
+
+### 31.2 — Signal Types + Opt-in Flags ⭐⭐
+
+| Signal | What's included | Required to enable |
+|---|---|---|
+| **Metrics (8)** | sessions · tokens · cost.usage (USD) · lines of code · commits · pull requests · code edit decisions · active time | `CLAUDE_CODE_ENABLE_TELEMETRY=1` only — streams by default |
+| **Events** | Tool calls · API requests · permission mode changes · MCP connections · auth events | + `OTEL_LOGS_EXPORTER=otlp` |
+| **Bash command content** | The actual command text | + `OTEL_LOG_TOOL_DETAILS=1` |
+| **Full tool output** | Raw file contents · command output (truncated at 60KB) | + `OTEL_LOG_TOOL_CONTENT=1` + `CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1` |
+| **Prompt/conversation content** | Developer's input text | + `OTEL_LOG_USER_PROMPTS=1` |
+
+**Privacy default:** Conversation content is **not captured** unless `OTEL_LOG_USER_PROMPTS=1` is explicitly set. All detail flags are **off by default**.
+
+**CISO question answer:** "No — prompt content is not captured by default. `OTEL_LOG_USER_PROMPTS=1` is an explicit opt-in not in the current config."
+
+**cost.usage attributes:** model · query_source · speed · effort · agent.name · skill.name · plugin.name · mcp_server.name · mcp_tool.name
+
+### 31.3 — 5-Step Pipeline Setup ⭐
+
+```
+1. Master switch (required — everything ignored without it)
+   CLAUDE_CODE_ENABLE_TELEMETRY=1
+
+2. Choose exporters (can mix across signal types)
+   OTEL_METRICS_EXPORTER=otlp      # or: prometheus, console
+   OTEL_LOGS_EXPORTER=otlp         # or: console (no Prometheus for logs)
+
+3. Configure endpoint + auth
+   OTEL_EXPORTER_OTLP_ENDPOINT=http://collector.example.com:4317
+   OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer <token>
+   OTEL_EXPORTER_OTLP_PROTOCOL=grpc            # default, port 4317
+   # use http/json if collector doesn't support gRPC
+
+4. Deploy via managed-settings.json via MDM
+   → High precedence, cannot be overridden by developers
+   → Auth token stays out of developer reach
+   → Only scalable path for 100+ developer orgs
+
+5. Verify with short export interval (remove before production)
+   OTEL_METRIC_EXPORT_INTERVAL=10000  # 10s instead of 60s default
+   # Run session → check backend → confirm data arriving → remove override
+```
+
+**Production OTLP config block (commit to managed-settings.json, not .env):**
+```
+CLAUDE_CODE_ENABLE_TELEMETRY=1
+OTEL_METRICS_EXPORTER=otlp
+OTEL_LOGS_EXPORTER=otlp
+OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+OTEL_EXPORTER_OTLP_ENDPOINT=http://collector.example.com:4317
+OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer your-token
+```
+
+### 31.4 — Cost Attribution Pattern
+
+`OTEL_RESOURCE_ATTRIBUTES` pushed via MDM → tags **every metric and event** from that machine with org-level labels (department, cost_center) → flows to cost.usage in dashboards automatically.
+
+```
+OTEL_RESOURCE_ATTRIBUTES=department=engineering,cost_center=CC-4421
+```
+
+Push different attribute blocks per team via MDM → no org restructuring, no backend-side transforms needed.
+
+### 31.5 — Your scenario debrief (8/8) ✅
+
+| # | Decision | Call | Why |
+|---|---|---|---|
+| 1 — Bash commands in Splunk | `OTEL_LOGS_EXPORTER=otlp` + `OTEL_LOG_TOOL_DETAILS=1` | ✅ +2 | Logs exporter enables event stream; tool details adds command content — both required |
+| 2 — Department cost attribution | `OTEL_RESOURCE_ATTRIBUTES` via MDM | ✅ +2 | Tags every metric/event with dept label; flows to cost.usage; no org restructuring |
+| 3 — Org-wide non-overridable | managed-settings.json via MDM | ✅ +2 | High precedence, developer cannot override, only scalable path at 500 devs |
+| 4 — Are conversations captured? | No — prompt capture requires opt-in not in current config | ✅ +2 | Privacy-preserving default; CISO needs this to brief legal/privacy teams |
+
+---
+
