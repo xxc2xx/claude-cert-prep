@@ -3507,3 +3507,413 @@ Cross-refs: Block 21 (SSO/SCIM identity) · Block 22 (data controls / ZDR / rete
 
 ---
 
+## Block 28 — Course 2: Installation & Environments (L1–L5)
+
+**One-liner:** Confirm environment before kickoff (not during). Platform → Install → Auth → Verify. For CI: `-p` flag makes it headless. For security: container/VM is the only isolation that covers everything.
+
+### 28.1 — Platform Support & Install Commands ⭐
+
+| Platform | Path | Install command |
+|---|---|---|
+| **macOS** | Native | `curl -fsSL https://claude.ai/install.sh \| bash` |
+| **Linux** | Native (Ubuntu 20.04+, Debian 10+, Alpine 3.19+) | Same curl command |
+| **Windows — Native** | No WSL needed · PowerShell or CMD · Git for Windows optional (else uses PowerShell) | `irm https://claude.ai/install.ps1 \| iex` (PowerShell) |
+| **Windows — WSL** | Linux toolchains + sandboxing · WSL 2 recommended · **Requires IT enablement on managed machines** | Install inside WSL, behaves like Linux |
+
+**Native vs WSL trap:** Native Windows = no IT ticket needed. WSL = IT must enable it on managed images.
+
+### 28.2 — Auth Paths + Four Pre-Kickoff Blockers ⭐
+
+**Two auth paths after install:**
+
+| Path | When | IT involvement |
+|---|---|---|
+| Browser-based login | Interactive developers on Team/Enterprise | None — individual-level |
+| API key (`ANTHROPIC_API_KEY`) | Headless · CI · automated workflows · when set, overrides subscription login | IT must create key, distribute (env var / secrets vault), rotate periodically |
+
+**Four blockers to confirm with IT before install day:**
+
+1. **Network access** — confirm reachable: `api.anthropic.com` · `claude.ai` · `platform.claude.com` · `downloads.claude.ai` · `raw.githubusercontent.com` · Firewall rules take days to change — first item to raise
+2. **Proxy + certificates** — `HTTPS_PROXY` / `HTTP_PROXY` + `NODE_EXTRA_CA_CERTS` for custom CA (e.g. Zscaler TLS inspection)
+3. **Auth architecture** — browser vs API key vs mixed cohort — shapes entire provisioning workflow
+4. **Windows native vs WSL** — WSL on managed machines may need IT ticket
+
+**Verification commands:**
+```bash
+claude --version   # "command not found" = PATH not updated → close/reopen terminal
+claude doctor      # validates config, lists invalid settings with source file + field name
+/status            # inside session — confirms proxy/gateway config applied correctly
+```
+
+**Troubleshoot quick-ref:**
+- `curl: (7) Failed to connect to claude.ai port 443` → corporate firewall blocking outbound HTTPS
+- `command not found: claude` after install → PATH not updated (close terminal, reopen)
+
+### 28.3 — IDE Integrations ⭐
+
+| IDE | Setup | Key detail |
+|---|---|---|
+| **VS Code** | Extension: `anthropic.claude-code` from Marketplace | `vscode:extension/anthropic.claude-code` |
+| **Cursor** | Same extension | `cursor:extension/anthropic.claude-code` — fully supported, same experience |
+| **VS Code forks** (Kiro, Devin Desktop, etc.) | Open VSX registry or Extensions view | All supported |
+| **JetBrains** (IntelliJ, PyCharm, etc.) | **Two installs required:** CLI (from L1 installer) + plugin from JetBrains Marketplace | Plugin provides IDE integration; CLI provides engine. **Both required.** |
+
+**Three Day-1 capabilities to demonstrate:**
+1. **Diff viewing** — changes in native IDE diff viewer, not terminal output
+2. **Selection context** — highlight a function → Claude already knows what you're working on
+3. **File reference shortcuts** — `@app.ts#5-10` pulls specific file + line range
+   - VS Code: `Option+K` / `Alt+K`
+   - JetBrains: `Cmd+Option+K` / `Alt+Ctrl+K`
+
+**`/config` settings (interactive menu in session):**
+- `autoConnectIde` · `autoInstallIdeExtension` · `externalEditorContext` · `editorMode` (normal or vim)
+
+**Exam trap:** Cursor question answer = B. "Cursor is supported — same extension, same experience." Don't hedge or send to IT.
+
+### 28.4 — Terminal Patterns + Environment Variables ⭐⭐
+
+**Four shortcut categories (teach in this order):**
+
+| Category | Commands | When to teach |
+|---|---|---|
+| **Bash mode** | `! <command>` — runs shell cmd, output in Claude's context | **Day 1 first** — changes how devs think about the tool |
+| **Context mgmt** | `/clear` (reset conversation, NOT files) · `/compact` · `/context` | Week 2 — after devs hit context limit |
+| **Navigation** | `Esc` (cancel) · `Esc Esc` (rewind menu: Fork / Rewind code / Fork+Rewind) · `Shift+Tab` (cycles default → auto-accept edits → plan) | When relevant |
+| **File + session** | `@file.ts#5-10` · `--continue`/`-c` (resume last session) · `--resume <id>` · `/model` | When relevant |
+
+**True/False traps:**
+- `! prefix` runs shell + output in Claude's context → **TRUE**
+- `/clear` undoes file changes → **FALSE** (resets conversation only, not files)
+- `Shift+Tab` cycles to plan mode → **TRUE**
+- Shell piping works same as Unix → **TRUE**
+
+**Key environment variables:**
+
+| Variable | Category | What it does |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | Auth | API key; overrides subscription login when set |
+| `ANTHROPIC_AUTH_TOKEN` | Auth | Custom bearer token; takes precedence over API_KEY |
+| `ANTHROPIC_BASE_URL` | Deployment | Redirect to LLM gateway |
+| `CLAUDE_CODE_USE_BEDROCK` | Deployment | Route through Amazon Bedrock (set to `1`) |
+| `CLAUDE_CODE_USE_VERTEX` | Deployment | Route through Google Vertex AI |
+| `HTTPS_PROXY` / `HTTP_PROXY` | Network | Corporate proxy URL |
+| `NO_PROXY` | Network | Bypass proxy hosts (`*` = all) |
+| `NODE_EXTRA_CA_CERTS` | Network | Path to custom CA cert file |
+| `CLAUDE_CODE_CERT_STORE` | Network | `bundled,system` (default) · `bundled` · `system` |
+| `CLAUDE_CODE_CLIENT_CERT` | Network | mTLS client cert path |
+| `DISABLE_TELEMETRY` | Governance | Disable telemetry |
+| `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | Governance | Suppress non-essential outbound (air-gapped envs) |
+| `DISABLE_AUTOUPDATER` | Governance | Prevent auto-update (central version management) |
+| `CLAUDE_CODE_MAX_TURNS` | Behavior | Max agentic turns before stop + confirm (cost control) |
+
+**Pre-session env vars needed (proxy + cert + version policy client):** `ANTHROPIC_API_KEY` · `HTTPS_PROXY` · `NODE_EXTRA_CA_CERTS` · `DISABLE_AUTOUPDATER` — four of six in the activity.
+
+### 28.5 — Dev Containers + Sandbox Isolation ⭐⭐
+
+**Isolation layer comparison (what each restricts):**
+
+| Access Surface | Built-in Bash Sandbox | Sandbox Runtime | Container / VM |
+|---|---|---|---|
+| Bash commands | ✅ Restricted | ✅ Restricted | ✅ Restricted |
+| File tools (Read/Write) | ❌ Full access | ✅ Restricted | ✅ Restricted |
+| MCP servers | ❌ Full access | ❌ Full access | ✅ Restricted |
+| Hooks | ❌ Full access | ❌ Full access | ✅ Restricted |
+| Web access | ❌ Full access | ✅ Restricted | ✅ Restricted |
+
+**Critical trap:** Built-in Bash sandbox only restricts bash subprocesses. **File tools, MCP, hooks, web = unrestricted** unless you add `permissions.deny` rules or use container/VM.
+
+**Four sandbox properties:** Directory scoping · Network allowlisting · Approval-free within bounds · Out-of-sandbox notification (surfaces attempt rather than silently failing)
+
+**Minimal settings.json sandbox config:**
+```json
+{
+  "sandbox": {
+    "enabled": true,
+    "filesystem": {
+      "denyRead": ["/"],
+      "allowRead": ["/project", "~/.claude"],
+      "allowWrite": ["/project"]
+    },
+    "network": { "allowedDomains": ["api.anthropic.com", "*.client-internal.com"] }
+  },
+  "permissions": {
+    "allow": ["Bash(npm run test *)", "Bash(npm run lint)", "Read(/project/**)"],
+    "deny": ["Bash(curl *)", "Read(./.env)", "Read(~/.ssh/**)"],
+    "defaultMode": "acceptEdits"
+  }
+}
+```
+
+`defaultMode` options: `default` · `acceptEdits` · `plan` · `auto`
+
+**Dev container feature:**
+```json
+{
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": { "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {} }
+}
+```
+Feature version pins install script, not Claude Code release. Use `DISABLE_AUTOUPDATER` for pinned version policies.
+
+**Security questionnaire answer:** "We configure explicit deny rules for sensitive paths like `~/.ssh/**`, enable the Bash sandbox for shell commands, and **verify these rules before deployment**. Access is governed by **active configuration**, not default behaviour." ("By default no" = wrong frame for security teams.)
+
+### 28.6 — Headless Mode + CI Flags ⭐⭐
+
+**Five key headless flags:**
+
+| Flag | Purpose | When to use |
+|---|---|---|
+| `-p "prompt"` | **Non-interactive mode** — required for any pipeline use | All CI/automation |
+| `--allowedTools "Bash,Read,Edit"` | Restrict which tools available in this execution | Limit scope per pipeline stage |
+| `--append-system-prompt "..."` | Inject pipeline-level instructions ("output as JSON", "focus on security") | Specialise per stage |
+| `--output-format json` | JSON output (schema defined in prompt) — add validation + retry for production | Dashboard/ticket/DB consumers |
+| `--bare` | Disable local hooks · skills · plugins · MCP · auto memory · CLAUDE.md | Reproducible CI — same result on any machine |
+
+**Three pipeline patterns:**
+```bash
+# Code review (PR → JSON security report)
+gh pr diff "$1" | claude -p --append-system-prompt "Review for security vulnerabilities" --output-format json
+
+# Test-and-fix loop
+claude -p "Run test suite, fix any failures" --allowedTools "Bash,Read,Edit"
+
+# Structured extraction
+claude -p 'List all API endpoints. Output JSON array with "path" and "method" per item.' --output-format json
+```
+
+**GitHub Actions integration:**
+- Run `/install-github-app` from an active session → installs to org → @claude trigger on any PR/issue comment
+- Custom workflows: trigger (PR/schedule) → `ANTHROPIC_API_KEY` from GitHub Secrets → `claude -p` with flags → output handling (post to PR / save to file)
+
+**Scenario answer:** PR review → JSON report = **C: `-p` + `--output-format json` + schema in prompt**
+- `-p` = non-interactive; `--output-format json` = structured output; schema defined in prompt text
+- `--output-format json` alone without schema in prompt = undefined shape, dashboard can't parse
+
+---
+
+## Block 29 — Course 1: Product Foundations (L1–L3)
+
+**One-liner:** Claude Code = agentic loop (Observe→Plan→Act→Verify), same model across all surfaces. Model choice: Sonnet default, Opus for long-horizon autonomous work. Platform: cloud-native only when data residency forces it; otherwise Enterprise.
+
+### 29.1 — What Claude Code Is ⭐ (L1)
+
+**Chat vs Claude Code:**
+
+| | Chat interface | Claude Code |
+|---|---|---|
+| Access | Stateless, no file/terminal access | Reads + writes files, runs bash, edits codebase |
+| Loop | Single exchange | Loops until task done or paused |
+| Auditability | Generated text | Every tool call logged + visible in terminal |
+
+**Agentic loop:**
+```
+Observe (read files, terminal, grep) →
+Plan (which files, which commands, what order) →
+Act (edit files, run bash, call tools — all real, on-machine) →
+Verify (surface result, wait approval / loop back to Observe on failure)
+```
+
+**Four surfaces — same model, same loop, different access:**
+
+| Surface | Access type | Key detail |
+|---|---|---|
+| **CLI** | Native OS-level | Full filesystem + terminal. Reference point for all config decisions |
+| **IDE Extensions** | Native (same as CLI) | VS Code + JetBrains — editor is a wrapper, not a lighter version |
+| **Agent SDK** | Host environment | CI/CD runners, multi-agent pipelines — scope = wherever it runs |
+| **Desktop / Web / Mobile** | Scoped | **Reaches filesystem/terminal only when explicitly invoked** — not directly from host OS |
+
+**True/false traps:**
+- Claude Code uses a different model tier than Claude.ai → **FALSE** (same model)
+- Can run bash commands + edit files → **TRUE**
+- IDE extension gives different capabilities than CLI → **FALSE** (same capabilities, editor is a wrapper)
+
+### 29.2 — Model Selection ⭐⭐ (L2)
+
+| Model | Cost | Context | Speed | Depth | Use for |
+|---|---|---|---|---|---|
+| **Haiku 4.5** | Lowest | 200k | Fastest | Lowest | Sub-agent pipelines · CI scripting · rapid prototyping · cost-sensitive |
+| **Sonnet 4.6** | Mid | 1M | Balanced | Balanced | **Production default** — most Claude Code work |
+| **Opus 4.8** | Highest | 1M | Slowest | Deepest | Long-horizon autonomous tasks · complex refactors · "get it right first time" |
+
+**Effort lever (try before switching models):**
+- Adjust reasoning depth within a tier — cheaper than upgrading
+- Opus 4.8: `xhigh` = recommended for coding and agentic work (deepest reasoning this tier offers)
+- Sonnet 4.6: goes up to `high`
+- Simple tasks (20-line utility tests) = same result at default as at extended thinking
+- Complex tasks (multi-file refactor, cross-module deps) = effort produces materially better output
+
+**Scenario answer:** 50 devs routine work + small group overnight autonomous refactoring → **C: Sonnet 4.6 default · Opus 4.8 for overnight runs**
+- Haiku for all = degrades quality on complex tasks
+- Opus for all = +65% cost on routine work for no gain
+- Tiered: cost-efficient daily + reasoning-depth for the runs that need it
+
+### 29.3 — Platform Options: 7 Paths, 3 Categories ⭐⭐ (L3)
+
+**Three categories:**
+
+| Category | Products | Choose when | What you lose |
+|---|---|---|---|
+| **Claude-managed** | Teams · Enterprise | Fastest path, no hard cloud requirement | — |
+| **Cloud-native** | Bedrock (AWS) · Vertex (GCP) · Azure Foundry | Existing cloud commitment or data residency requirement | Claude.ai web · managed settings · Compliance API |
+| **API / Console** | Anthropic API · Console | Single developer · prototype only. Never for governed rollout | All enterprise controls |
+
+**Decision framework (3 questions in order):**
+1. Must processing stay in a cloud region they control? → Yes → which cloud provider?
+2. Does security need SSO, audit logs, managed settings, Compliance API? → Yes → Enterprise tier
+3. Rollout scope? → Team/org vs single dev/prototype
+
+**Enterprise vs Teams:**
+
+| Feature | Teams | Enterprise |
+|---|---|---|
+| Basic SSO + admin tools | ✅ | ✅ |
+| Domain capture + SCIM | ❌ | ✅ |
+| RBAC + managed settings | ❌ | ✅ |
+| Compliance API | ❌ | ✅ |
+| Audit logs | ❌ | ✅ |
+
+**Seat types (usage-based current model):**
+
+| Seat | Claude Code? | Common trap |
+|---|---|---|
+| **Standard** | ❌ No | Most common default seat — "we have Claude" ≠ can run Claude Code |
+| **Chat + Code** | ✅ Minimum | Gap between what was demoed and what was purchased |
+| **Claude Enterprise** | ✅ Full | If security asks for audit logs/managed settings → they need this tier |
+
+Legacy plans: Standard (no CC) / Premium (CC included). Confirm which billing model the client is on before procurement.
+
+**Cloud-native trade-off:** Satisfies existing cloud commitment — **not** a security requirement. Governance gap vs Enterprise is real — always flag it. Add LLM Gateway (middleware for auth/logging/filtering/rate limiting) on top of Bedrock/Vertex/Foundry.
+
+**Scenario answer:** Financial services + AWS-committed + regional data processing requirement → **B: Bedrock + LLM Gateway**
+- Enterprise = SaaS, Anthropic's infrastructure, client has no regional control
+- Bedrock = processes in client-controlled AWS region + existing billing
+
+---
+
+## Block 30 — Course 3: Configuration & Customization (L1–L5)
+
+**One-liner:** Four config scopes (Managed > CLI flags > Local > Project > User), permissions merge not override, CLAUDE.md is context not enforcement, settings.json is team-shared, slash commands are reusable MD files, output styles change how Claude communicates.
+
+Cross-refs: Block 9 (CC config scopes) · Block 18 (managed-settings.json) · Block 20 (sandbox/permissions) · Block 14 (Skills authoring).
+
+### 30.1 — Configuration Scope Hierarchy ⭐⭐ (L1)
+
+**Priority order (top wins, Claude walks top→bottom):**
+
+| Priority | Scope | Location | Who controls | Override-able? |
+|---|---|---|---|---|
+| 1 | **Managed** | macOS: `/Library/Application Support/ClaudeCode/` · Linux: `/etc/claude-code/` | IT via MDM/Group Policy | ❌ Never — survives reinstall |
+| 2 | **CLI flags** | Session-level (`--allowedTools`, `--model`) | Developer at launch | Session only, not persisted |
+| 3 | **Local** | `.claude/settings.local.json` | Individual developer | Git-ignored automatically |
+| 4 | **Project** | `.claude/settings.json` | Team (committed to git) | By Local or above |
+| 5 | **User** | `~/.claude/settings.json` | Individual (personal defaults) | Lowest priority |
+
+**Permission merge exception ⭐:** Allow/deny rule lists **merge** across scopes, not override. Developer's local allow adds to project's list. A deny set at project/managed scope **cannot be removed** by local config.
+
+**Ownership heuristic:** Who controls it? Who should it affect? Can they override it? → The right scope picks itself.
+
+**Scenario:** Block curl across every machine, survives reinstall → **Managed scope** (IT pushes via MDM). Project scope only applies to one repo; user scope can be overridden; local scope is personal.
+
+### 30.2 — CLAUDE.md Hierarchy ⭐ (L2)
+
+**Five scopes — concatenate, not override (broadest → most specific):**
+
+| Scope | Location | Loaded when |
+|---|---|---|
+| Managed Policy | macOS: `/Library/Application Support/ClaudeCode/CLAUDE.md` | Always — cannot be excluded |
+| User | `~/.claude/CLAUDE.md` | Every session |
+| Project | `./CLAUDE.md` or `./.claude/CLAUDE.md` | Every session |
+| Local | `./CLAUDE.local.md` (add to .gitignore) | Every session, not committed |
+| Subdirectory | `./subdir/CLAUDE.md` | On demand when Claude reads files in that directory |
+
+**Key behaviours:**
+- `/init`: auto-bootstraps CLAUDE.md by analysing the codebase — refine from there
+- `claudeMdExcludes`: skip other teams' CLAUDE.md noise — works from any scope **except managed**
+- `@path/to/file` imports: linked file loads at session start alongside the CLAUDE.md that references it
+
+**Writing rules:**
+- Specific + verifiable ("Use 2-space indentation. Run `npm test` before committing") not vague ("Format code properly")
+- Under 200 lines — longer files reduce adherence
+- Pruning rule: if Claude does it right without the instruction, **delete it**
+
+**True/false traps:**
+- CLAUDE.md instructions are enforced (Claude must follow) → **FALSE** — context/memory, not constraint. Use hooks or managed settings for enforcement
+- Project CLAUDE.md = right place for sandbox URLs/test data → **FALSE** — use CLAUDE.local.md (gitignored)
+- `/init` overwrites existing CLAUDE.md → **FALSE** — analyses and drafts, doesn't overwrite
+- Developers can exclude managed CLAUDE.md with claudeMdExcludes → **FALSE** — managed policy cannot be excluded
+
+### 30.3 — settings.json vs settings.local.json ⭐ (L3)
+
+| File | Committed? | Use for | Never put here |
+|---|---|---|---|
+| `.claude/settings.json` | ✅ Git-committed | Permissions allow/deny · hooks · MCP servers · company announcements | Model preferences · credentials · defaultMode overrides |
+| `.claude/settings.local.json` | ❌ Git-ignored | Personal mode prefs · experimental config · machine-specific tool paths · claudeMdExcludes | Anything the team needs |
+
+**Permission evaluation order (deny first):**
+1. **Deny** — if any deny rule matches → blocked (regardless of allow rules)
+2. **Ask** — if ask rule matches → Claude prompts for confirmation
+3. **Allow** — if allow rule matches → proceeds without prompt
+4. **Default** → ask (unknown tool use requires human approval)
+
+**`$schema` line:** Add `"$schema": "https://json.schemastore.org/claude-code-settings.json"` to every project settings.json → enables autocomplete + inline validation in VS Code/Cursor.
+
+**Scenario:** Team allow/deny + personal experiments → **B: team rules in .claude/settings.json, personal experiments in .claude/settings.local.json**. Cross-machine block survives reinstall → **B: managed policy via IT** (project scope only covers one repo).
+
+### 30.4 — Custom Slash Commands ⭐ (L4)
+
+**Location and naming:**
+
+| Location | Scope | Auto-discovered? |
+|---|---|---|
+| `.claude/commands/` | Project — committed to git, team-shared | ✅ No restart needed |
+| `~/.claude/commands/` | User — available in all projects on this machine | ✅ No restart needed |
+
+- Filename = command name: `review-pr.md` → `/review-pr`
+- Namespaced: `security/audit.md` → `/security:audit`
+- `$ARGUMENTS` placeholder substituted with text after the command invocation
+
+**Command structure:**
+```markdown
+---
+description: Review a pull request against the security checklist
+allowed-tools: Read, Bash(git *)
+---
+
+## PR Review: $ARGUMENTS
+
+[Prompt body — specific enough to run without thinking, short enough to read in 30s]
+```
+
+**Design principle:** Write for the person who'll use it on the worst day of a sprint. Specific + scoped allowed-tools. Option B beats Option A (specific with $ARGUMENTS + tools + audience > short and flexible).
+
+**Scenario:** git log before every standup (whole team, daily) → **B: .claude/commands/ in repo, committed to git** (everyone gets it automatically; user scope = only on your machine; leaving it as manual prompt = misses the point of commands).
+
+### 30.5 — Output Styles ⭐ (L5)
+
+**CLAUDE.md vs Output Styles:**
+- CLAUDE.md = what Claude **knows** (project memory, conventions, build commands)
+- Output styles = how Claude **communicates** (tone, format, proactivity, explanation depth)
+- **Session start constraint:** output style set at session start only. Changing mid-session has no effect. Apply changes after `/clear` or in a new session.
+
+**Four built-in styles:**
+
+| Style | Behaviour | Best for |
+|---|---|---|
+| **Default** | Efficient, precise, no added commentary | Production teams past initial adoption |
+| **Explanatory** | Adds "Insights" sections explaining each decision | **Adoption phase** — engineers asking "why" |
+| **Proactive** | Executes immediately, makes assumptions, still shows prompts for consequential actions | Speed-focused workflows |
+| **Learning** | Reasoning + `TODO(human)` markers at decision points — developer completes critical pieces | Teams that want to stay in the loop on key decisions |
+
+Set via `/config` in session (saves to settings.local.json) or `"outputStyle": "Explanatory"` directly in any settings file.
+
+**Custom output styles:** `.claude/output-styles/` at project/user/managed level
+
+| Option | Behaviour | Use for |
+|---|---|---|
+| `keep-coding-instructions: true` | Adds communication format ON TOP of built-in engineering instructions | Engagement docs · security review findings · onboarding mode |
+| `keep-coding-instructions: false` (default) | Replaces built-in engineering persona entirely | Non-engineering use (writing assistant, data analyst, requirements formatter) |
+
+**Day 1 scenario (engineers keep asking why Claude made architecture choices):** → **A: Explanatory** (engineers asking why = adoption phase, they need explanations. Learning adds TODO markers which isn't the issue here. Default would leave the questions unanswered.)
+
+---
+
