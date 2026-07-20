@@ -11345,10 +11345,22 @@ function renderProgress() {
       const blob = new Blob([JSON.stringify(payload, null, 2)], {type: 'application/json'});
       const a = document.createElement('a');
       const ts = new Date().toISOString().slice(0,10) + '-' + new Date().toTimeString().slice(0,5).replace(':','');
+      const fname = `progress-${ts}.json`;
       a.href = URL.createObjectURL(blob);
-      a.download = `progress-${ts}.json`;
+      a.download = fname;
       a.click();
       URL.revokeObjectURL(a.href);
+      // Show sync command after download
+      const existing = document.getElementById('sync-hint');
+      if (existing) existing.remove();
+      const hint = document.createElement('div');
+      hint.id = 'sync-hint';
+      hint.style.cssText = 'margin-top:10px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:10px 14px;font-size:13px;';
+      hint.innerHTML = '<span style="color:var(--muted);font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;">Push to git</span><br>'
+        + '<code style="display:block;margin-top:6px;color:var(--accent);font-size:12px;word-break:break-all;">cd ~/claude-cert-prep && ./sync-progress.sh</code>'
+        + '<button onclick="navigator.clipboard.writeText(\'cd ~/claude-cert-prep && ./sync-progress.sh\').then(()=>{this.textContent=\'Copied!\';setTimeout(()=>this.textContent=\'Copy\',1500)})" '
+        + 'style="margin-top:8px;background:var(--accent);color:#0e1116;border:none;border-radius:4px;padding:4px 12px;font-size:12px;cursor:pointer;font-family:inherit;">Copy</button>';
+      exportBtn.parentNode.insertBefore(hint, exportBtn.nextSibling);
     });
   }
   if (importBtn && fileInput) {
