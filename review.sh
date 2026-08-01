@@ -15,11 +15,18 @@ REVIEW_OUT="$REPORTS/codex-review-${STAMP}.md"
 
 mkdir -p "$REPORTS"
 
-echo "→ Running Codex review (full branch diff vs main)..."
+# Review the commits not yet on the remote. `--base <branch>` is an empty diff
+# when you commit straight to main/master — the remote-tracking ref is the
+# correct base.
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+BASE="origin/$BRANCH"
+git rev-parse --verify --quiet "$BASE" >/dev/null || { echo "No $BASE — nothing to review."; exit 0; }
+
+echo "→ Running Codex review (commits not yet pushed)..."
 echo "  Output: $REVIEW_OUT"
 echo ""
 
-codex review --base main > "$REVIEW_OUT" 2>&1
+codex review --base "$BASE" > "$REVIEW_OUT" 2>&1
 
 echo "  ✓ Raw findings written."
 echo ""
