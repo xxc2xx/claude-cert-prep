@@ -16,6 +16,7 @@ import base64
 import json
 import os
 import sys
+import tempfile
 
 CERT = os.path.dirname(os.path.abspath(__file__))
 MD_FILES = ['cheatsheet.md', 'super_user_brief.md', 'field_manual.md', 'loops_manual.md', 'official_exam_guide.md']
@@ -85,8 +86,14 @@ window.fetch = function(input, init) {{
 html = html.replace('</head>', offline_block + '</head>')
 
 out_path = os.path.join(CERT, 'offline.html')
-with open(out_path, 'w') as f:
-    f.write(html)
+tmp_fd, tmp_path = tempfile.mkstemp(dir=CERT, suffix='.html.tmp')
+try:
+    with os.fdopen(tmp_fd, 'w') as f:
+        f.write(html)
+    os.replace(tmp_path, out_path)
+except Exception:
+    os.unlink(tmp_path)
+    raise
 
 print(f'offline.html: {os.path.getsize(out_path):,} bytes')
 print(f'  marked.js inlined: {len(marked_js):,} chars')
