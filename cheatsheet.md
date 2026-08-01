@@ -4,6 +4,128 @@ Started 2026-05-24. Built up live during prep sessions. Companion quiz at `quiz.
 
 ---
 
+## Block 0 — Exam-Day Quick Reference ⭐⭐⭐
+
+*From Partner Specialization assessment post-mortem. These are the exact distinctions the exam tests.*
+
+### Cluster 1: Permission, Policy, Enforcement
+
+```
+Deny → Ask → Allow  (evaluation order)
+Deny wins in conflicts — an ask rule cannot bypass a deny rule
+
+Permission model  = which actions Claude will take (allow/ask/deny)
+Sandbox           = what the process can technically reach
+Dev container     = stronger OS-level environmental boundary
+Context isolation = what information an agent sees  ← NOT the same as sandbox
+```
+
+### Cluster 2: MCP Governance, Distribution, Access
+
+| Need | Mechanism |
+|---|---|
+| Review a new MCP server | Standing MCP governance process (applies throughout activation, not just at kickoff) |
+| Approve specific servers | `allowedMcpServers` — allowlist only |
+| Prevent self-installed servers | `allowManagedMcpServersOnly` |
+| Distribute approved MCP configs to all | **Plugin** |
+| Give only to specific teams | Plugin + SCIM group + RBAC assignment |
+
+**Allowlist = what is permitted. Plugin + RBAC = what is delivered and to whom.**
+
+### Cluster 3: Enterprise Operational Architecture
+
+| Component | Purpose |
+|---|---|
+| Hooks | Intercept, log, or react to Claude Code events. **Cannot select model.** |
+| GitHub Actions Secrets | Secure CI credential storage → deliver via env var at runtime |
+| TLS inspection proxy | Intercepts encrypted corporate traffic → "self-signed cert" error |
+| OpenTelemetry | Usage and operational measurement |
+| Gateway session headers | Attach stable team/cost-centre identity to traffic at scale |
+| SIEM | Search, alert, and audit on telemetry |
+
+`.env` file = local configuration, NOT an enterprise CI secret store.
+
+### Cluster 4: Activation and Consulting Judgement
+
+| Situation | Correct response |
+|---|---|
+| Developer stuck 45 min | Assess task scope + skill fit first — don't immediately intervene or escalate |
+| Engagement close | Transfer reusable assets + sponsor readout + named champion. SLA is separate commercial arrangement. |
+| Baseline measurement | Establishes the "before" **denominator** for ROI calculation — not success criteria (those come before kickoff) |
+
+### Cluster 5: Configuration Asset Boundaries
+
+| Asset | What goes in it |
+|---|---|
+| Slash-command Markdown + YAML | Repeatable task instructions |
+| Project CLAUDE.md | Durable codebase context and conventions |
+| Org instructions | Enterprise policy and safety guardrails — NOT tone/bullets/word limits |
+| User settings | Personal preferences |
+| managed-settings.json | Enforceable technical controls (non-overridable) |
+
+### Cluster 6: Deployment-Path Capabilities
+
+```
+Claude for Enterprise direct → Anthropic contractual ZDR
+Bedrock / Vertex             → provider-specific data handling (not Anthropic ZDR)
+
+No Training ≠ no retention
+Custom Retention ≠ ZDR
+All three are separate controls
+```
+
+---
+
+### Compact Exam Cheat Sheet
+
+```
+PERMISSIONS:   Deny → Ask → Allow
+
+MCP:           Review process = governance throughout activation
+               allowedMcpServers = approved server allowlist
+               allowManagedMcpServersOnly = block self-installed
+               Plugin = package + distribute MCP configs
+               SCIM + RBAC = who receives access
+
+IDENTITY:      SSO = authenticate
+               forceLoginMethod = require approved login method
+               forceLoginOrgUUID = require correct org
+               JIT = create user at first login
+               SCIM = joiner/mover/leaver lifecycle
+
+ISOLATION:     Context isolation ≠ sandbox
+               Permissions = which actions allowed
+               Sandbox = what process can reach
+               Dev container = stronger environmental boundary
+
+AUTOMATION:    Hooks = block / notify / validate / log events
+               Hooks do NOT select the model
+
+SECRETS:       GitHub Actions Secret = secure storage
+               Env var = runtime delivery
+               .env file = local only, not CI secret store
+               Never in CLI args, YAML, or CLAUDE.md
+
+OBSERVABILITY: OTel = metrics and events
+               Resource attributes = business labels (per-team)
+               Gateway headers = centralized team/cost-centre attribution at scale
+               SIEM = query, alert, audit
+
+ENGAGEMENT:    Baseline = denominator for ROI (not success criteria)
+               Pilot cohort = determines data quality
+               Closeout = assets + sponsor readout + champion
+               SLA = separate commercial arrangement
+
+INSTRUCTIONS:  Org level = policy + guardrails (NOT tone/bullets/word limits)
+               Project CLAUDE.md = codebase context
+               User scope = personal preferences
+
+DATA CONTROLS: No Training ≠ Custom Retention ≠ ZDR (3 separate controls)
+               ZDR = Enterprise direct only
+```
+
+---
+
 ## Block 1 — Foundations
 
 ### Model family
@@ -3849,11 +3971,13 @@ Cross-refs: Block 9 (CC config scopes) · Block 18 (managed-settings.json) · Bl
 | `.claude/settings.json` | ✅ Git-committed | Permissions allow/deny · hooks · MCP servers · company announcements | Model preferences · credentials · defaultMode overrides |
 | `.claude/settings.local.json` | ❌ Git-ignored | Personal mode prefs · experimental config · machine-specific tool paths · claudeMdExcludes | Anything the team needs |
 
-**Permission evaluation order (deny first):**
-1. **Deny** — if any deny rule matches → blocked (regardless of allow rules)
+**Permission evaluation order — Deny → Ask → Allow ⭐**
+1. **Deny** — if any deny rule matches → blocked (no override possible)
 2. **Ask** — if ask rule matches → Claude prompts for confirmation
 3. **Allow** — if allow rule matches → proceeds without prompt
 4. **Default** → ask (unknown tool use requires human approval)
+
+"Block first, challenge second, permit last." An explicit prohibition wins before Claude considers prompting or automatically allowing. A `deny` rule must never be bypassed via an `ask` route.
 
 **`$schema` line:** Add `"$schema": "https://json.schemastore.org/claude-code-settings.json"` to every project settings.json → enables autocomplete + inline validation in VS Code/Cursor.
 
@@ -3973,7 +4097,15 @@ Cross-refs: Block 26 (OTel overview + scorecard metrics) · Block 27 (5-mechanis
    # Run session → check backend → confirm data arriving → remove override
 ```
 
-**Production OTLP config block (commit to managed-settings.json, not .env):**
+**Tab 1 — Dev / local (console only):**
+```
+CLAUDE_CODE_ENABLE_TELEMETRY=1
+OTEL_METRICS_EXPORTER=console
+OTEL_LOGS_EXPORTER=console
+# No endpoint needed — output goes to stdout; verify data shape before wiring to a backend
+```
+
+**Tab 2 — Production OTLP (deploy via managed-settings.json, NOT .env):**
 ```
 CLAUDE_CODE_ENABLE_TELEMETRY=1
 OTEL_METRICS_EXPORTER=otlp
@@ -3981,6 +4113,12 @@ OTEL_LOGS_EXPORTER=otlp
 OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 OTEL_EXPORTER_OTLP_ENDPOINT=http://collector.example.com:4317
 OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer your-token
+```
+
+**Tab 3 — Multi-team attribution (add to Tab 2, push different attribute blocks per team via MDM):**
+```
+OTEL_RESOURCE_ATTRIBUTES=department=engineering,cost_center=CC-4421
+# Push different values per team via MDM — no org restructuring, no backend transforms needed
 ```
 
 ### 31.4 — Cost Attribution Pattern
@@ -3993,14 +4131,747 @@ OTEL_RESOURCE_ATTRIBUTES=department=engineering,cost_center=CC-4421
 
 Push different attribute blocks per team via MDM → no org restructuring, no backend-side transforms needed.
 
-### 31.5 — Your scenario debrief (8/8) ✅
+### 31.5 — Your scenario debrief (6/8 first attempt ⚠️ — Decision 2 was the trap)
 
-| # | Decision | Call | Why |
+| # | Decision | Correct call | Your call | Why |
+|---|---|---|---|---|
+| 1 — Bash commands in Splunk | `OTEL_LOGS_EXPORTER=otlp` + `OTEL_LOG_TOOL_DETAILS=1` | ✅ +2 | ✅ | Logs exporter enables event stream; tool details adds command content — both required |
+| 2 — Department cost attribution | `OTEL_RESOURCE_ATTRIBUTES` via MDM | ❌ 0 | "Create separate Claude orgs per department" | **TRAP:** Separate orgs is an admin/billing restructure. The right tool is `OTEL_RESOURCE_ATTRIBUTES` pushed via MDM — tags every metric/event, no restructuring |
+| 3 — Org-wide non-overridable | managed-settings.json via MDM | ✅ +2 | ✅ | High precedence, developer cannot override, only scalable path at 500 devs |
+| 4 — Are conversations captured? | No — prompt capture requires explicit opt-in | ✅ +2 | ✅ | Privacy-preserving default; CISO needs this to brief legal/privacy teams |
+
+**Decision 2 memory anchor:** "Separate orgs" = nuclear option (billing split, admin overhead). "OTEL_RESOURCE_ATTRIBUTES" = lightweight MDM label → flows to cost.usage automatically. Cost attribution = labels, not org structure.
+
+---
+
+## Block 32 — Course 7 L5: Audit Logs ⭐⭐
+
+**One-liner:** Audit logs = what changed in the org. Not conversations, not tool calls. 180-day CSV, no setup, any Owner can pull it.
+
+Cross-refs: Block 27 (5-mechanism observability stack) · Block 31 (OTel Pipeline) · Block 33 (Compliance API, Lesson 7.3).
+
+### 32.1 — What Audit Logs Capture
+
+**33 event types across 4 categories:**
+- Sign-ins
+- Member additions and removals
+- Project and file events
+- Admin setting changes
+
+**What they do NOT contain:** conversation text · tool call detail · bash commands · prompt or response text · any execution-level data.
+
+| Property | Value |
+|---|---|
+| **Retention** | 180-day rolling window (older events auto-removed) |
+| **Who can access** | Owners and Primary Owners |
+| **How to access** | Organization settings › Data and Privacy → CSV export |
+| **Setup required?** | None — no API key, no engineering involvement |
+
+### 32.2 — Three Access Patterns
+
+| Pattern | When to use | Key constraint |
+|---|---|---|
+| **CSV export** (one-off) | Security review, legal governance question, ad-hoc who-changed-what | No date filter — exports full 180-day window; parse locally for targeted queries |
+| **Compliance API** (programmatic) | Long-retention needs (up to 6 years), specific user + date range filtering, regulatory audit | Requires Compliance API enabled + Primary Owner key |
+| **OTel / SIEM** (real-time) | Real-time alerts on permission mode changes; unified dashboard with execution events | Only captures from when pipeline was enabled — no backfill; use CSV/Compliance API for pre-pipeline history |
+
+**Access pattern decision rule:**
+- One-off governance question → CSV export
+- Long retention (>180 days) or programmatic user/date filter → Compliance API
+- Real-time alerting → OTel SIEM (`claude_code.permission_mode_changed` event)
+
+### 32.3 — Audit Logs vs OTel vs Compliance API (flip card content)
+
+| Surface | Answers | Retention | Access |
 |---|---|---|---|
-| 1 — Bash commands in Splunk | `OTEL_LOGS_EXPORTER=otlp` + `OTEL_LOG_TOOL_DETAILS=1` | ✅ +2 | Logs exporter enables event stream; tool details adds command content — both required |
-| 2 — Department cost attribution | `OTEL_RESOURCE_ATTRIBUTES` via MDM | ✅ +2 | Tags every metric/event with dept label; flows to cost.usage; no org restructuring |
-| 3 — Org-wide non-overridable | managed-settings.json via MDM | ✅ +2 | High precedence, developer cannot override, only scalable path at 500 devs |
-| 4 — Are conversations captured? | No — prompt capture requires opt-in not in current config | ✅ +2 | Privacy-preserving default; CISO needs this to brief legal/privacy teams |
+| **Audit logs** | Who joined/left/changed settings · sign-in history · project creation/deletion · admin config changes | 180 days | Any Owner, CSV, no setup |
+| **OTel stream** | Every tool call · bash command · MCP invocation · permission mode change · API request | Set by SIEM | Opt-in pipeline, real-time |
+| **Compliance API** | Conversation content · activity events with user/date filtering | Up to 6 years | Primary Owner key, programmatic |
+
+**Hard stops per surface:**
+- Audit logs stop at: tool calls, bash, conversation content, events >180 days
+- OTel stops at: org admin changes not in schema, events before pipeline started, conversation content
+- Compliance API stops at: execution-level metadata, real-time delivery
+
+### 32.4 — Your scenario debrief (2/6 first attempt ⚠️ — audit log default instinct)
+
+| # | Decision | Correct call | Your call | Why |
+|---|---|---|---|---|
+| 1 — Bash commands past week | OTel SIEM (`OTEL_LOG_TOOL_DETAILS=1`), filter by user + date | ❌ 0 | CSV audit log export | **TRAP:** Audit logs have zero bash/tool-call data. Execution → OTel. |
+| 2 — 18 months of conversations | Compliance API (user ID + date range filter) | ❌ 0 | CSV audit log export | **TRAP:** Audit logs max 180 days AND have no conversation content. Long retention + content = Compliance API only. |
+| 3 — Real-time permission mode alert | SIEM rule on `claude_code.permission_mode_changed` OTel event | ✅ +2 | ✅ OTel SIEM | Real-time execution event → OTel SIEM rule. Correct. |
+
+**Pattern of errors:** Both misses were "audit logs" for questions that needed execution data (OTel) or conversation content with long retention (Compliance API). Audit logs are governance-only.
+
+**Memory anchor — the 3-lane rule:**
+- "Who changed the API key last week?" → Audit logs
+- "What bash commands did this dev run?" → OTel
+- "What did this dev say to Claude for the past 18 months?" → Compliance API
+- Audit logs ≠ activity feed. Audit logs ≠ conversation log.
+
+---
+
+## Block 44 — Capstone L4: Troubleshooting Playbook and Activation Plan ⭐⭐
+
+**One-liner:** Weeks 3–4 surface quiet problems: context drift, permission creep, plateau developers, variable pipeline output. "Suggestions feel off" + nothing in metrics = CLAUDE.md hasn't kept up with the codebase.
+
+Cross-refs: Block 41 (setup) · Block 42 (adoption curve) · Block 43 (CI/CD) · Block 38 (champion handoff) · Block 39 (failure modes).
+
+### 44.1 — Four Late-Stage Failure Modes ⭐
+
+| Failure | Symptoms | Fix |
+|---|---|---|
+| **Context drift** | Suggestions feel "off" — not wrong, just not quite right for the current codebase. No metric flags it. | Review CLAUDE.md with champion. Update architecture + conventions sections to reflect codebase as it is now, not as it was on Day 3. |
+| **Permission creep** | Tool permissions widened over the pilot as devs needed broader access. Tight Day 3 scope has grown. Worst in CI pipeline. | Confirm `--allowedTools` scope still matches the actual workflow. Tighten back to minimum needed. |
+| **Adoption plateau** | Early adopters at Stage 3–4. A cohort segment still at Stage 1 (supervised only, low task completion, moderate acceptance rate). They haven't flagged it because they're not visibly stuck. | Surface from measurement stack **before Day 30 readout, not after**. Give structured task to move them forward. |
+| **Pipeline variability** | GitHub Actions mostly works but not always. Same prompt, variable output across runs. | Check context length and output format constraints. Usually a context/format issue, not a pipeline bug. Consistency > performance at this stage. |
+
+### 44.2 — Champion Readiness: Not Ready vs Ready ⭐
+
+| State | What it looks like | What to do |
+|---|---|---|
+| **Not ready** | Can use the tool on their own tasks. Defers to you for troubleshooting. Hasn't touched CLAUDE.md. Can't explain the measurement stack to their manager. | More time or structured ownership tasks before you leave. |
+| **Ready to hand off** | Has updated CLAUDE.md at least once **without prompting** · can answer basic troubleshooting questions · knows the four scorecard metrics and where to find them · knows the escalation path for anything beyond their scope | That's the bar. |
+
+### 44.3 — Champion Handoff Checklist
+
+- [ ] Champion updated CLAUDE.md at least once without prompting
+- [ ] Champion can answer basic troubleshooting questions from cohort
+- [ ] Champion knows what the four scorecard metrics mean and where to find them
+- [ ] Named escalation path exists for issues beyond champion's scope
+- [ ] CI pipeline documentation written and handed to **the team**, not just the champion
+- [ ] Day 30 readout reviewed with champion **before** the sponsor session
+
+### 44.4 — Decision: Week 4 scenario (correct: B)
+
+Developers say suggestions feel "off" — not technically wrong, just not quite right. CI pipeline clean. OTel metrics fine. Nothing broken.
+
+| Option | Call | Why |
+|---|---|---|
+| A: Model has changed | ❌ | Model changes don't produce this qualitative drift pattern. Wrong escalation path. |
+| **B: CLAUDE.md hasn't kept up** | **✅** | Qualitative misalignment + no metric flags = context drift. CLAUDE.md describes codebase as it was on Day 3; codebase has evolved. Fix: CLAUDE.md review + update with champion. |
+| C: Scope creep (out-of-scope tasks) | ❌ | Out-of-scope tasks produce errors or incomplete output, not "subtly off" suggestions. Different failure signature. |
+| D: Switch to verbose mode | ❌ | More explanation doesn't fix stale context. |
+
+**Diagnostic rule:** "Feels off but not broken" = context drift (stale CLAUDE.md). "Errors or incomplete output" = scope creep or task mismatch. Different symptoms, different fixes.
+
+### 44.5 — Technical Activation Plan (capstone artifact milestones)
+
+| Milestone | Key deliverables |
+|---|---|
+| **Days 1–3** | CLAUDE.md written + confirmed with real task · permissions scoped · measurement stack active (OTel + 4 scorecard metrics) · baseline captured |
+| **Day 8** | Test generation in bash mode · 4 metrics reviewed · looping developers identified + resolved (task scope or CLAUDE.md gap) before Day 14 |
+| **Day 14** | GitHub Actions live · API key in secrets · `ANTHROPIC_BASE_URL` explicit · `--allowedTools` scoped · first headless run confirmed · proxy routing verified |
+| **Weeks 3–4** | CLAUDE.md updated with champion · plateau devs given structured task · Day 30 readout drafted (headline metric + supporting data + renewal next step) |
+| **Day 30** | Readout to sponsor 48h in advance · champion ready (6-item checklist) · renewal conversation = decision, not follow-up |
+
+---
+
+## Block 43 — Capstone L3: CI/CD via GitHub Actions Integration ⭐⭐
+
+**One-liner:** `ANTHROPIC_BASE_URL` doesn't carry over from local config to CI — that's the one missing step that causes most enterprise CI failures. Local works + CI fails + key confirmed = proxy routing, not firewall.
+
+Cross-refs: Block 12 (headless/non-interactive mode) · Block 13 (deployment architecture) · Block 41 (Capstone L1 config scope).
+
+### 43.1 — Four-Step GitHub Actions Pipeline
+
+| Step | What to do | Key decision |
+|---|---|---|
+| **1. Add workflow file** | `.github/workflows/` YAML, triggers on PR or push. Claude Code runs as a step inside an existing job, not a special runner. | Keep it close to existing CI config — not a foreign object |
+| **2. Store API key** | GitHub Actions secrets → exposed as `ANTHROPIC_API_KEY`. | **Personal key vs service account key** — service account for shared CI (controlled rotation, won't break when a dev's access changes) |
+| **3. Set proxy env var** | `ANTHROPIC_BASE_URL` must be set explicitly in the workflow step. Does NOT carry over from local config or CLAUDE.md. | **This is the step most often missed.** Enterprise gateway URL goes here. |
+| **4. Invoke with flags** | `--print` (non-interactive, output to stdout) + `--allowedTools` (scope to exactly what the workflow needs) | Read + test runner + linter = usually sufficient. Broad permissions in non-interactive = harder to audit. |
+
+### 43.2 — Auth in CI: Four Decisions ⭐
+
+| Decision | Right call | Why |
+|---|---|---|
+| **API key type** | Dedicated service account key | Personal keys break when developer's access changes; service accounts have controlled rotation |
+| **Secret storage** | GitHub Actions secrets (or secrets manager if runner has access). Never hardcoded in YAML or committed to repo. | Keys in YAML = committed to version history |
+| **Proxy routing** | `ANTHROPIC_BASE_URL` set explicitly as Actions secret, referenced in workflow step | Local env picks it up automatically; CI runner has no equivalent — must be explicit |
+| **Tool permissions** | `--allowedTools` scoped to minimum needed | Broad permissions in non-interactive context = hard to audit, hard to explain to security team |
+
+### 43.3 — The Proxy Failure Pattern ⭐⭐
+
+**Symptoms:** GitHub Action fails with connection timeout or 403. Developer's local session works fine. API key confirmed correct.
+
+**Root cause:** `ANTHROPIC_BASE_URL` never set in the workflow. CI runner makes a direct call to Anthropic's API → enterprise network policy blocks it.
+
+**Why it looks like a network issue:** At the router level, it IS a network issue — the runner is being blocked. But the fix is a missing env variable, not a firewall exception.
+
+**Fix:** Add `ANTHROPIC_BASE_URL` as an Actions secret. Value = the enterprise gateway URL (find it in CLAUDE.md or deployment architecture docs). If still fails after URL is correct → then investigate network policy.
+
+**Diagnostic order:** Fix workflow step first → confirm gateway URL → if still fails, then ask IT about runner outbound policy.
+
+### 43.4 — Decision: Day 14 scenario (correct: B)
+
+| Option | Call | Why |
+|---|---|---|
+| A: Rotate API key | ❌ | Key is confirmed correct. Rotation doesn't address root cause. |
+| **B: Check ANTHROPIC_BASE_URL in workflow** | **✅** | Local works, CI fails, key confirmed = asymmetry points to env config not carried to runner. ANTHROPIC_BASE_URL is the most common culprit. |
+| C: Switch to verbose mode | ❌ | Gets more info, but you already have enough to diagnose. Fix first, debug-log if fix doesn't work. |
+| D: Check runner's outbound network policy | ❌ | At the router level it looks like a network issue, but root cause is missing env var. Fix the workflow step first; only escalate to IT if the gateway URL is confirmed and it still fails. |
+
+---
+
+## Block 42 — Capstone L2: Test Generation and Debugging Exercise ⭐⭐
+
+**One-liner:** Bash mode = shell pipeline mental model (source in → tests out). Four Day 8 metrics tell a story together. Intervention call turns on one distinction: iterating (each attempt explores something different) vs looping (same attempt, same failure, no variation).
+
+Cross-refs: Block 37 (adoption curve) · Block 33 (cost.usage) · Block 41 (Capstone L1 setup).
+
+### 42.1 — Bash Mode vs IDE Mode
+
+| Aspect | IDE mode | Bash mode |
+|---|---|---|
+| Interaction model | Conversational back-and-forth | Claude as a component in a shell pipeline |
+| Test generation pattern | Edit in context | Pipe source file in → tests come out |
+| CI relevance | High for workflow | **Direct bridge to headless CI automation** — once you see it work interactively, the jump to a headless pipeline feels smaller |
+
+**When to demonstrate bash mode:** Test generation is one of the cleaner ways to show it — the pipeline metaphor clicks when developers see it running, not described.
+
+### 42.2 — Four Day 8 Scorecard Metrics ⭐
+
+| Metric | Target | Warning signal | Next action |
+|---|---|---|---|
+| **Adoption (DAU)** | 60% of cohort by Week 3 | <40% at Day 8 | Check friction source: tool, workflow, or slow starts |
+| **Engagement depth (sessions/user)** | 2–3/day | <1.5/day | Developers opening but not integrating; pair with `active_time.total` from OTel |
+| **Week 2 retention** | ≥80% | <80% | Drop-off predicts churn at expansion; novelty wore off, not a product failure |
+| **Cost/developer** | Track weekly | Spike without matching productivity gain | Investigate before sponsor asks; set up tracking proactively |
+
+### 42.3 — Iterating vs Looping ⭐ (intervention decision key)
+
+| State | What it looks like | Right call |
+|---|---|---|
+| **Still iterating** | Each attempt explores a different part of the problem. Output isn't right yet but direction is changing. | **Wait.** Stepping in interrupts learning that's actually happening. |
+| **Looping** | Same prompt structure, same failure mode, no meaningful variation in approach. | **Step in — assess scope, then decide.** |
+
+**Intervention decision:** Looping trigger = same structural failure across 3 attempts with no variation. Step in means **assess first, not fix**:
+- Is the task outside what Claude Code handles well at this stage?
+- Is CLAUDE.md missing context that would help Claude understand the codebase?
+- Then decide on the intervention.
+
+**OTel data won't help here** — session metrics don't tell you what's happening in this specific session. That takes a conversation.
+
+### 42.4 — Decision: Day 8 scenario (correct: B)
+
+Developer stuck 45 min in bash mode. Tests syntactically valid but targeting wrong behavior. 3 requests with same failure, structure changes but underlying problem doesn't.
+
+| Option | Call | Why |
+|---|---|---|
+| A: Let them keep going | ❌ | 3 attempts, same failure = looping not iterating. 45 min is enough signal. |
+| **B: Step in and assess scope** | **✅** | Looping detected. Assess first: task scope? CLAUDE.md gaps? Then intervene. |
+| C: Pull OTel data first | ❌ | OTel shows session metrics, not what's happening in this specific session |
+| D: Ask champion to handle it | ❌ | Champion role is Day 30+ ownership, not Day 8 active developer coaching |
+
+---
+
+## Block 41 — Capstone L1: Multi-File Refactor Exercise ⭐⭐
+
+**One-liner:** Get the scaffold right before the first command. Config scope hierarchy, CLAUDE.md specificity, deny-first permissions, parallel orchestration only for isolated/stable modules — don't parallelize when you can't trust the baseline.
+
+Cross-refs: Block 16 (parallel orchestration / subagents) · Block 35 (pilot design) · Block 40 (activation arc).
+
+### 41.1 — Four Pre-Execution Setup Steps
+
+| Step | What to do | Key rule |
+|---|---|---|
+| **1. Confirm config scope** | Check managed-settings.json isn't silently overriding project-level config. For pilots: project scope does the work, individual devs can still adjust theirs. | Managed settings = top of hierarchy, can't be overridden by anything below |
+| **2. Write project CLAUDE.md** | Architecture constraints · testing framework · code conventions · off-limits paths | **Specific beats general.** "Don't modify /billing/legacy/" ✅ vs "be careful with legacy code" ❌ |
+| **3. Set permissions model** | Deny → Ask → Allow. Day 3: put file writes in **ask mode** — builds team confidence in what's happening. Lock down out-of-scope directories. Deny wins; an ask rule cannot bypass a deny rule. | Ask mode at Day 3 is not distrust — it's habit-forming for the team |
+| **4. Choose output style** | Default = efficient, precise, no commentary (good for Day 3 iteration). Explanatory = adds insights section per output explaining implementation choices (good for group review). | Set explicitly — right style for the session makes a noticeable difference |
+
+### 41.2 — Four CLAUDE.md Fields for Client Projects
+
+| Field | What to include | Bad version | Good version |
+|---|---|---|---|
+| **Architecture constraints** | What Claude shouldn't change: import patterns, file structure, folder ownership, team-owned modules | "Be careful with architecture" | "Don't modify files in /billing/legacy/ or change import structure in /auth/" |
+| **Testing framework** | How tests are written, how to run them, what passing looks like. Name known flaky tests. | "Tests are in Jest" | "Run `npm test`. Tests in /tests/. Legacy billing tests are flaky — don't chase pre-existing failures in /tests/billing/" |
+| **Code conventions** | Naming patterns, formatting, linting rules. Specific > generic. | "Follow standard conventions" | "camelCase for variables, PascalCase for components, ESLint config at root" |
+| **Off-limits paths** | Explicit directories/files, with reason where possible | "Don't touch sensitive stuff" | "Don't touch /billing/legacy/ — unstable test suite, scoped separately" |
+
+### 41.3 — Parallel Orchestration Decision Rule ⭐
+
+**Pattern:** Orchestrator spawns subagents → each works one isolated module → results feed back up. Orchestrator coordinates, does NOT refactor.
+
+**Key property:** Context isolation — each subagent sees only its module. Failure in one module doesn't cascade. But this only works when **the baseline is reliable.**
+
+**Decision framework for Day 3 billing/auth/API scenario:**
+
+| Option | Call | Reason |
+|---|---|---|
+| A: All three in parallel | ❌ | Can't trust billing baseline — can't tell if subagent broke something or tests were already broken |
+| **B: Auth + API parallel, hold billing** | **✅** | Stable modules get parallelization. Billing gets sequential pass after team reviews the test suite. |
+| C: All sequential | ❌ | Leaves time on table; parallel is the right tool for independent stable modules |
+| D: Start with billing | ❌ | Fixing billing tests before the refactor is a bigger commitment than Day 3 can absorb |
+
+**Rule:** Don't parallelize when you can't trust the baseline. Context isolation means each subagent fails independently — which sounds ideal until you can't distinguish a new failure from a pre-existing one.
+
+---
+
+## Block 40 — Course 8 L7: 30-Day Claude Code Activation Arc ⭐⭐
+
+**One-liner:** Five phases with hard exit conditions. Two touchpoints scheduled before Day 1. Three-part 30-min showcase with sponsor in the room. Office hours is the handoff mechanism — not a conversation, champion co-facilitates from session 2, runs session 3.
+
+Cross-refs: Block 39 (failure modes) · Block 38 (champion) · Block 35 (pilot design).
+
+### 40.1 — Five Phases + Exit Conditions ⭐
+
+| Phase | Duration | Job | Exit condition |
+|---|---|---|---|
+| **Pre-kickoff discovery** | Before Day 1 | Use case qualification · cohort selection + availability · baseline data from VCS · draft CLAUDE.md | Baseline captured · CLAUDE.md drafted · cohort confirmed · kickoff date set |
+| **Week 1: Onboarding sprint** | Days 1–7 | Full cohort installs Claude Code, connects to approved deployment config, runs first tasks in supervised mode · first office hours Day 3–4 | Full cohort active, zero installation blockers outstanding |
+| **Weeks 2–3: Active pilot** | Days 8–21 | Weekly CoE touchpoints Day 8 + Day 15 · usage data review · coaching for stalled devs · champion candidate identified in Week 3 | ≥50% of cohort past supervised mode · champion candidate identified |
+| **Week 4: Ramp + showcase prep** | Days 22–29 | Compile metrics vs success criteria · draft readout + CIO narrative · champion conversation · CLAUDE.md review + command catalogue build · escalation path documented · readout to sponsor 48h before showcase | Readout sent · champion briefed · four artifacts complete |
+| **Day 30: Showcase + readout** | Day 30 | Live demo · metrics readout · renewal conversation. **Sponsor must be in the room** — if unavailable, reschedule. | — |
+
+### 40.2 — Two Recurring Touchpoints (both calendared before Day 1) ⭐
+
+| Touchpoint | Format | Cadence | Agenda | Exit output |
+|---|---|---|---|---|
+| **CoE touchpoint** | 30 min, consultant-led | Day 8 + Day 15 | Review previous week's usage data · identify supervised-mode-stalled devs · agree on one concrete coaching action per stalled dev · check CLAUDE.md for updates | Specific intervention OR green light to proceed |
+| **Office hours** | 60 min, open attendance | Weekly | Developer Q&A, real tasks + real friction + real code. No fixed agenda. | Consultant-led (session 1) → champion co-facilitates (session 2) → **champion runs it, consultant observes (session 3)** |
+
+**Scheduling rule:** Calendar links + video links created before the kickoff meeting. Post-kickoff scheduling = friction + signals the structure isn't fixed. Treat as immovable until Day 30.
+
+**Office hours = the handoff mechanism.** Not a conversation about handing over office hours — the champion does it while still supported.
+
+### 40.3 — Day 30 Showcase Structure ⭐
+
+Three parts. Thirty minutes. Sponsor in the room (no sponsor = reschedule).
+
+| Part | Duration | Content | Key rules |
+|---|---|---|---|
+| **Live demo** | 10 min | 2–3 cohort developers on real tasks from the pilot. Real code, real friction, real workflow — not a script, not a recording. | Pick Stage 3–4 developers. Stage 1 devs demo supervised mode = undersells capability. |
+| **Metrics readout** | 10 min | Lead with headline number first: "PR cycle time dropped 36% for the migration cohort over 30 days." Then supporting data vs agreed success criteria. | If criteria weren't met, name them and explain WHY before the sponsor asks. |
+| **Renewal conversation** | 10 min | Phase 2 scope · champion introduction + role · 90-day health check · specific next step | Sponsor leaves the room with **a decision to make, not a follow-up to schedule**. |
+
+### 40.4 — Key Numbers to Memorize
+
+| Item | Value |
+|---|---|
+| Readout sent to sponsor | 48 hours before showcase (not during the meeting) |
+| CoE touchpoints | Day 8 and Day 15 |
+| Champion identified by | Day 15 (Week 2–3 exit condition: Week 3) |
+| Supervised mode exit | ≥50% of cohort by end of Week 3 |
+| Showcase attendance requirement | Sponsor must be present — reschedule if not |
+| Custom command minimum | 3–5 documented commands at handoff |
+| Office hours progression | Session 1: consultant · Session 2: co-facilitate · Session 3: champion runs |
+
+---
+
+## Block 39 — Course 8 L6: Preempting Common Failure Modes ⭐⭐
+
+**One-liner:** Six failure modes, all process gaps, all preemptable before Day 1. Four artifacts at Day 30 = deployment survives without you. No baseline + no champion + no commands = three HIGH risk flags.
+
+Cross-refs: Block 38 (champion) · Block 36 (baseline capture) · Block 34 (qualification).
+
+### 39.1 — Six Failure Modes ⭐⭐
+
+| # | Failure | What it looks like | Preemption |
+|---|---|---|---|
+| **1** | No baseline captured | ROI case falls apart at Day 30 readout — no before state, no defensible number, renewal can't land | **Baseline sprint in the week before kickoff** — non-negotiable |
+| **2** | Champion not identified | Adoption drops 30–60 days post-engagement. No one owns CLAUDE.md. New devs not onboarded. Deployment decays to zero within a quarter. | **Name the champion by Day 15**, begin handoff prep in Phase 2 |
+| **3** | Use case too marginal | Metrics flat at Day 30 despite high usage. Sponsor expected transformational, saw incremental. Executive support evaporates. | Run structural vs. marginal qualification from L1 **before** scoping pilot |
+| **4** | Supervised mode stagnation | Usage plateau after Week 1. Developers say tool is "slow" or "not useful." PR cycle time unchanged. No productivity story. | Weekly CoE touchpoint with usage review; workflow-fit coaching for stalled devs in Phase 2 |
+| **5** | CLAUDE.md not maintained | Claude reverts to generic behavior as codebase evolves past initial CLAUDE.md. Team trust erodes. Adoption regresses. | Weekly CLAUDE.md review as **named champion responsibility** — in champion plan artifact |
+| **6** | Readout not tied to business outcome | Day 30 presents usage metrics + dev testimonials but no business-level translation. CIO disengaged. Conversation moves to cost, not value. Renewal stalls in procurement. | Align CIO narrative with sponsor in **Week 1** using L3 framework |
+
+### 39.2 — Four Clean-Handoff Artifacts ⭐
+
+All four must be present at Day 30. Missing any one puts 90-day deployment health at risk.
+
+| Artifact | What it covers | Failure modes it prevents |
+|---|---|---|
+| **Delivery Plan Pack (complete)** | Qualification + pilot design + ROI scorecard + champion plan. Anchors renewal conversation and Phase 2 scoping. | F6 (no business narrative) |
+| **CLAUDE.md + custom command catalogue** | Enterprise CLAUDE.md + ≥1 repo-specific CLAUDE.md + 3–5 documented commands (frontmatter + params + examples) | F5 (CLAUDE.md decay) |
+| **Day 30 readout with metrics vs success criteria** | Headline number + supporting data + CIO narrative. In client's hands **48 hours before** the showcase meeting, not distributed during it. | F1 (no baseline), F6 (no business outcome) |
+| **Named champion + documented escalation path** | Person + role description + consultant escalation line + **30-day post-engagement check-in date** set before you leave | F2 (no champion) |
+
+### 39.3 — HIGH vs LOW Risk Signals (scenario pattern)
+
+**HIGH risk (deployment at risk):**
+- No baseline captured — readout has no before state
+- No champion identified by Day 28 — post-engagement decay is certain
+- No custom commands — empty command catalogue = handoff incomplete (Failure 5)
+
+**LOW risk (concerning but manageable):**
+- 4/12 developers still in supervised mode at Day 28 — not ideal; flag for post-engagement check-in, but doesn't block renewal
+- PR cycle time +20% — positive signal
+- 3 high-session-count developers — positive signal
+
+**Memory anchor for HIGH vs LOW:** The three HIGH flags map directly to the three pre-Day-1 non-negotiables: **baseline + champion + commands**. If any of those three are missing at Day 28, the deployment is at risk.
+
+---
+
+## Block 38 — Course 8 L5: Champion Enablement and Internal Documentation ⭐
+
+**One-liner:** Champion = influence + intrinsic motivation, not just tech skill. CLAUDE.md is a living artifact, not a deliverable. Custom commands at handoff are required infrastructure. 3-artifact handoff is non-negotiable.
+
+Cross-refs: Block 37 (adoption curve) · Block 39 (failure modes).
+
+### 38.1 — Champion Role Definition
+
+| Dimension | What it means |
+|---|---|
+| **What they do** | Maintain + evolve CLAUDE.md · run weekly office hours or standing channel · onboard new devs · escalate blockers to consultant |
+| **What they don't do** | Be the team's help desk / sole knowledge holder — fragile deployment if knowledge doesn't distribute |
+| **What they need** | Populated CLAUDE.md · custom command catalogue (3–5 commands) · clear escalation path to consultant. Handoff conversation happens **before Day 30**, not on it. |
+| **Best candidate profile** | Senior enough to influence team norms · technical enough to write CLAUDE.md and evaluate commands · **intrinsically motivated, not assigned** |
+
+**Best candidates identify themselves during Phase 2** by engaging deeply without being asked.
+
+### 38.2 — CLAUDE.md as Living Artifact ⭐
+
+CLAUDE.md is not documentation. It is **institutional memory Claude reads every session.**
+- Generic CLAUDE.md → generic Claude behavior
+- Well-maintained CLAUDE.md → encodes conventions, patterns, preferred tools, domain context; every developer benefits from every update
+- Unlike a Confluence guide, it is **active** — shapes Claude's behavior in real time
+- Champion's job: treat it as a living artifact, not a one-time deliverable
+
+**Handoff principle:** "The quality of a deployment 90 days after you leave is determined by the quality of the CLAUDE.md you hand over."
+
+### 38.3 — Three Mandatory Handoff Artifacts ⭐
+
+1. **Enterprise-level CLAUDE.md** — company conventions
+2. **Repo-specific CLAUDE.md** — for the project the pilot cohort worked on
+3. **Custom command catalogue** — minimum 3–5 commands, with frontmatter + parameter descriptions + example invocations
+
+If pilot team hasn't built these → that is the work of Phase 3 and the handoff session, not something to skip.
+
+### 38.4 — Three True/False Anchors (all False)
+
+| Statement | Answer | Why |
+|---|---|---|
+| "Champion = most technically advanced developer" | **False** | Tech fluency matters, but **influence + intrinsic motivation > tech skill**. Most technical dev may have unusual workflows that don't generalize. Champion shapes team norms. |
+| "CLAUDE.md should be finalized and stable before engagement ends" | **False** | Living document. "Finalized" = wrong framing. Handoff CLAUDE.md should be **good enough to produce immediate improvement** + have a named owner to evolve it. |
+| "Custom commands optional for small teams" | **False** | Encode best practices in reusable form that survives personnel changes. Small teams that skip commands in first 30 days typically never build them. **Non-negotiable at handoff.** |
+
+---
+
+## Block 37 — Course 8 L4: Phased Rollout and Change Management ⭐⭐
+
+**One-liner:** Adoption follows a predictable 3-phase curve. Week 1 dip = calibration (don't intervene). Plateau after Week 2 = delegation ceiling (intervene with Code 201). Day 16 is NOT too early — it's exactly when plateau becomes visible.
+
+Cross-refs: Block 35 (pilot design) · Block 38 (champion enablement).
+
+### 37.1 — Three-Phase Adoption Curve
+
+| Phase | Duration | What's happening | Intervention |
+|---|---|---|---|
+| **Supervised use** | Week 1 | Manual approval for every action. Slower velocity than without Claude. Calibrating prompting style. | Don't intervene on velocity. Expectation-set only. |
+| **Increasing autonomy** | Weeks 2–3 | More advance approvals. Larger task chunks. Plan mode usage increases. Some auto-accept on low-risk tasks. CLAUDE.md quality starts to matter. | Watch for plateau. Code 201 if pattern stalls. |
+| **Agentic mode** | Weeks 3–4 | Defined task classes handed off with minimal supervision. PR cycle time improvement becomes visible. | Auto-accept mode, hook config, agentic task structuring. |
+| **Institutionalized** | Day 30+ | Usage is routine. Informal norms about delegation, supervision, briefing. This is target state — can't be forced earlier. | Document patterns. Update CLAUDE.md. |
+
+### 37.2 — Two AI-Specific Adoption Dynamics ⭐
+
+**1. The Week 1 dip**
+- Velocity slows before it accelerates
+- Developers are learning a new interaction model (prompting loop, supervision decisions, delegation judgment)
+- Output looks inconsistent, usage looks low
+- **NOT a signal to intervene with training.** It's calibration happening.
+
+**2. The Plateau effect**
+- After Week 1, developers find comfortable usage patterns and stop experimenting
+- 45 min/day with flat PR cycle time = tool is in workflow but delegation ceiling hasn't been raised
+- Usage looks like adoption but ceiling is much lower than it should be
+- **Needs champion intervention or structured Code 201 session to break**
+- Rule: "A developer who has stopped experimenting is not a success story. Plateau ≠ adoption."
+
+### 37.3 — Intervention Test ⭐
+
+**The question:** Is the developer stuck on a Claude Code problem or a workflow design problem?
+
+| Problem type | Signal | Correct intervention |
+|---|---|---|
+| **Technical** | Hallucinated output, prompt failures, context issues | Help now — CLAUDE.md setup, prompting calibration |
+| **Workflow design** | Same tasks as before, Claude = faster autocomplete | Rethink delegation pattern, not prompting technique |
+
+**Week-by-week intervention map:**
+- **Week 1:** Technical calibration, CLAUDE.md setup, first commit. Don't push velocity.
+- **Week 2:** Delegation pattern review, plan mode encouragement, Code 201 session. Watch for plateau.
+- **Week 3:** Auto-accept for defined task classes, hook config, agentic task structuring. Track whose usage is still climbing vs. plateaued.
+- **Week 4:** Document what worked, what broke, what CLAUDE.md should say that it doesn't.
+
+### 37.4 — Champion Activation
+
+Peer demonstration > feature in report > individual mentoring.
+- **Peer demo:** 30-min session showing CLAUDE.md setup, delegation patterns, 2 before/after PR examples. Concrete, credible, replicable.
+- **CTO report:** stakeholder management — use alongside demo, not instead of it.
+- **Individual mentoring:** scales poorly; one group demo > ten 1:1s.
+
+### 37.5 — Your scenario debrief (5/6 — Decision 1 was the trap)
+
+| # | Decision | Correct call | Your call | Why |
+|---|---|---|---|---|
+| 1 — Reading Day 16 data | Plateau signature — needs Code 201 | ❌ +1 | "Too early to draw conclusions" | **TRAP:** Day 16 is NOT too early. 2 weeks of consistent data = plateau is visible. Waiting to Day 25 leaves 5 days to change a 30-day trajectory. Flat PR cycle time + consistent usage + unchanged prompting pattern = plateau, not "still calibrating." |
+| 2 — Intervention choice | Code 201: plan mode + auto-accept for low-risk tasks | ✅ +2 | ✅ | Directly addresses delegation ceiling |
+| 3 — Champion activation | Priya 30-min peer demo (CLAUDE.md + patterns + before/after) | ✅ +2 | ✅ | Highest-leverage adoption lever; replicable method, not just a success story |
+
+**Memory anchor:** Day 16 data pattern = flat PR cycle time + real usage (45 min/day) + unchanged prompting = **plateau**. Resist "too early." The intervention window is exactly now.
+
+---
+
+## Block 36 — Course 8 L3: Baseline Capture and ROI Measurement ⭐⭐
+
+**One-liner:** Baseline before Day 1 = objective data. Baseline reconstructed after = contested negotiation. One headline metric + one scoped business translation = defensible Day 30 story.
+
+Cross-refs: Block 35 (pilot design) · Block 34 (qualification).
+
+### 36.1 — Baseline Capture Rule
+
+**Common failure mode:** Start the pilot, then try to reconstruct a baseline from memory/estimates. That reconstruction is always contested — sponsors remember the past as better or worse depending on whether they want the pilot to succeed.
+
+**Rule:** A baseline captured after the pilot starts is already contaminated. Data collection is pre-work, not post-work.
+
+**Minimum baseline set (2–3 data points):**
+1. PR cycle time (ticket-to-merge) for the target use case — objective, auditable
+2. Self-reported hours on the specific task category — objective
+3. Developer NPS / satisfaction score — directional, supporting only
+
+### 36.2 — Four Metric Categories
+
+| Category | What to track | Collection source |
+|---|---|---|
+| **Developer Productivity** | New feature dev time · prototyping velocity · suggested code acceptance rate | PR analytics · JIRA · sprint data |
+| **Code Quality** | First-pass review success rate · security fix velocity · code coverage changes | PR review data · static analysis tools |
+| **Usage and Adoption** | DAU/WAU · % using after 30 days · hours in tool | Claude usage analytics |
+| **Sentiment and Culture** | Developer NPS · qualitative feedback · other-team interest | 3–5 question survey |
+
+### 36.3 — Day 30 Readout Structure ⭐
+
+**Principle:** One headline number, one business implication — give the sponsor a number they can repeat in their next leadership meeting.
+
+| Step | What to do | Weak version | Strong version |
+|---|---|---|---|
+| **1. Lock headline metric** | One metric most directly tied to the use case | "Developer productivity improved" | "PR cycle time: 8.2 → 5.4 days (34%)" |
+| **2. Business translation** | Convert metric to roadmap language | "Developers are 34% more productive" ❌ | "Team ships features in 5.4 days that previously took 8.2 — roughly 35% roadmap acceleration for this use case" ✅ |
+| **3. Day 30 Scorecard** | One-pager with all elements | Bullet list of metrics | Use case story + headline + supporting metrics + champion anecdote + Day 60 goal |
+
+**Business translation rule:** Scope the claim to the metric. "PR cycle time dropped 34%" → "roadmap velocity for this use case." NOT "overall developer productivity." Overstating = credibility risk if other metrics are flat.
+
+### 36.4 — Expansion Decision Framework
+
+| Option | When to choose | Risk |
+|---|---|---|
+| **Expand same use case + one new use case with its own baseline** | Strong pilot data, CTO asks for next step | None — this is the controlled expansion |
+| **Roll out to all developers** | — | Broad but thin data; loses clean measurement structure |
+| **Run another 30-day pilot with same cohort** | — | Delay risks losing sponsor momentum; existing data is sufficient |
+
+### 36.5 — Your scenario debrief (5/6 — Decision 2 cost you a point)
+
+| # | Decision | Correct call | Your call | Why |
+|---|---|---|---|---|
+| 1 — Headline metric | PR cycle time: 34%, 8.2→5.4 days | ✅ +2 | ✅ | Objective, auditable, tied to use case |
+| 2 — Business translation | "Ships features in 5.4 days that took 8.2 — ~35% roadmap acceleration for this use case" | ❌ +1 | "Developers are 34% more productive" | **TRAP:** PR cycle time = one productivity signal. "34% more productive" generalizes to overall productivity — a skeptical CIO will immediately ask "but what about code quality, support time, etc." Scope the claim to the metric. |
+| 3 — Expansion recommendation | Expand same use case (20 devs) + new use case with own baseline | ✅ +2 | ✅ | Controlled expansion; original story accumulates evidence; Phase 2 starts clean |
+
+**Memory anchor for business translation:** "PR cycle time improved X% → roadmap velocity for *this use case* improved X%." Never generalize one metric to overall productivity. Precision protects credibility.
+
+---
+
+## Block 35 — Course 8 L2: Pilot Design ⭐⭐
+
+**One-liner:** Cohort = use case owners (not enthusiasts). Success criterion = baseline + threshold + measurement method + target date, locked before Day 1. Scope creep mid-pilot = diluted ROI story.
+
+Cross-refs: Block 34 (qualification) · Block 36 (baseline capture + ROI measurement).
+
+### 35.1 — Cohort Selection Rule
+
+| Wrong cohort | Right cohort |
+|---|---|
+| Willing participants / early adopters | Use case owners |
+| High usage metrics, positive sentiment, not representative | Active tickets, familiar patterns, attributable before/after data |
+| Fails CIO scrutiny — doesn't extrapolate to broader team | Metric story writes itself at Day 30 |
+
+**Rule:** Cohort selection is a design decision, not an availability decision.
+
+### 35.2 — Four Scoping Decisions (Before Day 1)
+
+1. **Use case precision:** Not "code modernization" — "Java-to-Spring Boot migration of the auth service module." Specific scope = clean ROI attribution.
+2. **Cohort by ownership:** Developers actively working on the scoped use case, not those with calendar space.
+3. **Duration by task cycle:** Long enough for ≥2 complete task cycles (ticket-to-merge) per developer. Migration work: 25–30 days is enough.
+4. **Lock scope before Day 1:** New use cases that emerge → log for Phase 2. Protect original scope.
+
+### 35.3 — Four Success Criteria Components ⭐
+
+| Component | What it means | Weak version | Strong version |
+|---|---|---|---|
+| **Baseline metric** | Metric to move, measured before Day 1 | "PR cycle time" (tracked generally) | PR cycle time captured for this cohort on this backlog before kickoff |
+| **Target threshold** | Specific number that constitutes a win | "PR cycle time improved" | "25% reduction in PR cycle time" |
+| **Measurement method** | How data is captured | Self-reporting | Existing tooling (git, JIRA, PR analytics) — auditable |
+| **Target date** | Named date for assessment | "Around Day 30" | "2026-09-15 — readout date locked in kickoff" |
+
+**Design rule:** A success criterion you can't measure before Day 1 is a hypothesis, not a commitment. **Set the baseline before the kickoff meeting.**
+
+### 35.4 — Scope Protection
+
+Mid-pilot expansion dilutes the ROI story. One strong use case with clean data > two mixed stories with thin attribution. New opportunities → Phase 2 queue, not current pilot. This is a feature, not a limitation — it's what makes the Day 30 readout defensible.
+
+### 35.5 — Your scenario debrief (6/6 ✅)
+
+All correct. Anchors:
+- 8 migration owners > 15 mixed > 45 all-hands — depth beats breadth at Day 30
+- PR cycle time > satisfaction score (not a business case) > LOC (vanity metric)
+- Scope protection: log documentation for Phase 2, don't split focus mid-pilot
+
+---
+
+## Block 34 — Course 8 L1: Use Case Identification and Qualification ⭐⭐
+
+**One-liner:** Structural gain (changes what work is possible) = defensible ROI. Marginal gain (same work faster) = adoption momentum only. Qualify before scoping — measurability is non-negotiable.
+
+Cross-refs: Block 35 (Pilot design) · Block 37 (Day 30 ROI scorecard).
+
+### 34.1 — Qualification Filter: Marginal vs Structural
+
+| Type | What happens | ROI story | Examples |
+|---|---|---|---|
+| **Marginal gain** | Same work, faster. Unit of work doesn't change. | Diffuse, hard to isolate in 30 days. Good for adoption momentum, not CIO readout. | Autocomplete, boilerplate, inline docs |
+| **Structural gain** | Unit of work itself shifts. Fewer people, shorter time, for the same or greater output. | Measurable before Day 30, defensible at readout, anchors renewal. | Legacy migration at scale, full-feature loops, framework modernization |
+
+**Decision rule:** If it can't anchor a CIO readout at Day 30, it's not a pilot use case — it's an adoption metric.
+
+### 34.2 — Engagement Modes
+
+| Mode | Format | What you get | What you don't get |
+|---|---|---|---|
+| **Mode 1** | 2-day training activation (Code 101 + admin setup) | Adoption signals | No ROI data — no measurement period, no use case owner, no baselined metrics |
+| **Mode 2** | 30–45 day structured program | Pre-kickoff setup + use case definition + Day 20–25 midpoint check + Day 30 closeout readout | — |
+
+**Mode 2 is the only mode that produces ROI data.** Measurement infrastructure must be built before Day 1 or the loop can't close.
+
+### 34.3 — Three Engagement Patterns That Consistently Win ⭐
+
+| Pattern | What Claude does | Core metric |
+|---|---|---|
+| **Code modernization** | Migrate legacy stacks, translate languages, upgrade dependencies at volume | Claude-assisted commits / total commits |
+| **New feature build** | Full feature loop: scaffold → implement → tests → review prep | PR cycle time (ticket-to-merge) |
+| **Code migration** | Move between frameworks, cloud providers, or architectural patterns. Well-scoped, high-volume, low-ambiguity. | Velocity gain visible within first 2 weeks |
+
+### 34.4 — Four Qualification Criteria ⭐
+
+| Criterion | What it means | Fail signal |
+|---|---|---|
+| **Volume** | Task recurs frequently enough to generate meaningful data in 30 days | One-off project = not qualifying, regardless of complexity |
+| **Complexity** | Claude adds real leverage, not just speed | Junior dev could do it in an afternoon = marginal |
+| **Measurability** | Can capture a baseline before Day 1 | Can't baseline it = can't close the loop = NOT a pilot candidate |
+| **Developer readiness** | Team willing to change workflow, not just try a tool | "Occasional use around existing habits" = flat metrics |
+
+**Qualification rule:** A use case that scores on complexity but fails on measurability is **a risk, not a pilot candidate**.
+
+### 34.5 — Pilot Design Decisions
+
+**Cohort size:** 8–10 developers who own the scoped backlog. Tight cohort = deep, traceable signal. 60 devs = too broad, no attribution. 20 across 4 teams = mixed tasks, thin ROI story.
+
+**Baseline metric:** PR cycle time (ticket-to-merge). Why: auditable, already in tooling, captures the full loop. Avoid: dev hours (self-reported, estimation bias), lines of code (vanity metric).
+
+**Use case selection:** High volume + pre-scoped + all 4 criteria = go. Mixed structural + marginal in same pilot = diluted attribution.
+
+### 34.6 — Your scenario debrief (6/6 ✅)
+
+All correct. Clean sweep. Anchors to remember:
+- Migration over test coverage (82% coverage = marginal gain, migration = structural)
+- PR cycle time over dev hours or LOC (auditable, existing tooling, full loop)
+- Tight cohort (8–10) over broad (20+) — depth over breadth for Day 30 signal
+
+---
+
+## Block 33 — Course 7 L6: Cost Monitoring, Attribution, and Spend Controls ⭐⭐
+
+**One-liner:** Three cost layers (Admin dashboard / Analytics API / OTel cost.usage), one charge-back surface (OTel + OTEL_RESOURCE_ATTRIBUTES), one authoritative billing source (API provider console). OTel is an estimate — never quote it as the invoice.
+
+Cross-refs: Block 31 (OTel pipeline + cost.usage attributes) · Block 32 (audit logs) · Block 26 (scorecard metrics).
+
+### 33.1 — Three Visibility Layers
+
+| Layer | What it answers | Access | Granularity |
+|---|---|---|---|
+| **Admin dashboard** | Executive spend overview — Spend by model and feature | Organization settings, any Owner, no setup | Org-wide, daily update |
+| **Analytics API** | Programmatic spend by workspace, date range, BI export | Admin API key required | By workspace, daily snapshots |
+| **OTel cost.usage** | Per-team attribution, real-time, charge-back | OTel pipeline + OTEL_RESOURCE_ATTRIBUTES MDM | Per session, per team label, real-time |
+
+**Decision rule per stakeholder:**
+- CTO wants monthly summary → **Admin dashboard** (no setup, visual, any Owner can share)
+- Finance needs per-team charge-back → **OTel cost.usage + OTEL_RESOURCE_ATTRIBUTES labels**
+- Finance reconciling the invoice → **API provider billing console** (Anthropic / Bedrock / Vertex)
+- Internal BI report by workspace → **Analytics API**
+
+### 33.2 — cost.usage Metric Deep Dive ⭐
+
+`claude_code.cost.usage` — emits estimated USD spend at end of each session (accumulates across all API requests in that session).
+
+**Built-in attributes on every data point:**
+- `model` — which Claude model was used
+- `query_source` — `human` | `subtask` | `tool_use`
+- `agent.name`, `skill.name`, `plugin.name`, `mcp_server.name`, `mcp_tool.name` — tagged when those features are used
+
+**Custom labels via MDM:**
+```
+OTEL_RESOURCE_ATTRIBUTES="department=engineering,team.id=platform,cost_center=eng-123"
+```
+Scope different attribute blocks per team in MDM → every metric from that device carries the label → SIEM groups cost.usage by `team.id` → charge-back report.
+
+**Companion metric:** `claude_code.token.usage` — breaks spend into token counts by type (input / output / cacheRead / cacheCreation). Use when client needs to understand cost composition, not just total. Cache read:creation ratio tells you whether session design is efficient.
+
+**Query tip:** metric emits per session (not per request). Query SIEM for session totals, not individual data points, when building cost reports.
+
+### 33.3 — Approximation Caveat ⭐ (mandatory in every finance briefing)
+
+`cost.usage` is a **client-side approximation** based on published model pricing × token counts.
+
+| Use for | Do NOT use for |
+|---|---|
+| Team charge-back allocation | Authoritative invoice amount |
+| Budget trend monitoring | Quoting billable figures to finance |
+| SIEM alerting thresholds | Reconciling provider invoices |
+
+**Authoritative billing source:** Anthropic Console | AWS Bedrock billing | GCP Vertex billing.
+
+**Standard variance:** typically small; can appear during model pricing changes or caching behavior shifts. **Reconcile against official billing quarterly.**
+
+Briefing script: "The SIEM figure is an estimate — use it to allocate spend across teams. For the actual invoice, the source of truth is [provider] billing. A small variance like 3% is expected and normal."
+
+### 33.4 — Spend Controls
+
+| Control | Mechanism | When to use |
+|---|---|---|
+| **Hard cap** | Admin API `POST /v1/organizations/spend_limits` — monthly cap **per user**, body `{"scope":{"type":"user","user_id":...},"amount":"75000"}`. **Claude Enterprise only — not available on Claude Platform/Console.** Needs `write:spend_limits` scope. Amounts are strings in minor units (cents) | Budget enforcement; prevent runaway usage |
+| **Charge-back** | `OTEL_RESOURCE_ATTRIBUTES` team labels via MDM → SIEM groups `cost.usage` by label | Multi-team monthly allocation to finance |
+| **Proactive alert** | SIEM rule on `claude_code.cost.usage` rolling total by team label → Slack/email | Early warning before hard cap hits |
+| **Finance note** | OTel = estimate; provider console = invoice | Every finance briefing, every time |
+
+**Hard cap setup:** set limits per team workspace, not at org level — org-level caps are too blunt for multi-team deployments.
+
+**Alert + cap design:** alert fires first (threshold below cap) → team adjusts → hard cap is the backstop if alert is missed.
+
+### 33.5 — Day 1 DevOps handoff artifact (4-panel dashboard spec)
+
+| Panel | Metric | Group by | Purpose |
+|---|---|---|---|
+| Sessions | `session.count` | day | Adoption signal |
+| Active developers | `active_time.total` | user | Engagement depth |
+| Token volume | `token.usage` | model, type (input/output/cache) | Cost composition + efficiency |
+| **Cost by team** | `cost.usage` | `team.id` (OTEL_RESOURCE_ATTRIBUTES) | Charge-back; secondary attributes: model, query_source |
+
+Spend alert: SIEM rule on weekly `cost.usage` per `team.id` → threshold fires Slack notification before Admin API spend limit triggers hard stop.
+
+### 33.6 — Your scenario debrief (2/6 first attempt ⚠️ — over-engineering instinct)
+
+| # | Decision | Correct call | Your call | Why |
+|---|---|---|---|---|
+| 1 — CTO monthly summary | **Admin dashboard** (Org settings, any Owner, no setup) | ❌ 0 | API provider billing console | **TRAP:** Provider console = authoritative invoice, but it's not the CTO's first tool. Admin dashboard is inside the Claude experience, visual, no setup. Save provider console for finance reconciliation. |
+| 2 — Finance charge-back, 8 teams | **OTel cost.usage + OTEL_RESOURCE_ATTRIBUTES via MDM** | ❌ 0 | Analytics API + 8 workspaces | **TRAP:** 8 workspaces = org restructure, extra admin overhead. OTEL_RESOURCE_ATTRIBUTES = lightweight MDM label, zero restructure. Same pattern as the "separate orgs" mistake in Block 31. |
+| 3 — 3% SIEM vs Console variance | OTel is estimate; Console is authoritative; 3% variance is normal | ✅ +2 | ✅ | Correct. OTel = allocation. Provider = invoice. |
+
+**Your recurring pattern across Blocks 31–33:** When cost or attribution is the question, you reach for the heavyweight org-restructuring answer (separate orgs, 8 workspaces) instead of the lightweight label/config answer (OTEL_RESOURCE_ATTRIBUTES, MDM). And when a stakeholder needs a dashboard, you reach for the most technical surface instead of the simplest one that answers their question.
+
+**Memory anchor — "which surface for which stakeholder":**
+- CTO / exec → Admin dashboard (simplest, inside Claude, no setup)
+- Finance charge-back → OTel + MDM labels (no restructure)
+- Finance reconciliation → Provider billing console (authoritative)
+- Engineering teams / BI → Analytics API
 
 ---
 
