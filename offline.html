@@ -748,6 +748,7 @@ window.fetch = function(input, init) {
       <button class="tab-btn" data-tab="manual">Manual</button>
       <button class="tab-btn" data-tab="guide">⭐ Guide</button>
       <button class="tab-btn" data-tab="loops">Loops</button>
+      <button class="tab-btn" data-tab="assessment">Assessment</button>
       <button class="tab-btn" data-tab="progress">Progress</button>
     </nav>
   </div>
@@ -844,6 +845,11 @@ window.fetch = function(input, init) {
   <!-- ===== Loops tab (Claude Code Loops coursebook by Derek Hobden) ===== -->
   <section id="tab-loops" class="tab-content">
     <div class="notes-body" id="loops-body">Loading loops manual…</div>
+  </section>
+
+  <!-- ===== Assessment Q&A tab ===== -->
+  <section id="tab-assessment" class="tab-content">
+    <div class="notes-body" id="assessment-body">Loading assessment Q&A…</div>
   </section>
 
   <!-- ===== Progress tab ===== -->
@@ -11460,6 +11466,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     if (tab === 'manual') loadManualSplit();
     if (tab === 'guide') loadGuideSplit();
     if (tab === 'loops') loadLoopsSplit();
+    if (tab === 'assessment') loadAssessmentSplit();
     if (tab === 'progress') renderProgress();
   });
 });
@@ -11860,6 +11867,22 @@ function loadFaqSplit() {
 }
 
 // ===== Progress =====
+function loadAssessmentSplit() {
+  return loadSplittable(
+    'assessment',
+    './assessment-qa.md',
+    'assessment-body',
+    'h2',
+    (text) => {
+      const m = text.match(/^Q(\d+)/i);
+      if (m) return 'Q' + m[1];
+      if (/^Summary/i.test(text)) return 'Summary';
+      return null;
+    },
+    'Question'
+  );
+}
+
 function renderProgress() {
   const body = document.getElementById('progress-body');
 
