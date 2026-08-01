@@ -160,6 +160,8 @@ if(__exports != exports)module.exports = exports;return module.exports}));
   .controls button.danger { color: var(--red); }
   .controls button.primary { color: var(--accent); border-color: var(--accent); font-weight: 500; }
   .controls .spacer { flex: 1; }
+  .controls .topic-label { flex: 1 1 100%; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .controls .topic-label select { width: 100%; min-width: 0; box-sizing: border-box; }
 
   .mock-banner {
     display: flex;
@@ -428,6 +430,7 @@ if(__exports != exports)module.exports = exports;return module.exports}));
   /* Notes (rendered markdown) */
   .notes-body {
     max-width: 760px;
+    margin: 0 auto;
     color: var(--text);
     font-size: 14px;
     line-height: 1.65;
@@ -543,7 +546,7 @@ if(__exports != exports)module.exports = exports;return module.exports}));
   /* Cheatsheet category CTA row */
   .cheat-cat-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 8px;
     margin-bottom: 10px;
   }
@@ -609,7 +612,7 @@ if(__exports != exports)module.exports = exports;return module.exports}));
   .loop-callout-exercises .loop-callout-label { color: #f0a050;      }
 
   /* Progress view */
-  .progress-summary { display: flex; flex-direction: column; gap: 14px; max-width: 760px; }
+  .progress-summary { display: flex; flex-direction: column; gap: 14px; max-width: 760px; margin: 0 auto; }
   .progress-row {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -777,7 +780,7 @@ window.fetch = function(input, init) {
           <option value="">All</option>
         </select>
       </label>
-      <label>Topic:
+      <label class="topic-label">Topic:
         <select id="filter-topic">
           <option value="">All</option>
         </select>
