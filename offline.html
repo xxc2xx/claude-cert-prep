@@ -710,11 +710,14 @@ if(__exports != exports)module.exports = exports;return module.exports}));
   <div style="width: 100%;">
     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
       <h1>Claude Builder Cert — <span class="accent">Study Hub</span></h1>
-      <div class="stats">
-        <span><b id="stat-answered">0</b>/<b id="stat-total">0</b> answered</span>
-        <span class="ok"><b id="stat-correct">0</b> correct</span>
-        <span class="bad"><b id="stat-wrong">0</b> wrong</span>
-        <span><b id="stat-pct">0%</b></span>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <div class="stats">
+          <span><b id="stat-answered">0</b>/<b id="stat-total">0</b> answered</span>
+          <span class="ok"><b id="stat-correct">0</b> correct</span>
+          <span class="bad"><b id="stat-wrong">0</b> wrong</span>
+          <span><b id="stat-pct">0%</b></span>
+        </div>
+        <button id="hdr-export-btn" title="Download progress backup" style="background:var(--panel-2);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap;">💾 Save</button>
       </div>
     </div>
     <nav class="tabs">
@@ -10955,11 +10958,13 @@ const QUESTIONS = [
 // and can throw when storage is full / private browsing. Fall back to an
 // in-memory store so the rest of the app keeps working.
 const STORAGE_KEY = "claude-cert-quiz-v1";
+let __storagePersistent = false;
 const __storage = (() => {
   try {
     const testKey = '__t__' + Date.now();
     window.localStorage.setItem(testKey, '1');
     window.localStorage.removeItem(testKey);
+    __storagePersistent = true;
     return window.localStorage;
   } catch (e) {
     let mem = {};
@@ -11371,6 +11376,7 @@ document.addEventListener("click", (e) => {
     } else {
       progress[qid] = { chosen, correct, confidence, ts: Date.now() };
       saveProgress();
+      maybeRemindSave();
       render();
     }
   } else if (action === "next") {
@@ -11428,8 +11434,51 @@ document.getElementById("reset").addEventListener("click", () => {
   }
 });
 
+// Header save button
+function exportProgressNow(btn) {
+  const payload = {
+    schema: 'claude-cert-progress-v1',
+    exportedAt: new Date().toISOString(),
+    progress, lastMock, mockHistory,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  const ts = new Date().toISOString().slice(0, 10) + '-' + new Date().toTimeString().slice(0, 5).replace(':', '');
+  a.href = URL.createObjectURL(blob);
+  a.download = `progress-${ts}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  if (btn) { const orig = btn.textContent; btn.textContent = '✓ Saved'; setTimeout(() => btn.textContent = orig, 2000); }
+}
+document.getElementById('hdr-export-btn').addEventListener('click', function() { exportProgressNow(this); });
+
 populateFilters();
 render();
+
+// Private/ephemeral storage warning
+if (!__storagePersistent) {
+  const banner = document.createElement('div');
+  banner.style.cssText = 'background:#3d1f00;color:#ffb347;border:1px solid #7a4200;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;';
+  banner.innerHTML = '<span>⚠️ <b>Private / restricted mode detected</b> — progress won\'t survive a page close. Use <b>💾 Save</b> after every session.</span>'
+    + '<button onclick="this.parentNode.remove()" style="background:none;border:none;color:#ffb347;font-size:16px;cursor:pointer;padding:0 4px;">✕</button>';
+  const main = document.querySelector('main');
+  if (main) main.insertBefore(banner, main.firstChild);
+}
+
+// Auto-remind to save every 10 correct/wrong answers
+let _lastRemindCount = Object.keys(progress).length;
+function maybeRemindSave() {
+  const count = Object.keys(progress).length;
+  if (count - _lastRemindCount >= 10) {
+    _lastRemindCount = count;
+    const btn = document.getElementById('hdr-export-btn');
+    if (!btn) return;
+    const orig = btn.style.cssText;
+    btn.style.cssText += ';background:var(--accent);color:#0e1116;border-color:var(--accent);animation:pulse 0.4s ease 3;';
+    btn.textContent = '💾 Save now!';
+    setTimeout(() => { btn.style.cssText = orig; btn.textContent = '💾 Save'; }, 5000);
+  }
+}
 
 // ===== Back to top =====
 const backToTopBtn = document.getElementById('back-to-top');
