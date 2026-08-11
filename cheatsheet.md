@@ -4842,7 +4842,7 @@ Briefing script: "The SIEM figure is an estimate — use it to allocate spend ac
 | **Proactive alert** | SIEM rule on `claude_code.cost.usage` rolling total by team label → Slack/email | Early warning before hard cap hits |
 | **Finance note** | OTel = estimate; provider console = invoice | Every finance briefing, every time |
 
-**Hard cap setup:** set limits per team workspace, not at org level — org-level caps are too blunt for multi-team deployments.
+**Hard cap setup:** the Spend Limits API only writes **per-user** overrides (`scope.type: "user"`). There is no "per workspace" API scope — seat-tier, group, and org-level defaults are configured in claude.ai Organization settings, not via this API. To approximate per-team caps, set a per-user override for each member of the team.
 
 **Alert + cap design:** alert fires first (threshold below cap) → team adjusts → hard cap is the backstop if alert is missed.
 
