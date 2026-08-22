@@ -11218,10 +11218,10 @@ function renderStats() {
   document.getElementById("stat-pct").textContent = pct + "%";
 
   // Weighted readiness bar: exam×3, mid×2, warm×1
-  const TIER_W = { exam: 3, mid: 2, warm: 1 };
+  const TIER_W = { exam: 3, mid: 2, cal: 2, warm: 1 };
   let wCorrect = 0, wTotal = 0;
   QUESTIONS.forEach(q => {
-    const w = TIER_W[q.tier] || 1;
+    const w = TIER_W[q.tier] ?? 1;
     const p = progress[q.id];
     if (p) { wTotal += w; if (p.correct) wCorrect += w; }
   });
@@ -11319,7 +11319,15 @@ function replaceCard(qid) {
   if (!filtered.find(fq => fq.id === qid)) {
     existing.style.transition = 'opacity 0.25s';
     existing.style.opacity = '0';
-    setTimeout(() => { existing.remove(); renderStats(); }, 270);
+    setTimeout(() => {
+      existing.remove();
+      // Show empty state if no cards remain
+      const root = document.getElementById('quiz');
+      if (root && !root.querySelector('.card')) {
+        root.innerHTML = `<div class="empty">No questions match these filters.</div>`;
+      }
+      renderStats();
+    }, 270);
     return;
   }
   const allCards = Array.from(document.querySelectorAll('.card'));
