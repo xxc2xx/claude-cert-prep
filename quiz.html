@@ -11467,7 +11467,7 @@ document.getElementById('hdr-export-btn').addEventListener('click', function() {
 // Theme toggle — persisted to localStorage
 (function() {
   const btn = document.getElementById('theme-toggle');
-  const saved = localStorage.getItem('claude-cert-theme') || 'nueava';
+  const saved = __storage.getItem('claude-cert-theme') || 'nueava';
   const apply = (theme) => {
     document.documentElement.dataset.theme = theme === 'classic' ? 'classic' : '';
     btn.textContent = theme === 'classic' ? '🟠 Nueava' : '⚫ Classic';
@@ -11476,7 +11476,7 @@ document.getElementById('hdr-export-btn').addEventListener('click', function() {
   apply(saved);
   btn.addEventListener('click', () => {
     const next = document.documentElement.dataset.theme === 'classic' ? 'nueava' : 'classic';
-    localStorage.setItem('claude-cert-theme', next);
+    __storage.setItem('claude-cert-theme', next);
     apply(next);
   });
 })();
