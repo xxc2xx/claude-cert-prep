@@ -23,6 +23,21 @@
     --red: #f87171;
     --blue: #60a5fa;
   }
+  /* Classic dark theme (GitHub-style) */
+  [data-theme="classic"] {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --panel-2: #1f2630;
+    --border: #2a313c;
+    --hover: #2a313c;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #d68f3a;
+    --accent-2: #e8a84c;
+    --green: #3fb950;
+    --red: #f85149;
+    --blue: #58a6ff;
+  }
   * { box-sizing: border-box; }
   body {
     margin: 0;
@@ -648,6 +663,7 @@
     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
       <h1>Claude Builder Cert — <span class="accent">Study Hub</span></h1>
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <button id="theme-toggle" title="Toggle colour theme" style="background:var(--panel-2);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap;">⚫ Classic</button>
         <div class="stats">
           <span><b id="stat-answered">0</b>/<b id="stat-total">0</b> answered</span>
           <span class="ok"><b id="stat-correct">0</b> correct</span>
@@ -11447,6 +11463,23 @@ function exportProgressNow(btn) {
   if (btn) { const orig = btn.textContent; btn.textContent = '✓ Saved'; setTimeout(() => btn.textContent = orig, 2000); }
 }
 document.getElementById('hdr-export-btn').addEventListener('click', function() { exportProgressNow(this); });
+
+// Theme toggle — persisted to localStorage
+(function() {
+  const btn = document.getElementById('theme-toggle');
+  const saved = localStorage.getItem('claude-cert-theme') || 'nueava';
+  const apply = (theme) => {
+    document.documentElement.dataset.theme = theme === 'classic' ? 'classic' : '';
+    btn.textContent = theme === 'classic' ? '🟠 Nueava' : '⚫ Classic';
+    btn.title = theme === 'classic' ? 'Switch to Nueava (navy + orange)' : 'Switch to Classic dark';
+  };
+  apply(saved);
+  btn.addEventListener('click', () => {
+    const next = document.documentElement.dataset.theme === 'classic' ? 'nueava' : 'classic';
+    localStorage.setItem('claude-cert-theme', next);
+    apply(next);
+  });
+})();
 
 populateFilters();
 render();
