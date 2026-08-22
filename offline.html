@@ -469,6 +469,11 @@ if(__exports != exports)module.exports = exports;return module.exports}));
     border-bottom: 2px solid var(--accent);
     font-weight: 600;
   }
+  @media (max-width: 480px) {
+    .tabs { gap: 0; }
+    .tab-btn { flex: 1; text-align: center; padding: 8px 6px 9px; font-size: 11px; }
+    .tab-btn .tab-icon { font-size: 18px; margin-bottom: 1px; }
+  }
   .tab-content { display: none; }
 
   /* ===== Header layout ===== */
@@ -1047,6 +1052,26 @@ if(__exports != exports)module.exports = exports;return module.exports}));
 </footer>
 
 <button id="back-to-top" class="back-to-top" aria-label="Back to top" title="Back to top">↑</button>
+
+<!-- Mock exam briefing modal -->
+<div id="mock-briefing-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;max-width:440px;width:100%;padding:24px 28px;box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+    <h2 style="margin:0 0 4px;font-size:18px;">🎯 Mock Exam</h2>
+    <p style="margin:0 0 20px;font-size:13px;color:var(--muted);">Read before you start</p>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;">
+      <tr><td style="padding:6px 0;color:var(--muted);width:44%;">Questions</td><td><b>60</b> — exam-level, weighted by domain</td></tr>
+      <tr><td style="padding:6px 0;color:var(--muted);">Time limit</td><td><b>120 minutes</b> · timer starts immediately</td></tr>
+      <tr><td style="padding:6px 0;color:var(--muted);">Answers</td><td>Hidden until you submit or time runs out</td></tr>
+      <tr><td style="padding:6px 0;color:var(--muted);">Scoring</td><td>Scaled 0–1000 · pass ≥ 720</td></tr>
+      <tr><td style="padding:6px 0;color:var(--muted);">Domain mix</td><td>D1 27% · D2 18% · D3 20% · D4 20% · D5 15%</td></tr>
+      <tr><td style="padding:6px 0;color:var(--muted);">After submit</td><td>Full breakdown by domain + per-question review</td></tr>
+    </table>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button id="mock-briefing-cancel" style="background:var(--panel-2);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:8px 18px;font-size:14px;font-family:inherit;cursor:pointer;">Cancel</button>
+      <button id="mock-briefing-start" style="background:var(--accent);color:#0e1116;border:none;border-radius:6px;padding:8px 20px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">Start 120-min Mock</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const QUESTIONS = [
@@ -11502,48 +11527,70 @@ function renderStats() {
   document.getElementById("stat-wrong").textContent = wrong;
   document.getElementById("stat-pct").textContent = pct + "%";
 
-  // Weighted readiness bar: exam×3, mid×2, warm×1
+  // Weighted readiness bar: exam×3, cal×2, warm×1
+  // Minimum evidence gate: ≥30 weighted pts + ≥5 exam-level + ≥3 domains touched
   const TIER_W = { exam: 3, mid: 2, cal: 2, warm: 1 };
-  let wCorrect = 0, wTotal = 0;
+  const MIN_W = 30, MIN_EXAM = 5, MIN_DOM = 3;
+  let wCorrect = 0, wTotal = 0, examAnswered = 0;
+  const domainsAttempted = new Set();
   QUESTIONS.forEach(q => {
     const w = TIER_W[q.tier] ?? 1;
     const p = progress[q.id];
-    if (p) { wTotal += w; if (p.correct) wCorrect += w; }
+    if (p) {
+      wTotal += w;
+      if (p.correct) wCorrect += w;
+      if (q.tier === 'exam') examAnswered++;
+      if (q.domain) domainsAttempted.add(q.domain);
+    }
   });
-  const readinessPct = wTotal > 0 ? Math.round(100 * wCorrect / (wTotal || 1)) : 0;
+  const readinessPct = wTotal > 0 ? Math.round(100 * wCorrect / wTotal) : 0;
+  const hasEnoughData = wTotal >= MIN_W && examAnswered >= MIN_EXAM && domainsAttempted.size >= MIN_DOM;
   const fill = document.getElementById('readiness-fill');
   const label = document.getElementById('readiness-label');
+  const wEl = document.getElementById('readiness-weakness');
   if (fill && label) {
-    fill.style.width = Math.min(readinessPct, 100) + '%';
-    const col = readinessPct >= 75 ? 'var(--green)' : readinessPct >= 55 ? 'var(--accent)' : readinessPct >= 35 ? 'var(--accent-2)' : 'var(--muted)';
-    fill.style.background = col;
-    const passGap = 75 - readinessPct;
-    label.textContent = readinessPct + '% ready';
-    label.style.color = readinessPct >= 75 ? 'var(--green)' : readinessPct > 0 ? 'var(--accent)' : 'var(--muted)';
-    // Weakness summary: 2 weakest domains with ≥5 attempts
-    const domScores = {};
-    QUESTIONS.forEach(q => {
-      if (!q.domain) return;
-      if (!domScores[q.domain]) domScores[q.domain] = { c: 0, t: 0 };
-      const p = progress[q.id];
-      if (p) { domScores[q.domain].t++; if (p.correct) domScores[q.domain].c++; }
-    });
-    const weak = Object.entries(domScores)
-      .filter(([, s]) => s.t >= 5)
-      .map(([d, s]) => ({ d, pct: Math.round(100 * s.c / s.t) }))
-      .sort((a, b) => a.pct - b.pct)
-      .slice(0, 2);
-    const wEl = document.getElementById('readiness-weakness');
-    if (wEl) {
-      if (weak.length && readinessPct > 0) {
-        wEl.textContent = 'Focus: ' + weak.map(w => w.d + ' ' + w.pct + '%').join(' · ');
-        wEl.style.color = 'var(--red)';
-      } else if (readinessPct >= 75) {
-        wEl.textContent = '✓ On track to pass (target 75%)';
-        wEl.style.color = 'var(--green)';
-      } else {
-        wEl.textContent = passGap > 0 ? 'Target 75% — ' + passGap + '% gap' : '';
+    if (!hasEnoughData) {
+      fill.style.width = '0%';
+      fill.style.background = 'var(--muted)';
+      label.textContent = '— too early';
+      label.style.color = 'var(--muted)';
+      if (wEl) {
+        const hints = [];
+        if (examAnswered < MIN_EXAM) hints.push(`${MIN_EXAM - examAnswered} exam-level Qs`);
+        if (domainsAttempted.size < MIN_DOM) hints.push(`${MIN_DOM - domainsAttempted.size} more domains`);
+        wEl.textContent = hints.length ? 'Need: ' + hints.join(' · ') : 'Keep going…';
         wEl.style.color = 'var(--muted)';
+      }
+    } else {
+      fill.style.width = Math.min(readinessPct, 100) + '%';
+      const col = readinessPct >= 75 ? 'var(--green)' : readinessPct >= 55 ? 'var(--accent)' : readinessPct >= 35 ? 'var(--accent-2)' : 'var(--muted)';
+      fill.style.background = col;
+      label.textContent = readinessPct + '% ready';
+      label.style.color = readinessPct >= 75 ? 'var(--green)' : 'var(--accent)';
+      // Weakness: 2 weakest domains with ≥5 attempts
+      const domScores = {};
+      QUESTIONS.forEach(q => {
+        if (!q.domain) return;
+        if (!domScores[q.domain]) domScores[q.domain] = { c: 0, t: 0 };
+        const p = progress[q.id];
+        if (p) { domScores[q.domain].t++; if (p.correct) domScores[q.domain].c++; }
+      });
+      const weak = Object.entries(domScores)
+        .filter(([, s]) => s.t >= 5)
+        .map(([d, s]) => ({ d, pct: Math.round(100 * s.c / s.t) }))
+        .sort((a, b) => a.pct - b.pct)
+        .slice(0, 2);
+      if (wEl) {
+        if (weak.length) {
+          wEl.textContent = 'Focus: ' + weak.map(w => w.d + ' ' + w.pct + '%').join(' · ');
+          wEl.style.color = 'var(--red)';
+        } else if (readinessPct >= 75) {
+          wEl.textContent = '✓ On track to pass (target 75%)';
+          wEl.style.color = 'var(--green)';
+        } else {
+          wEl.textContent = 'Target 75% — ' + (75 - readinessPct) + '% gap';
+          wEl.style.color = 'var(--muted)';
+        }
       }
     }
   }
@@ -11729,8 +11776,18 @@ document.getElementById("filter-status").addEventListener("change", render);
 document.getElementById("shuffle").addEventListener("change", render);
 document.getElementById("mock-exam").addEventListener("click", () => {
   if (mockState.active) { alert("Mock exam already active."); return; }
-  if (!confirm("Start a 60-question mock exam? 120 minutes on the clock. Answers hidden until submit.")) return;
+  const overlay = document.getElementById('mock-briefing-overlay');
+  overlay.style.display = 'flex';
+});
+document.getElementById("mock-briefing-cancel").addEventListener("click", () => {
+  document.getElementById('mock-briefing-overlay').style.display = 'none';
+});
+document.getElementById("mock-briefing-start").addEventListener("click", () => {
+  document.getElementById('mock-briefing-overlay').style.display = 'none';
   startMockExam();
+});
+document.getElementById('mock-briefing-overlay').addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
 });
 document.getElementById("mock-submit").addEventListener("click", () => endMockExam(false));
 document.getElementById("mock-abort").addEventListener("click", abortMockExam);
@@ -12456,7 +12513,14 @@ function renderProgressOverall({ total, answered, correct, wrong, pct, pctClass,
   }
 
   if (!answered) {
-    html += `<div class="progress-row"><div class="progress-stats" style="text-align: center; padding: 20px;">No answers yet — start the Quiz tab.</div></div>`;
+    html = `<div style="text-align:center;padding:40px 20px;">
+      <div style="font-size:36px;margin-bottom:12px;">📋</div>
+      <div style="font-size:16px;font-weight:600;margin-bottom:8px;">No answers yet</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:20px;max-width:320px;margin-left:auto;margin-right:auto;">
+        Head to <b>Practice</b> and answer questions. Your readiness score unlocks after 5 exam-level questions across 3+ domains.
+      </div>
+      <button onclick="document.querySelector('[data-tab=quiz]').click()" style="background:var(--accent);color:#0e1116;border:none;border-radius:6px;padding:10px 22px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">Go to Practice →</button>
+    </div>`;
   }
 
   body.innerHTML = html;
