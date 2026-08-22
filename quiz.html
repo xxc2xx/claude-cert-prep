@@ -11561,7 +11561,10 @@ document.getElementById('hdr-export-btn').addEventListener('click', function() {
   const seg = document.getElementById('theme-seg');
   if (!seg) return;
   const THEMES = ['dark', 'navy', 'bright'];
-  const saved = __storage.getItem('claude-cert-theme') || 'navy';
+  const rawSaved = __storage.getItem('claude-cert-theme') || 'navy';
+  // migrate old 'classic'/'nueava' keys to new names
+  const saved = rawSaved === 'classic' ? 'dark' : rawSaved === 'nueava' ? 'navy' : rawSaved;
+  if (saved !== rawSaved) __storage.setItem('claude-cert-theme', saved);
   const apply = (theme) => {
     document.documentElement.dataset.theme = theme === 'navy' ? '' : theme;
     seg.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.t === theme));
