@@ -952,13 +952,13 @@ if(__exports != exports)module.exports = exports;return module.exports}));
       <div class="filter-section">
         <span class="filter-section-label">Scope</span>
         <div class="filter-section-body">
-          <select id="filter-tier">
+          <select id="filter-tier" aria-label="Tier filter">
             <option value="">All tiers</option>
             <option value="warm">🟢 Warm-up</option>
             <option value="cal">🟡 Calibration</option>
             <option value="exam">🔴 Exam-level</option>
           </select>
-          <select id="filter-domain">
+          <select id="filter-domain" aria-label="Domain filter">
             <option value="">All domains</option>
             <option value="D1">D1 · Agentic (27%)</option>
             <option value="D2">D2 · Tools/MCP (18%)</option>
@@ -966,7 +966,7 @@ if(__exports != exports)module.exports = exports;return module.exports}));
             <option value="D4">D4 · Prompting (20%)</option>
             <option value="D5">D5 · Context (15%)</option>
           </select>
-          <select id="filter-block">
+          <select id="filter-block" aria-label="Block filter">
             <option value="">All blocks</option>
           </select>
         </div>
@@ -975,7 +975,7 @@ if(__exports != exports)module.exports = exports;return module.exports}));
       <div class="filter-section" style="flex:1; min-width:0;">
         <span class="filter-section-label">View</span>
         <div class="filter-section-body" style="flex:1; min-width:0;">
-          <select id="filter-status">
+          <select id="filter-status" aria-label="Show filter">
             <option value="">All</option>
             <option value="unanswered">Unanswered</option>
             <option value="wrong">Got wrong</option>
@@ -985,7 +985,7 @@ if(__exports != exports)module.exports = exports;return module.exports}));
             <option value="blind-spot">🎯 Blind spot</option>
             <option value="close-call">⚠️ Close call</option>
           </select>
-          <select id="filter-topic" style="flex:1; min-width:0; max-width:260px;">
+          <select id="filter-topic" aria-label="Topic filter" style="flex:1; min-width:0; max-width:260px;">
             <option value="">All topics</option>
           </select>
         </div>
@@ -11997,6 +11997,7 @@ function renderAssessmentActive() {
   prevBtn.className = 'assess-nav-btn';
   prevBtn.textContent = '‹';
   prevBtn.disabled = activeLabIdx === 0;
+  prevBtn.setAttribute('aria-label', 'Previous question');
 
   const slider = document.createElement('input');
   slider.type = 'range';
@@ -12004,11 +12005,13 @@ function renderAssessmentActive() {
   slider.min = 0;
   slider.max = labeled.length - 1;
   slider.value = activeLabIdx;
+  slider.setAttribute('aria-label', 'Question selector');
 
   const nextBtn = document.createElement('button');
   nextBtn.className = 'assess-nav-btn';
   nextBtn.textContent = '›';
   nextBtn.disabled = activeLabIdx === labeled.length - 1;
+  nextBtn.setAttribute('aria-label', 'Next question');
 
   const curLabel = labeled[activeLabIdx];
   const isSummary = curLabel && /^Summary$/i.test(curLabel.label);
@@ -12030,9 +12033,19 @@ function renderAssessmentActive() {
     container.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  // Update label/counter while dragging without re-rendering content
+  slider.addEventListener('input', () => {
+    const idx = +slider.value;
+    const lab = labeled[idx];
+    const isSumm = lab && /^Summary$/i.test(lab.label);
+    navLabel.textContent = lab ? lab.label : '';
+    counter.textContent = isSumm ? 'Summary' : `${idx + 1} of ${questionLabeled.length}`;
+  });
+  // Re-render content only when drag ends
+  slider.addEventListener('change', () => goto(+slider.value));
+
   prevBtn.addEventListener('click', () => goto(activeLabIdx - 1));
   nextBtn.addEventListener('click', () => goto(activeLabIdx + 1));
-  slider.addEventListener('input', () => goto(+slider.value));
 
   nav.appendChild(prevBtn);
   nav.appendChild(slider);
