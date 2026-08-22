@@ -11179,8 +11179,9 @@ const QUESTIONS = [
 // Offline cache patch — injected by build.sh
 const __origFetch = window.fetch.bind(window);
 window.fetch = function(url, opts) {
-  if (window.__MD_CACHE__ && window.__MD_CACHE__[url]) {
-    return Promise.resolve(new Response(window.__MD_CACHE__[url], {status: 200}));
+  const key = url.split('?')[0];
+  if (window.__MD_CACHE__ && window.__MD_CACHE__[key]) {
+    return Promise.resolve(new Response(window.__MD_CACHE__[key], {status: 200}));
   }
   return __origFetch(url, opts);
 };
