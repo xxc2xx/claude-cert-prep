@@ -26,8 +26,8 @@ with open('marked.bundle.js', 'r') as f:
 
 # 1. Swap title
 content = content.replace(
-    '<title>Claude Builder Cert — Study Hub</title>',
-    '<title>Claude Builder Cert — Study Hub (Offline)</title>',
+    '<title>CCAF — Claude Certified Architect Foundations | Study Hub</title>',
+    '<title>CCAF — Claude Certified Architect Foundations | Study Hub (Offline)</title>',
     1
 )
 

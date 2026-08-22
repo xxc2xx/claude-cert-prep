@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
-<title>Claude Builder Cert — Study Hub</title>
+<title>CCAF — Claude Certified Architect Foundations | Study Hub</title>
 <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
 <style>
   :root {
@@ -402,6 +402,127 @@
   }
   .tab-content { display: none; }
 
+  /* ===== Header layout ===== */
+  .hdr-main {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .hdr-title-area { display: flex; flex-direction: column; gap: 2px; }
+  .hdr-cert-name {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.1px;
+    line-height: 1.3;
+  }
+  .hdr-cert-name .accent { color: var(--accent); }
+  .hdr-subtitle {
+    margin: 0;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    font-weight: 500;
+  }
+  .hdr-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .hdr-stats-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+
+  /* ===== Filter controls groups ===== */
+  .filter-section {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .filter-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+    min-width: 36px;
+  }
+  .filter-section-body {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filter-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    width: 100%;
+    padding-top: 4px;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+  }
+  .filter-divider {
+    width: 100%;
+    height: 1px;
+    background: var(--border);
+    margin: 2px 0;
+  }
+
+  /* ===== Assessment slider ===== */
+  .assess-nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bg);
+    padding: 12px 0 14px;
+    margin: 0 0 20px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .assess-nav-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 600;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1;
+    transition: background .12s;
+    flex-shrink: 0;
+  }
+  .assess-nav-btn:hover { background: var(--hover); }
+  .assess-nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .assess-slider {
+    flex: 1;
+    min-width: 120px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    height: 4px;
+  }
+  .assess-nav-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 42px;
+  }
+  .assess-counter {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
   /* 3-stage theme segmented control */
   .theme-seg {
     display: inline-flex;
@@ -713,31 +834,36 @@
 <body>
 <header>
   <div style="width: 100%;">
-    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-      <h1>Claude Builder Cert — <span class="accent">Study Hub</span></h1>
-      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+    <div class="hdr-main">
+      <div class="hdr-title-area">
+        <h1 class="hdr-cert-name">Claude Certified Architect – Foundations <span class="accent">| Anthropic Academy</span></h1>
+        <p class="hdr-subtitle">CCAF · Study Hub</p>
+      </div>
+      <div class="hdr-right">
         <div class="theme-seg" id="theme-seg" title="Toggle colour theme">
           <button class="seg-btn" data-t="dark">Dark</button>
           <button class="seg-btn" data-t="navy">Navy</button>
           <button class="seg-btn" data-t="bright">Bright</button>
         </div>
-        <div class="stats">
-          <span><b id="stat-answered">0</b>/<b id="stat-total">0</b> answered</span>
-          <span class="ok"><b id="stat-correct">0</b> correct</span>
-          <span class="bad"><b id="stat-wrong">0</b> wrong</span>
-          <span><b id="stat-pct">0%</b></span>
-        </div>
-        <button id="hdr-export-btn" title="Download progress backup" style="background:var(--panel-2);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap;">💾 Save</button>
-        <div id="readiness-bar-wrap" title="Weighted readiness: exam×3 + cal×2 + mid×2 + warm×1. Pass target ≥75%." style="display:flex;flex-direction:column;gap:3px;min-width:160px;">
-          <div style="display:flex;align-items:center;gap:7px;">
-            <div style="flex:1;position:relative;background:var(--panel-2);border:1px solid var(--border);border-radius:20px;height:7px;overflow:visible;">
-              <div id="readiness-fill" style="height:100%;border-radius:20px;background:var(--muted);width:0%;transition:width 0.4s,background 0.4s;position:relative;z-index:1;overflow:hidden;border-radius:20px;"></div>
-              <div style="position:absolute;top:-3px;left:75%;width:2px;height:13px;background:var(--accent-2);border-radius:1px;z-index:2;" title="Pass mark: 75%"></div>
-            </div>
-            <span id="readiness-label" style="font-size:11px;color:var(--muted);white-space:nowrap;min-width:58px;">— ready</span>
+      </div>
+    </div>
+    <div class="hdr-stats-row">
+      <div class="stats">
+        <span><b id="stat-answered">0</b>/<b id="stat-total">0</b> answered</span>
+        <span class="ok"><b id="stat-correct">0</b> correct</span>
+        <span class="bad"><b id="stat-wrong">0</b> wrong</span>
+        <span><b id="stat-pct">0%</b></span>
+      </div>
+      <button id="hdr-export-btn" title="Download progress backup" style="background:var(--panel-2);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap;">💾 Save</button>
+      <div id="readiness-bar-wrap" title="Weighted readiness: exam×3 + cal×2 + mid×2 + warm×1. Pass target ≥75%." style="display:flex;flex-direction:column;gap:3px;min-width:160px;">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <div style="flex:1;position:relative;background:var(--panel-2);border:1px solid var(--border);border-radius:20px;height:7px;overflow:visible;">
+            <div id="readiness-fill" style="height:100%;border-radius:20px;background:var(--muted);width:0%;transition:width 0.4s,background 0.4s;position:relative;z-index:1;overflow:hidden;border-radius:20px;"></div>
+            <div style="position:absolute;top:-3px;left:75%;width:2px;height:13px;background:var(--accent-2);border-radius:1px;z-index:2;" title="Pass mark: 75%"></div>
           </div>
-          <span id="readiness-weakness" style="font-size:10px;color:var(--muted);line-height:1.3;"></span>
+          <span id="readiness-label" style="font-size:11px;color:var(--muted);white-space:nowrap;min-width:58px;">— ready</span>
         </div>
+        <span id="readiness-weakness" style="font-size:10px;color:var(--muted);line-height:1.3;"></span>
       </div>
     </div>
     <nav class="tabs">
@@ -753,50 +879,53 @@
   <!-- ===== Quiz tab ===== -->
   <section id="tab-quiz" class="tab-content active">
     <div class="controls">
-      <label>Tier:
-        <select id="filter-tier">
-          <option value="">All tiers</option>
-          <option value="warm">🟢 Warm-up (fact recall)</option>
-          <option value="cal">🟡 Calibration</option>
-          <option value="exam">🔴 Exam-level (scenarios)</option>
-        </select>
-      </label>
-      <label>Domain:
-        <select id="filter-domain">
-          <option value="">All domains</option>
-          <option value="D1">D1 · Agentic (27%)</option>
-          <option value="D2">D2 · Tools/MCP (18%)</option>
-          <option value="D3">D3 · Claude Code (20%)</option>
-          <option value="D4">D4 · Prompting (20%)</option>
-          <option value="D5">D5 · Context (15%)</option>
-        </select>
-      </label>
-      <label>Block:
-        <select id="filter-block">
-          <option value="">All</option>
-        </select>
-      </label>
-      <label class="topic-label">Topic:
-        <select id="filter-topic">
-          <option value="">All</option>
-        </select>
-      </label>
-      <label>Show:
-        <select id="filter-status">
-          <option value="">All</option>
-          <option value="unanswered">Unanswered</option>
-          <option value="wrong">Got wrong</option>
-          <option value="correct">Got correct</option>
-          <option value="last-mock-wrong">🔴 Last mock — misses only</option>
-          <option value="last-mock-all">🔴 Last mock — all 60</option>
-          <option value="blind-spot">🎯 Blind spot (wrong + high confidence)</option>
-          <option value="close-call">⚠️ Close call (right + low confidence)</option>
-        </select>
-      </label>
-      <label><input type="checkbox" id="shuffle" /> Shuffle</label>
-      <div class="spacer"></div>
-      <button id="mock-exam" class="primary" title="Draw 60 exam-level Qs weighted 27/20/20/18/15, start 120-min timer, hide answers until submit">▶ Mock Exam (60Q · 120min)</button>
-      <button id="reset" class="danger">Reset progress</button>
+      <div class="filter-section">
+        <span class="filter-section-label">Scope</span>
+        <div class="filter-section-body">
+          <select id="filter-tier">
+            <option value="">All tiers</option>
+            <option value="warm">🟢 Warm-up</option>
+            <option value="cal">🟡 Calibration</option>
+            <option value="exam">🔴 Exam-level</option>
+          </select>
+          <select id="filter-domain">
+            <option value="">All domains</option>
+            <option value="D1">D1 · Agentic (27%)</option>
+            <option value="D2">D2 · Tools/MCP (18%)</option>
+            <option value="D3">D3 · Claude Code (20%)</option>
+            <option value="D4">D4 · Prompting (20%)</option>
+            <option value="D5">D5 · Context (15%)</option>
+          </select>
+          <select id="filter-block">
+            <option value="">All blocks</option>
+          </select>
+        </div>
+      </div>
+      <div class="filter-divider"></div>
+      <div class="filter-section" style="flex:1; min-width:0;">
+        <span class="filter-section-label">View</span>
+        <div class="filter-section-body" style="flex:1; min-width:0;">
+          <select id="filter-status">
+            <option value="">All</option>
+            <option value="unanswered">Unanswered</option>
+            <option value="wrong">Got wrong</option>
+            <option value="correct">Got correct</option>
+            <option value="last-mock-wrong">🔴 Last mock — misses</option>
+            <option value="last-mock-all">🔴 Last mock — all 60</option>
+            <option value="blind-spot">🎯 Blind spot</option>
+            <option value="close-call">⚠️ Close call</option>
+          </select>
+          <select id="filter-topic" style="flex:1; min-width:0; max-width:260px;">
+            <option value="">All topics</option>
+          </select>
+        </div>
+      </div>
+      <div class="filter-actions-row">
+        <label style="font-size:13px; color:var(--muted); display:flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" id="shuffle" /> Shuffle</label>
+        <div style="flex:1"></div>
+        <button id="mock-exam" class="primary" title="Draw 60 exam-level Qs weighted 27/20/20/18/15, start 120-min timer, hide answers until submit">▶ Mock Exam (60Q · 120min)</button>
+        <button id="reset" class="danger">Reset progress</button>
+      </div>
     </div>
 
     <div id="mock-banner" class="mock-banner" style="display:none">
@@ -11730,6 +11859,7 @@ function splitNodesByHeading(nodes, headingTag, labelFn) {
 // the active section's content.
 function renderSplittableActive(tabName) {
   if (tabName === 'cheatsheet') { renderCheatsheetActive(); return; }
+  if (tabName === 'assessment') { renderAssessmentActive(); return; }
   const state = splittableState.get(tabName);
   if (!state) return;
   const { sections, activeIdx, chipLabel, containerId } = state;
@@ -11767,36 +11897,106 @@ function renderSplittableActive(tabName) {
   container.appendChild(content);
 }
 
+function renderAssessmentActive() {
+  const state = splittableState.get('assessment');
+  if (!state) return;
+  const { sections, containerId } = state;
+  const container = document.getElementById(containerId);
+  container.replaceChildren();
+
+  // Build ordered list of labeled sections (Q1…Q34, Summary)
+  const labeled = sections.map((s, i) => ({ ...s, origIdx: i })).filter(s => s.label !== null);
+  const questionLabeled = labeled.filter(s => !/^Summary$/i.test(s.label));
+  let activeLabIdx = labeled.findIndex(s => s.origIdx === state.activeIdx);
+  if (activeLabIdx === -1) activeLabIdx = 0;
+
+  const nav = document.createElement('div');
+  nav.className = 'assess-nav';
+
+  const prevBtn = document.createElement('button');
+  prevBtn.className = 'assess-nav-btn';
+  prevBtn.textContent = '‹';
+  prevBtn.disabled = activeLabIdx === 0;
+
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.className = 'assess-slider';
+  slider.min = 0;
+  slider.max = labeled.length - 1;
+  slider.value = activeLabIdx;
+
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'assess-nav-btn';
+  nextBtn.textContent = '›';
+  nextBtn.disabled = activeLabIdx === labeled.length - 1;
+
+  const curLabel = labeled[activeLabIdx];
+  const isSummary = curLabel && /^Summary$/i.test(curLabel.label);
+
+  const navLabel = document.createElement('span');
+  navLabel.className = 'assess-nav-label';
+  navLabel.textContent = curLabel ? curLabel.label : '';
+
+  const counter = document.createElement('span');
+  counter.className = 'assess-counter';
+  counter.textContent = isSummary
+    ? 'Summary'
+    : `${activeLabIdx + 1} of ${questionLabeled.length}`;
+
+  const goto = (idx) => {
+    if (idx < 0 || idx >= labeled.length) return;
+    state.activeIdx = labeled[idx].origIdx;
+    renderAssessmentActive();
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  prevBtn.addEventListener('click', () => goto(activeLabIdx - 1));
+  nextBtn.addEventListener('click', () => goto(activeLabIdx + 1));
+  slider.addEventListener('input', () => goto(+slider.value));
+
+  nav.appendChild(prevBtn);
+  nav.appendChild(slider);
+  nav.appendChild(nextBtn);
+  nav.appendChild(navLabel);
+  nav.appendChild(counter);
+  container.appendChild(nav);
+
+  const content = document.createElement('div');
+  const section = sections[state.activeIdx];
+  if (section) section.nodes.forEach(n => content.appendChild(n.cloneNode(true)));
+  container.appendChild(content);
+}
+
 // === Cheatsheet category navigation ===
 const CHEATSHEET_CATS = [
   {
     id: 'quickref',
-    label: '⭐ Quick Ref',
-    sub: 'Day-of cheat sheet',
+    label: 'Quick Ref',
+    sub: 'Day-of sheet',
     test: (label) => label === 'B0',
   },
   {
     id: 'fundamentals',
-    label: 'Fundamentals',
+    label: 'Basics',
     sub: 'API & models',
     test: (label) => label === 'B1',
   },
   {
     id: 'exam',
-    label: 'Exam Core',
-    sub: 'Domains D1–D5',
+    label: 'Core',
+    sub: 'D1–D5',
     test: (label) => { const n = parseInt(label.slice(1)); return n >= 2 && n <= 12; },
   },
   {
     id: 'badge',
     label: 'Badge',
-    sub: 'Partner courses',
+    sub: 'Partner',
     test: (label) => { const n = parseInt(label.slice(1)); return (n >= 13 && n <= 23) || n >= 25; },
   },
   {
     id: 'ref',
-    label: 'Reference',
-    sub: 'Glossary & rules',
+    label: 'Ref',
+    sub: 'Glossary',
     test: (label) => label === 'B24',
   },
 ];
@@ -12021,21 +12221,6 @@ function renderProgress() {
       <button id="btn-import-progress" class="secondary" style="background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; font-size: 14px; font-family: inherit; cursor:pointer;">📤 Import progress JSON</button>
       <input type="file" id="progress-file-input" accept="application/json,.json" style="display:none">
       <span style="font-size:12px; color: var(--muted);">Snapshot survives browser wipe · commit to repo for permanent history</span>
-    </div>
-    <div style="display:flex; gap:8px; align-items:stretch; margin-bottom:12px; flex-wrap:wrap;">
-      <div style="flex:1; min-width:240px; background:var(--panel-2); border:1px solid var(--border); border-radius:6px; padding:10px 14px; font-size:13px;">
-        <span style="color:var(--muted);font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;">📸 Wrong-answer screenshots</span>
-        <div style="margin-top:6px; color:var(--text); line-height:1.6;">
-          Drop images into <code style="color:var(--accent); font-size:12px;">~/claude-cert-prep/screenshots/</code><br>
-          Run <code style="color:var(--accent); font-size:12px;">./sync-progress.sh</code> — it commits JSON + screenshots together.
-        </div>
-        <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
-          <button onclick="navigator.clipboard.writeText('open ~/claude-cert-prep/screenshots/').then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='📂 Open folder cmd',1500)})"
-            style="background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:4px 12px;font-size:12px;cursor:pointer;font-family:inherit;">📂 Open folder cmd</button>
-          <button onclick="navigator.clipboard.writeText('cd ~/claude-cert-prep && ./sync-progress.sh').then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='🔄 Sync cmd',1500)})"
-            style="background:var(--accent);color:#0e1116;border:none;border-radius:4px;padding:4px 12px;font-size:12px;cursor:pointer;font-family:inherit;">🔄 Sync cmd</button>
-        </div>
-      </div>
     </div>
     <div class="progress-row overall">
       <h3>Overall</h3>
