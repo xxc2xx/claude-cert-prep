@@ -92,8 +92,8 @@ if(__exports != exports)module.exports = exports;return module.exports}));
     --red: #f87171;
     --blue: #60a5fa;
   }
-  /* Classic dark theme (GitHub-style) */
-  [data-theme="classic"] {
+  /* Dark theme (GitHub-style) */
+  [data-theme="dark"] {
     --bg: #0e1116;
     --panel: #161b22;
     --panel-2: #1f2630;
@@ -106,6 +106,21 @@ if(__exports != exports)module.exports = exports;return module.exports}));
     --green: #3fb950;
     --red: #f85149;
     --blue: #58a6ff;
+  }
+  /* Bright theme (light Nueava) */
+  [data-theme="bright"] {
+    --bg: #f5f7fb;
+    --panel: #ffffff;
+    --panel-2: #eef1f8;
+    --border: #cdd6e8;
+    --hover: #e2e8f4;
+    --text: #0d1b3e;
+    --muted: #5a6e8c;
+    --accent: #f97316;
+    --accent-2: #d97706;
+    --green: #059669;
+    --red: #dc2626;
+    --blue: #2563eb;
   }
   * { box-sizing: border-box; }
   body {
@@ -423,29 +438,67 @@ if(__exports != exports)module.exports = exports;return module.exports}));
   /* Tab nav */
   .tabs {
     display: flex;
-    gap: 6px;
+    gap: 4px;
     margin-top: 14px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .tabs::-webkit-scrollbar { display: none; }
   .tab-btn {
-    background: var(--panel-2);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 7px 14px;
+    background: transparent;
+    color: var(--muted);
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    padding: 8px 14px 9px;
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     font-family: inherit;
-    transition: background .15s, color .15s, border-color .15s;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+    flex-shrink: 0;
   }
-  .tab-btn:hover { background: var(--hover); }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn .tab-icon { display: block; font-size: 16px; margin-bottom: 2px; }
   .tab-btn.active {
-    background: var(--accent);
-    color: var(--bg);
-    border-color: var(--accent);
+    background: transparent;
+    color: var(--accent);
+    border-bottom: 2px solid var(--accent);
+    font-weight: 600;
   }
   .tab-content { display: none; }
+
+  /* 3-stage theme segmented control */
+  .theme-seg {
+    display: inline-flex;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2px;
+    gap: 1px;
+  }
+  .theme-seg .seg-btn {
+    background: none;
+    border: none;
+    border-radius: 16px;
+    padding: 3px 9px;
+    font-size: 11px;
+    font-family: inherit;
+    color: var(--muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+    line-height: 1.6;
+  }
+  .theme-seg .seg-btn.active {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+  [data-theme="bright"] .theme-seg .seg-btn.active { color: #fff; }
   .tab-content.active { display: block; }
 
   /* Notes (rendered markdown) */
@@ -732,7 +785,11 @@ if(__exports != exports)module.exports = exports;return module.exports}));
     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
       <h1>Claude Builder Cert — <span class="accent">Study Hub</span></h1>
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-        <button id="theme-toggle" title="Toggle colour theme" style="background:var(--panel-2);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap;">⚫ Classic</button>
+        <div class="theme-seg" id="theme-seg" title="Toggle colour theme">
+          <button class="seg-btn" data-t="dark">Dark</button>
+          <button class="seg-btn" data-t="navy">Navy</button>
+          <button class="seg-btn" data-t="bright">Bright</button>
+        </div>
         <div class="stats">
           <span><b id="stat-answered">0</b>/<b id="stat-total">0</b> answered</span>
           <span class="ok"><b id="stat-correct">0</b> correct</span>
@@ -740,20 +797,23 @@ if(__exports != exports)module.exports = exports;return module.exports}));
           <span><b id="stat-pct">0%</b></span>
         </div>
         <button id="hdr-export-btn" title="Download progress backup" style="background:var(--panel-2);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap;">💾 Save</button>
-        <div id="readiness-bar-wrap" title="Weighted readiness: exam×3 + mid×2 + warm×1. Pass target ≥75%." style="display:flex;align-items:center;gap:7px;min-width:140px;">
-          <div style="flex:1;background:var(--panel-2);border:1px solid var(--border);border-radius:20px;height:7px;overflow:hidden;">
-            <div id="readiness-fill" style="height:100%;border-radius:20px;background:var(--muted);width:0%;transition:width 0.4s,background 0.4s;"></div>
+        <div id="readiness-bar-wrap" title="Weighted readiness: exam×3 + cal×2 + mid×2 + warm×1. Pass target ≥75%." style="display:flex;flex-direction:column;gap:3px;min-width:160px;">
+          <div style="display:flex;align-items:center;gap:7px;">
+            <div style="flex:1;position:relative;background:var(--panel-2);border:1px solid var(--border);border-radius:20px;height:7px;overflow:visible;">
+              <div id="readiness-fill" style="height:100%;border-radius:20px;background:var(--muted);width:0%;transition:width 0.4s,background 0.4s;position:relative;z-index:1;overflow:hidden;border-radius:20px;"></div>
+              <div style="position:absolute;top:-3px;left:75%;width:2px;height:13px;background:var(--accent-2);border-radius:1px;z-index:2;" title="Pass mark: 75%"></div>
+            </div>
+            <span id="readiness-label" style="font-size:11px;color:var(--muted);white-space:nowrap;min-width:58px;">— ready</span>
           </div>
-          <span id="readiness-label" style="font-size:11px;color:var(--muted);white-space:nowrap;min-width:52px;">— ready</span>
+          <span id="readiness-weakness" style="font-size:10px;color:var(--muted);line-height:1.3;"></span>
         </div>
       </div>
     </div>
     <nav class="tabs">
-      <button class="tab-btn active" data-tab="quiz">Quiz</button>
-      <button class="tab-btn" data-tab="cheatsheet">Cheatsheet</button>
-      <button class="tab-btn" data-tab="guide">⭐ Guide</button>
-      <button class="tab-btn" data-tab="assessment">Assessment</button>
-      <button class="tab-btn" data-tab="progress">Progress</button>
+      <button class="tab-btn active" data-tab="quiz">✏️ Practice</button>
+      <button class="tab-btn" data-tab="cheatsheet">📚 Study</button>
+      <button class="tab-btn" data-tab="assessment">🎯 Assess</button>
+      <button class="tab-btn" data-tab="progress">📊 Progress</button>
     </nav>
   </div>
 </header>
@@ -823,12 +883,16 @@ if(__exports != exports)module.exports = exports;return module.exports}));
 
   <!-- ===== Cheatsheet tab ===== -->
   <section id="tab-cheatsheet" class="tab-content">
-    <div class="notes-body" id="cheatsheet-body">Loading cheatsheet…</div>
-  </section>
-
-  <!-- ===== Official Exam Guide tab ===== -->
-  <section id="tab-guide" class="tab-content">
-    <div class="notes-body" id="guide-body">Loading official exam guide…</div>
+    <div style="display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:10px;">
+      <button class="study-sub active" data-sub="cheatsheet" style="background:none;border:none;border-bottom:2px solid var(--accent);color:var(--accent);font-weight:600;padding:4px 12px 6px;font-size:13px;font-family:inherit;cursor:pointer;">📋 Cheatsheet</button>
+      <button class="study-sub" data-sub="guide" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;padding:4px 12px 6px;font-size:13px;font-family:inherit;cursor:pointer;">⭐ Exam Guide</button>
+    </div>
+    <div id="study-cheatsheet-panel">
+      <div class="notes-body" id="cheatsheet-body">Loading cheatsheet…</div>
+    </div>
+    <div id="study-guide-panel" style="display:none;">
+      <div class="notes-body" id="guide-body">Loading exam guide…</div>
+    </div>
   </section>
 
   <!-- ===== Assessment Q&A tab ===== -->
@@ -11315,9 +11379,37 @@ function renderStats() {
   const label = document.getElementById('readiness-label');
   if (fill && label) {
     fill.style.width = Math.min(readinessPct, 100) + '%';
-    fill.style.background = readinessPct >= 80 ? 'var(--green)' : readinessPct >= 65 ? 'var(--accent)' : readinessPct >= 45 ? 'var(--accent-2)' : 'var(--muted)';
+    const col = readinessPct >= 75 ? 'var(--green)' : readinessPct >= 55 ? 'var(--accent)' : readinessPct >= 35 ? 'var(--accent-2)' : 'var(--muted)';
+    fill.style.background = col;
+    const passGap = 75 - readinessPct;
     label.textContent = readinessPct + '% ready';
-    label.style.color = readinessPct >= 80 ? 'var(--green)' : readinessPct >= 65 ? 'var(--accent)' : 'var(--muted)';
+    label.style.color = readinessPct >= 75 ? 'var(--green)' : readinessPct > 0 ? 'var(--accent)' : 'var(--muted)';
+    // Weakness summary: 2 weakest domains with ≥5 attempts
+    const domScores = {};
+    QUESTIONS.forEach(q => {
+      if (!q.domain) return;
+      if (!domScores[q.domain]) domScores[q.domain] = { c: 0, t: 0 };
+      const p = progress[q.id];
+      if (p) { domScores[q.domain].t++; if (p.correct) domScores[q.domain].c++; }
+    });
+    const weak = Object.entries(domScores)
+      .filter(([, s]) => s.t >= 5)
+      .map(([d, s]) => ({ d, pct: Math.round(100 * s.c / s.t) }))
+      .sort((a, b) => a.pct - b.pct)
+      .slice(0, 2);
+    const wEl = document.getElementById('readiness-weakness');
+    if (wEl) {
+      if (weak.length && readinessPct > 0) {
+        wEl.textContent = 'Focus: ' + weak.map(w => w.d + ' ' + w.pct + '%').join(' · ');
+        wEl.style.color = 'var(--red)';
+      } else if (readinessPct >= 75) {
+        wEl.textContent = '✓ On track to pass (target 75%)';
+        wEl.style.color = 'var(--green)';
+      } else {
+        wEl.textContent = passGap > 0 ? 'Target 75% — ' + passGap + '% gap' : '';
+        wEl.style.color = 'var(--muted)';
+      }
+    }
   }
 }
 
@@ -11533,22 +11625,42 @@ function exportProgressNow(btn) {
 }
 document.getElementById('hdr-export-btn').addEventListener('click', function() { exportProgressNow(this); });
 
-// Theme toggle — persisted to localStorage
+// 3-stage theme toggle (dark / navy / bright)
 (function() {
-  const btn = document.getElementById('theme-toggle');
-  const saved = __storage.getItem('claude-cert-theme') || 'nueava';
+  const seg = document.getElementById('theme-seg');
+  if (!seg) return;
+  const THEMES = ['dark', 'navy', 'bright'];
+  const saved = __storage.getItem('claude-cert-theme') || 'navy';
   const apply = (theme) => {
-    document.documentElement.dataset.theme = theme === 'classic' ? 'classic' : '';
-    btn.textContent = theme === 'classic' ? '🟠 Nueava' : '⚫ Classic';
-    btn.title = theme === 'classic' ? 'Switch to Nueava (navy + orange)' : 'Switch to Classic dark';
+    document.documentElement.dataset.theme = theme === 'navy' ? '' : theme;
+    seg.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.t === theme));
   };
-  apply(saved);
-  btn.addEventListener('click', () => {
-    const next = document.documentElement.dataset.theme === 'classic' ? 'nueava' : 'classic';
-    __storage.setItem('claude-cert-theme', next);
-    apply(next);
+  apply(THEMES.includes(saved) ? saved : 'navy');
+  seg.addEventListener('click', (e) => {
+    const btn = e.target.closest('.seg-btn');
+    if (!btn) return;
+    const t = btn.dataset.t;
+    __storage.setItem('claude-cert-theme', t);
+    apply(t);
   });
 })();
+
+// Study subtab (Cheatsheet / Guide)
+document.querySelector('.tabs').addEventListener('click', () => {}); // keep existing wiring
+document.querySelectorAll('.study-sub').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const sub = btn.dataset.sub;
+    document.querySelectorAll('.study-sub').forEach(b => {
+      b.classList.toggle('active', b.dataset.sub === sub);
+      b.style.borderBottomColor = b.dataset.sub === sub ? 'var(--accent)' : 'transparent';
+      b.style.color = b.dataset.sub === sub ? 'var(--accent)' : 'var(--muted)';
+      b.style.fontWeight = b.dataset.sub === sub ? '600' : '500';
+    });
+    document.getElementById('study-cheatsheet-panel').style.display = sub === 'cheatsheet' ? '' : 'none';
+    document.getElementById('study-guide-panel').style.display = sub === 'guide' ? '' : 'none';
+    if (sub === 'guide') loadGuideSplit();
+  });
+});
 
 populateFilters();
 render();
@@ -11601,7 +11713,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
       s.classList.toggle('active', s.id === 'tab-' + tab);
     });
     if (tab === 'cheatsheet') loadCheatsheetSplit();
-    if (tab === 'guide') loadGuideSplit();
     if (tab === 'assessment') loadAssessmentSplit();
     if (tab === 'progress') renderProgress();
   });
