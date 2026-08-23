@@ -11676,6 +11676,7 @@ function replaceCard(qid) {
         root.innerHTML = `<div class="empty">No questions match these filters.</div>`;
       }
       renderStats();
+      renderDailyPlan(); // P2: refresh plan after card fades out
     }, 270);
     return;
   }
@@ -11683,6 +11684,7 @@ function replaceCard(qid) {
   const newCard = renderQuestion(q, allCards.indexOf(existing));
   existing.replaceWith(newCard);
   renderStats();
+  renderDailyPlan(); // P2: refresh plan after inline answer/retry
 }
 
 function render() {
@@ -11698,13 +11700,20 @@ function render() {
   renderDailyPlan();
 }
 
+// Safe sessionStorage wrapper (throws SecurityError in iOS QuickLook / Private mode)
+const __ss = (() => {
+  try { sessionStorage.setItem('__t','1'); sessionStorage.removeItem('__t'); return sessionStorage; } catch(e) { return { getItem:()=>null, setItem:()=>{}, removeItem:()=>{} }; }
+})();
+
 function renderDailyPlan() {
   const panel = document.getElementById('daily-plan');
   if (!panel) return;
   if (mockState.active) { panel.style.display = 'none'; return; }
-  if (sessionStorage.getItem('plan-dismissed')) { panel.style.display = 'none'; return; }
+  if (__ss.getItem('plan-dismissed')) { panel.style.display = 'none'; return; }
 
-  const answered = Object.keys(progress).length;
+  // P2: count only IDs still present in QUESTIONS (ignores stale progress from deleted dupes)
+  const validIds = new Set(QUESTIONS.map(q => q.id));
+  const answered = Object.keys(progress).filter(id => validIds.has(id)).length;
 
   // Domain accuracy
   const domStats = {};
@@ -11732,15 +11741,15 @@ function renderDailyPlan() {
                <button id="plan-btn-browse" style="background:none;border:1px solid var(--border);border-radius:6px;padding:7px 14px;font-size:13px;color:var(--muted);font-family:inherit;cursor:pointer;">Browse all 630 Q</button>`;
   } else if (wrongCount > 0 && weakest && weakest.pct < 65) {
     label = 'Today\'s focus';
-    msg = `Drill ${weakest.d} — ${weakest.pct}% accuracy · ${wrongCount} wrong answers to retry`;
-    sub = `Filter to ${weakest.d} wrong answers, review explanations, and retry.`;
-    actions = `<button id="plan-btn-weak" style="background:var(--accent);color:#0e1116;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;">Focus on ${weakest.d}</button>
-               <button id="plan-btn-retry" style="background:none;border:1px solid var(--border);border-radius:6px;padding:7px 14px;font-size:13px;color:var(--muted);font-family:inherit;cursor:pointer;">Show wrong answers</button>`;
+    msg = `${weakest.d} needs work — ${weakest.pct}% accuracy`;
+    sub = `Showing wrong answers in ${weakest.d} so you can review explanations and retry.`;
+    actions = `<button id="plan-btn-weak" style="background:var(--accent);color:#0e1116;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;">Wrong answers in ${weakest.d}</button>
+               <button id="plan-btn-retry" style="background:none;border:1px solid var(--border);border-radius:6px;padding:7px 14px;font-size:13px;color:var(--muted);font-family:inherit;cursor:pointer;">All wrong answers</button>`;
   } else if (weakest && weakest.pct < 75) {
     label = 'Today\'s focus';
     msg = `${weakest.d} is your weakest domain at ${weakest.pct}%`;
-    sub = 'Target 75%+ in every domain before the exam.';
-    actions = `<button id="plan-btn-weak" style="background:var(--accent);color:#0e1116;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;">Focus on ${weakest.d}</button>`;
+    sub = `Showing wrong answers in ${weakest.d} to review. Target 75%+ in every domain.`;
+    actions = `<button id="plan-btn-weak" style="background:var(--accent);color:#0e1116;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;">Wrong answers in ${weakest.d}</button>`;
   } else {
     label = 'Looking good';
     msg = answered >= 100 ? 'Ready to test under pressure? Try a mock exam.' : `${answered} answered — keep going or try a mock.`;
@@ -11762,30 +11771,48 @@ function renderDailyPlan() {
   panel.style.display = '';
 
   const dismiss = () => {
-    sessionStorage.setItem('plan-dismissed', '1');
+    __ss.setItem('plan-dismissed', '1');
     panel.style.display = 'none';
   };
 
   document.getElementById('plan-btn-dismiss')?.addEventListener('click', dismiss);
 
   document.getElementById('plan-btn-diag')?.addEventListener('click', () => {
+    // P2: reset all scope filters so all 5 diagnostic domains appear
     document.getElementById('filter-tier').value = 'cal';
+    document.getElementById('filter-domain').value = '';
+    document.getElementById('filter-block').value = '';
     document.getElementById('filter-status').value = '';
     document.getElementById('shuffle').checked = true;
     dismiss();
     render();
   });
 
-  document.getElementById('plan-btn-browse')?.addEventListener('click', dismiss);
+  document.getElementById('plan-btn-browse')?.addEventListener('click', () => {
+    // P2: clear all filters so all 630 questions appear
+    document.getElementById('filter-tier').value = '';
+    document.getElementById('filter-domain').value = '';
+    document.getElementById('filter-block').value = '';
+    document.getElementById('filter-status').value = '';
+    document.getElementById('shuffle').checked = false;
+    dismiss();
+    render();
+  });
 
   document.getElementById('plan-btn-weak')?.addEventListener('click', () => {
+    // P2: show wrong answers in weakest domain specifically (matches the "drill wrong answers" sub-text)
     if (weakest) document.getElementById('filter-domain').value = weakest.d;
-    document.getElementById('filter-status').value = '';
+    document.getElementById('filter-tier').value = '';
+    document.getElementById('filter-block').value = '';
+    document.getElementById('filter-status').value = 'wrong';
     dismiss();
     render();
   });
 
   document.getElementById('plan-btn-retry')?.addEventListener('click', () => {
+    document.getElementById('filter-domain').value = '';
+    document.getElementById('filter-tier').value = '';
+    document.getElementById('filter-block').value = '';
     document.getElementById('filter-status').value = 'wrong';
     dismiss();
     render();
@@ -11884,7 +11911,7 @@ document.getElementById("reset").addEventListener("click", () => {
   if (confirm("Reset ALL progress?")) {
     progress = {};
     saveProgress();
-    sessionStorage.removeItem('plan-dismissed');
+    __ss.removeItem('plan-dismissed');
     render();
   }
 });
