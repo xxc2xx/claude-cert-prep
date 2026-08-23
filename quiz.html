@@ -883,7 +883,6 @@
   .domain-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
 
   @media (max-width: 480px) {
-    .psub-io-btn { display: none; }
     .domain-chart-flex { flex-direction: column; }
     .radar-wrap { display: none; }
   }
@@ -12654,10 +12653,15 @@ function retryQuestion(id) {
   setTimeout(() => {
     const q = QUESTIONS.find(x => x.id === id);
     if (!q) return;
-    const statusSel = document.getElementById('filter-status');
-    if (statusSel) statusSel.value = 'wrong';
+    // Clear scope filters so the question isn't excluded by a leftover tier/block filter
+    const tierSel = document.getElementById('filter-tier');
+    if (tierSel) tierSel.value = '';
+    const blockSel = document.getElementById('filter-block');
+    if (blockSel) blockSel.value = '';
     const domSel = document.getElementById('filter-domain');
     if (domSel) domSel.value = q.domain || '';
+    const statusSel = document.getElementById('filter-status');
+    if (statusSel) statusSel.value = 'wrong';
     render();
   }, 60);
 }
@@ -12715,10 +12719,14 @@ function renderProgressReview({ wrongIds, answered }) {
 function retryAllWrong() {
   document.querySelector('[data-tab="quiz"]').click();
   setTimeout(() => {
-    const statusSel = document.getElementById('filter-status');
-    if (statusSel) statusSel.value = 'wrong';
+    const tierSel = document.getElementById('filter-tier');
+    if (tierSel) tierSel.value = '';
+    const blockSel = document.getElementById('filter-block');
+    if (blockSel) blockSel.value = '';
     const domSel = document.getElementById('filter-domain');
     if (domSel) domSel.value = '';
+    const statusSel = document.getElementById('filter-status');
+    if (statusSel) statusSel.value = 'wrong';
     render();
   }, 60);
 }
