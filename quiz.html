@@ -854,6 +854,39 @@
     font-size: 12px;
     text-align: center;
   }
+
+  /* Review accordion */
+  .review-topic-header {
+    width: 100%; background: var(--panel-2); border: none;
+    padding: 11px 14px; display: flex; align-items: center; gap: 8px;
+    cursor: pointer; font-family: inherit; color: var(--text); text-align: left;
+  }
+  .review-topic-header:hover { background: var(--border); }
+  .review-q-card { border-top: 1px solid var(--border); padding: 12px 0; }
+  .review-correct-chip {
+    background: var(--panel); border: 1px solid var(--border);
+    border-left: 3px solid #3fb950; border-radius: 4px;
+    padding: 7px 10px; font-size: 13px; margin-bottom: 8px;
+  }
+  .review-explain { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 8px; }
+  .review-retry-btn {
+    background: var(--accent); color: #0e1116; border: none; border-radius: 5px;
+    padding: 5px 12px; font-size: 12px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  .review-retry-btn:hover { opacity: 0.85; }
+
+  /* Domain bar chart */
+  .domain-bar-wrap { flex: 1; min-width: 200px; }
+  .domain-bar-row { margin-bottom: 10px; }
+  .domain-bar-track { background: var(--panel-2); border-radius: 4px; height: 8px; overflow: hidden; }
+  .domain-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+
+  @media (max-width: 480px) {
+    .psub-io-btn { display: none; }
+    .domain-chart-flex { flex-direction: column; }
+    .radar-wrap { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -894,7 +927,6 @@
     <nav class="tabs">
       <button class="tab-btn active" data-tab="quiz">✏️ Practice</button>
       <button class="tab-btn" data-tab="cheatsheet">📚 Study</button>
-      <button class="tab-btn" data-tab="assessment">🎯 Assess</button>
       <button class="tab-btn" data-tab="progress">📊 Progress</button>
     </nav>
   </div>
@@ -968,32 +1000,29 @@
   <section id="tab-cheatsheet" class="tab-content">
     <div style="display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:10px;">
       <button class="study-sub active" data-sub="cheatsheet" style="background:none;border:none;border-bottom:2px solid var(--accent);color:var(--accent);font-weight:600;padding:4px 12px 6px;font-size:13px;font-family:inherit;cursor:pointer;">📋 Cheatsheet</button>
+      <button class="study-sub" data-sub="qa" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;padding:4px 12px 6px;font-size:13px;font-family:inherit;cursor:pointer;">🎯 Q&amp;A</button>
       <button class="study-sub" data-sub="guide" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;padding:4px 12px 6px;font-size:13px;font-family:inherit;cursor:pointer;">⭐ Exam Guide</button>
     </div>
     <div id="study-cheatsheet-panel">
       <div class="notes-body" id="cheatsheet-body">Loading cheatsheet…</div>
+    </div>
+    <div id="study-qa-panel" style="display:none;">
+      <div class="notes-body" id="assessment-body">Loading assessment Q&amp;A…</div>
     </div>
     <div id="study-guide-panel" style="display:none;">
       <div class="notes-body" id="guide-body">Loading exam guide…</div>
     </div>
   </section>
 
-  <!-- ===== Assessment Q&A tab ===== -->
-  <section id="tab-assessment" class="tab-content">
-    <div class="notes-body" id="assessment-body">Loading assessment Q&A…</div>
-  </section>
-
   <!-- ===== Progress tab ===== -->
   <section id="tab-progress" class="tab-content">
     <div style="display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:10px;flex-wrap:wrap;">
       <button class="progress-sub active" data-psub="overall" style="background:none;border:none;border-bottom:2px solid var(--accent);color:var(--accent);font-weight:600;padding:4px 12px 6px;font-size:13px;font-family:inherit;cursor:pointer;">📊 Overall</button>
-      <button class="progress-sub" data-psub="weak" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;padding:4px 12px 6px;font-size:13px;font-family:inherit;cursor:pointer;">🔴 Weak Topics</button>
-      <button class="progress-sub" data-psub="retry" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;padding:4px 12px 6px;font-size:13px;font-family:inherit;cursor:pointer;">↩ Retry</button>
-      <button class="progress-sub" data-psub="io" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;padding:4px 12px 6px;font-size:13px;font-family:inherit;cursor:pointer;">💾 Import/Export</button>
+      <button class="progress-sub" data-psub="review" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;padding:4px 12px 6px;font-size:13px;font-family:inherit;cursor:pointer;">🔴 Review</button>
+      <button class="progress-sub psub-io-btn" data-psub="io" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;padding:4px 12px 6px;font-size:13px;font-family:inherit;cursor:pointer;">💾 Import/Export</button>
     </div>
     <div id="psub-overall" class="progress-summary"></div>
-    <div id="psub-weak" class="progress-summary" style="display:none"></div>
-    <div id="psub-retry" class="progress-summary" style="display:none"></div>
+    <div id="psub-review" class="progress-summary" style="display:none"></div>
     <div id="psub-io" class="progress-summary" style="display:none"></div>
   </section>
 </main>
@@ -11896,7 +11925,9 @@ document.querySelectorAll('.study-sub').forEach(btn => {
       b.style.fontWeight = b.dataset.sub === sub ? '600' : '500';
     });
     document.getElementById('study-cheatsheet-panel').style.display = sub === 'cheatsheet' ? '' : 'none';
+    document.getElementById('study-qa-panel').style.display = sub === 'qa' ? '' : 'none';
     document.getElementById('study-guide-panel').style.display = sub === 'guide' ? '' : 'none';
+    if (sub === 'qa') loadAssessmentSplit();
     if (sub === 'guide') loadGuideSplit();
   });
 });
@@ -11911,7 +11942,7 @@ document.querySelectorAll('.progress-sub').forEach(btn => {
       b.style.color = b.dataset.psub === psub ? 'var(--accent)' : 'var(--muted)';
       b.style.fontWeight = b.dataset.psub === psub ? '600' : '500';
     });
-    ['overall','weak','retry','io'].forEach(id => {
+    ['overall','review','io'].forEach(id => {
       document.getElementById('psub-' + id).style.display = id === psub ? '' : 'none';
     });
   });
@@ -11980,7 +12011,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
       s.classList.toggle('active', s.id === 'tab-' + tab);
     });
     if (tab === 'cheatsheet') loadCheatsheetSplit();
-    if (tab === 'assessment') loadAssessmentSplit();
     if (tab === 'progress') renderProgress();
   });
 });
@@ -12416,8 +12446,7 @@ function renderProgress() {
     .map(q => ({ id: q.id, block: q.block, topic: q.topic, q: q.q }));
 
   renderProgressOverall({ total, answered, correct, wrong, pct, pctClass, domains, blocks, blindSpots, closeCalls });
-  renderProgressWeak({ wrongTopics, answered });
-  renderProgressRetry({ wrongIds, answered });
+  renderProgressReview({ wrongIds, answered });
   renderProgressIO();
 }
 
@@ -12508,22 +12537,61 @@ function renderProgressOverall({ total, answered, correct, wrong, pct, pctClass,
   }
 
   if (Object.keys(domains).length) {
-    html += `<div class="progress-row"><h3>Accuracy by Domain (all sessions)</h3>
-      <table style="width:100%; border-collapse: collapse; font-size: 13px;">
-        <thead><tr>
-          <th style="text-align:left; padding:4px 8px; color: var(--muted);">Domain</th>
-          <th style="text-align:left; padding:4px 8px; color: var(--muted);">Answered</th>
-          <th style="text-align:left; padding:4px 8px; color: var(--muted);">Correct</th>
-          <th style="text-align:left; padding:4px 8px; color: var(--muted);">%</th>
-        </tr></thead><tbody>`;
-    for (const d of ['D1','D2','D3','D4','D5']) {
+    const domainNames = { D1: 'Agentic & Orchestration', D2: 'Tools & MCP', D3: 'Claude Code', D4: 'Prompting', D5: 'Context & Cost' };
+    const domainWeight = { D1: 27, D2: 18, D3: 20, D4: 20, D5: 15 };
+
+    // Build radar SVG
+    const csz = 170, cx = csz/2, cy = csz/2, maxR = 65;
+    const dList = ['D1','D2','D3','D4','D5'];
+    const angles = dList.map((_, i) => (i * 2 * Math.PI / 5) - Math.PI / 2);
+    const gridPts = (scale) => angles.map(a => `${cx + maxR*scale*Math.cos(a)},${cy + maxR*scale*Math.sin(a)}`).join(' ');
+    const svgGrid = [0.25,0.5,0.75,1].map(s => `<polygon points="${gridPts(s)}" fill="none" stroke="var(--border)" stroke-width="0.7"/>`).join('');
+    const svgAxes = angles.map((a, i) => {
+      const lx = cx + (maxR+13)*Math.cos(a), ly = cy + (maxR+13)*Math.sin(a);
+      return `<line x1="${cx}" y1="${cy}" x2="${cx+maxR*Math.cos(a)}" y2="${cy+maxR*Math.sin(a)}" stroke="var(--border)" stroke-width="0.7"/>` +
+             `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" font-size="10" fill="var(--muted)">${dList[i]}</text>`;
+    }).join('');
+    const dataCoords = angles.map((a, i) => {
+      const s = domains[dList[i]];
+      const r = (s && s.answered) ? (s.correct / s.answered) * maxR : 0;
+      return { x: cx + r*Math.cos(a), y: cy + r*Math.sin(a) };
+    });
+    const svgData = `<polygon points="${dataCoords.map(p => `${p.x},${p.y}`).join(' ')}" fill="var(--accent)" fill-opacity="0.2" stroke="var(--accent)" stroke-width="2"/>`;
+    const svgDots = dataCoords.map((p, i) => {
+      const s = domains[dList[i]];
+      const dp = s && s.answered ? Math.round(100*s.correct/s.answered) : 0;
+      const dotColor = dp >= 80 ? '#3fb950' : dp >= 60 ? 'var(--accent)' : '#e05555';
+      return `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${dotColor}" stroke="var(--bg)" stroke-width="1.5"/>`;
+    }).join('');
+    const radarSvg = `<svg width="${csz}" height="${csz}" viewBox="0 0 ${csz} ${csz}" style="display:block;">${svgGrid}${svgAxes}${svgData}${svgDots}</svg>`;
+
+    html += `<div class="progress-row"><h3>Domain Accuracy</h3>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;" class="domain-chart-flex">
+        <div class="domain-bar-wrap">`;
+    for (const d of dList) {
       const s = domains[d];
       if (!s) continue;
       const dp = s.answered ? Math.round(100 * s.correct / s.answered) : 0;
-      const dpClass = dp >= 80 ? 'ok' : dp >= 60 ? '' : 'bad';
-      html += `<tr><td><b>${d}</b></td><td>${s.answered}/${s.total}</td><td>${s.correct}</td><td class="${dpClass}">${dp}%</td></tr>`;
+      const barColor = dp >= 80 ? '#3fb950' : dp >= 60 ? 'var(--accent)' : '#e05555';
+      const note = dp < 60 ? ' ⚠ focus here' : dp < 80 ? ' ·' : '';
+      html += `<div class="domain-bar-row">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+          <span><b>${d}</b> · ${domainNames[d]} <span style="color:var(--muted);font-size:11px;">(${domainWeight[d]}% of exam)</span></span>
+          <span style="color:${barColor};font-weight:600;">${dp}%${note}</span>
+        </div>
+        <div class="domain-bar-track">
+          <div class="domain-bar-fill" style="width:${dp}%;background:${barColor};"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">${s.answered}/${s.total} attempted · ${s.correct} correct</div>
+      </div>`;
     }
-    html += `</tbody></table></div>`;
+    html += `</div>
+        <div class="radar-wrap" style="flex:0 0 ${csz}px;">
+          ${radarSvg}
+          <div style="text-align:center;font-size:11px;color:var(--muted);margin-top:2px;">Accuracy radar</div>
+        </div>
+      </div>
+    </div>`;
   }
 
   if (blindSpots.length || closeCalls.length) {
@@ -12539,21 +12607,32 @@ function renderProgressOverall({ total, answered, correct, wrong, pct, pctClass,
     html += `</div>`;
   }
 
-  for (const [block, s] of Object.entries(blocks)) {
-    const bp = s.answered ? Math.round(100 * s.correct / s.answered) : 0;
-    const bpClass = bp >= 80 ? '' : bp >= 60 ? 'mid' : 'low';
-    html += `
-      <div class="progress-row">
-        <h3>${block}</h3>
-        <div class="progress-bar"><div class="progress-fill ${bpClass}" style="width: ${bp}%"></div></div>
-        <div class="progress-stats">
-          ${s.answered}/${s.total} answered &nbsp;·&nbsp;
-          <span class="ok">${s.correct} correct</span> &nbsp;·&nbsp;
-          <span class="bad">${s.answered - s.correct} wrong</span> &nbsp;·&nbsp;
-          ${bp}%
-        </div>
+  if (Object.keys(blocks).length) {
+    let blockHtml = '';
+    for (const [block, s] of Object.entries(blocks)) {
+      const bp = s.answered ? Math.round(100 * s.correct / s.answered) : 0;
+      const bpClass = bp >= 80 ? '' : bp >= 60 ? 'mid' : 'low';
+      blockHtml += `
+        <div class="progress-row" style="margin-top:6px;">
+          <h3 style="font-size:13px;">${block}</h3>
+          <div class="progress-bar"><div class="progress-fill ${bpClass}" style="width: ${bp}%"></div></div>
+          <div class="progress-stats">
+            ${s.answered}/${s.total} answered &nbsp;·&nbsp;
+            <span class="ok">${s.correct} correct</span> &nbsp;·&nbsp;
+            <span class="bad">${s.answered - s.correct} wrong</span> &nbsp;·&nbsp;
+            ${bp}%
+          </div>
+        </div>`;
+    }
+    const attemptedBlocks = Object.values(blocks).filter(s => s.answered > 0).length;
+    html += `<div class="progress-row">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;">Progress by Block <span style="font-weight:normal;color:var(--muted);font-size:12px;">(${attemptedBlocks}/${Object.keys(blocks).length} started)</span></h3>
+        <button id="blocks-toggle-btn" onclick="(function(btn){var b=document.getElementById('blocks-body-inner');var open=b.style.display!=='none';b.style.display=open?'none':'';btn.textContent=open?'▸ Show':'▾ Hide';})(this)"
+          style="background:var(--panel-2);border:1px solid var(--border);border-radius:5px;padding:3px 10px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;">▸ Show</button>
       </div>
-    `;
+      <div id="blocks-body-inner" style="display:none;">${blockHtml}</div>
+    </div>`;
   }
 
   if (!answered) {
@@ -12570,34 +12649,78 @@ function renderProgressOverall({ total, answered, correct, wrong, pct, pctClass,
   body.innerHTML = html;
 }
 
-function renderProgressWeak({ wrongTopics, answered }) {
-  const body = document.getElementById('psub-weak');
-  let html = '';
-  if (Object.keys(wrongTopics).length) {
-    html += `<div class="progress-row"><h3>Weak topics — got wrong at least once</h3><ul class="weak-list">`;
-    for (const [topic, n] of Object.entries(wrongTopics).sort((a, b) => b[1] - a[1])) {
-      html += `<li><span class="topic">${topic}</span><span class="count">${n} wrong</span></li>`;
-    }
-    html += `</ul></div>`;
-  } else {
-    html = `<div class="progress-row"><div class="progress-stats" style="text-align:center;padding:20px;">${answered ? 'No weak topics — nice!' : 'No answers yet — start the Quiz tab.'}</div></div>`;
+function retryQuestion(id) {
+  document.querySelector('[data-tab="quiz"]').click();
+  setTimeout(() => {
+    const q = QUESTIONS.find(x => x.id === id);
+    if (!q) return;
+    const statusSel = document.getElementById('filter-status');
+    if (statusSel) statusSel.value = 'wrong';
+    const domSel = document.getElementById('filter-domain');
+    if (domSel) domSel.value = q.domain || '';
+    render();
+  }, 60);
+}
+
+function renderProgressReview({ wrongIds, answered }) {
+  const body = document.getElementById('psub-review');
+  if (!answered) {
+    body.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--muted);">No answers yet — head to Practice to start.</div>`;
+    return;
   }
+  if (!wrongIds.length) {
+    body.innerHTML = `<div style="text-align:center;padding:40px 20px;"><div style="font-size:28px;margin-bottom:8px;">🎉</div><div style="color:var(--muted);">No wrong answers yet — everything correct so far!</div></div>`;
+    return;
+  }
+
+  // Group by topic, sorted by wrong count desc
+  const byTopic = {};
+  wrongIds.forEach(w => { (byTopic[w.topic] = byTopic[w.topic] || []).push(w); });
+  const sortedTopics = Object.entries(byTopic).sort((a, b) => b[1].length - a[1].length);
+
+  let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+    <span style="font-size:13px;color:var(--muted);">${wrongIds.length} wrong · ${sortedTopics.length} topic${sortedTopics.length===1?'':'s'}</span>
+    <button onclick="retryAllWrong()" style="background:var(--accent);color:#0e1116;border:none;border-radius:5px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">↩ Practice all wrong answers</button>
+  </div>`;
+
+  for (const [topic, items] of sortedTopics) {
+    const uid = 'rev-' + Math.random().toString(36).slice(2,8);
+    html += `<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;">
+      <button class="review-topic-header" onclick="(function(btn){var p=btn.nextElementSibling;var open=p.style.display!=='none';p.style.display=open?'none':'';btn.querySelector('.rc').textContent=open?'▸':'▾';})(this)">
+        <span class="rc" style="color:var(--muted);min-width:12px;font-size:11px;">▸</span>
+        <span style="flex:1;font-weight:600;font-size:13px;">${topic}</span>
+        <span style="font-size:12px;color:#e05555;font-weight:600;">${items.length} wrong</span>
+      </button>
+      <div style="display:none;padding:0 14px 10px;">`;
+
+    for (const w of items) {
+      const q = QUESTIONS.find(x => x.id === w.id);
+      if (!q) continue;
+      const correctChoice = (q.choices[q.answer] || '').replace(/<[^>]+>/g, '');
+      html += `<div class="review-q-card">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:5px;">${q.id} · ${q.block}</div>
+        <div style="font-size:13px;margin-bottom:8px;line-height:1.4;">${q.q}</div>
+        <div class="review-correct-chip">✓ <b>${correctChoice}</b></div>
+        ${q.explain ? `<div class="review-explain">${q.explain}</div>` : ''}
+        <button class="review-retry-btn" onclick="retryQuestion('${q.id}')">↩ Retry</button>
+      </div>`;
+    }
+
+    html += `</div></div>`;
+  }
+
   body.innerHTML = html;
 }
 
-function renderProgressRetry({ wrongIds, answered }) {
-  const body = document.getElementById('psub-retry');
-  let html = '';
-  if (wrongIds.length) {
-    html += `<div class="progress-row"><h3>Questions to retry</h3><ul class="weak-list">`;
-    for (const w of wrongIds) {
-      html += `<li><span class="topic"><b>${w.id}</b> · ${w.topic}</span><span class="count" style="color: var(--muted); font-weight: normal; font-size: 11px;">${w.block}</span></li>`;
-    }
-    html += `<li style="padding-top: 10px; border-top: none;"><span style="color: var(--muted); font-size: 12px;">Switch to the Quiz tab and set "Show: Got wrong" to drill these.</span></li></ul></div>`;
-  } else {
-    html = `<div class="progress-row"><div class="progress-stats" style="text-align:center;padding:20px;">${answered ? 'No questions to retry — all correct!' : 'No answers yet — start the Quiz tab.'}</div></div>`;
-  }
-  body.innerHTML = html;
+function retryAllWrong() {
+  document.querySelector('[data-tab="quiz"]').click();
+  setTimeout(() => {
+    const statusSel = document.getElementById('filter-status');
+    if (statusSel) statusSel.value = 'wrong';
+    const domSel = document.getElementById('filter-domain');
+    if (domSel) domSel.value = '';
+    render();
+  }, 60);
 }
 
 function renderProgressIO() {
