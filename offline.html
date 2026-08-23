@@ -11380,6 +11380,11 @@ let retrySession = { active: false, qids: new Set() };
 
 function startMockExam() {
   if (mockState.active) return;
+  // End any active retry session before starting mock
+  if (retrySession.active) {
+    retrySession = { active: false, qids: new Set() };
+    updateRetryBanner();
+  }
   // Draw questions
   const examPool = QUESTIONS.filter(q => q.tier === "exam");
   const byDomain = {};
@@ -11990,6 +11995,8 @@ document.getElementById("reset").addEventListener("click", () => {
     progress = {};
     saveProgress();
     __ss.removeItem('plan-dismissed');
+    retrySession = { active: false, qids: new Set() };
+    updateRetryBanner();
     render();
   }
 });
