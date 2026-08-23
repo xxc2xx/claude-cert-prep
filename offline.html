@@ -11700,9 +11700,17 @@ function render() {
   renderDailyPlan();
 }
 
-// Safe sessionStorage wrapper (throws SecurityError in iOS QuickLook / Private mode)
+// Safe sessionStorage wrapper — falls back to in-memory so dismissal survives re-renders
+// even when sessionStorage throws SecurityError (iOS QuickLook, Private mode).
 const __ss = (() => {
-  try { sessionStorage.setItem('__t','1'); sessionStorage.removeItem('__t'); return sessionStorage; } catch(e) { return { getItem:()=>null, setItem:()=>{}, removeItem:()=>{} }; }
+  const mem = {};
+  let ss = null;
+  try { sessionStorage.setItem('__t','1'); sessionStorage.removeItem('__t'); ss = sessionStorage; } catch(e) {}
+  return {
+    getItem: k  => ss ? ss.getItem(k)  : (mem[k] ?? null),
+    setItem: (k,v) => { if (ss) ss.setItem(k,v); mem[k] = v; },
+    removeItem: k  => { if (ss) ss.removeItem(k); delete mem[k]; },
+  };
 })();
 
 function renderDailyPlan() {
