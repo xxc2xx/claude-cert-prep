@@ -936,7 +936,7 @@
   <section id="tab-quiz" class="tab-content active">
     <div class="controls">
       <div class="filter-section">
-        <span class="filter-section-label">Scope</span><button id="scope-toggle" aria-label="Toggle scope filters" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 3px;line-height:1;flex-shrink:0;" title="Collapse / expand scope">▾</button>
+        <button id="scope-toggle" aria-label="Toggle scope filters" style="background:none;border:none;display:flex;align-items:center;gap:5px;cursor:pointer;font-family:inherit;padding:7px 10px;border-radius:6px;flex-shrink:0;min-height:40px;" title="Collapse / expand scope"><span class="filter-section-label" style="pointer-events:none;">Scope</span><span id="scope-caret" style="color:var(--muted);font-size:13px;pointer-events:none;">▾</span></button>
         <div class="filter-section-body" id="scope-body">
           <select id="filter-tier" aria-label="Tier filter">
             <option value="">All tiers</option>
@@ -988,6 +988,14 @@
       <div class="mock-actions">
         <button id="mock-submit" class="primary">Submit Mock</button>
         <button id="mock-abort" class="secondary">Abort</button>
+      </div>
+    </div>
+    <div id="retry-banner" class="mock-banner" style="display:none;border-left:3px solid var(--accent);">
+      <div class="mock-info">
+        <b>↩ Retry session</b> · <span id="retry-remaining">0</span> questions remaining
+      </div>
+      <div class="mock-actions">
+        <button id="retry-abort-btn" class="secondary">End</button>
       </div>
     </div>
 
@@ -11232,6 +11240,10 @@ function getFiltered() {
   if (mockState.active) {
     return mockState.qids.map(id => QUESTIONS.find(q => q.id === id)).filter(Boolean);
   }
+  // Retry session: show only queued questions regardless of progress
+  if (retrySession.active) {
+    return QUESTIONS.filter(q => retrySession.qids.has(q.id));
+  }
 
   const tier = document.getElementById("filter-tier").value;
   const domain = document.getElementById("filter-domain").value;
@@ -11283,6 +11295,7 @@ function getFiltered() {
 const MOCK_WEIGHTS = { D1: 16, D3: 12, D4: 12, D2: 11, D5: 9 };  // sums to 60
 const MOCK_DURATION_MS = 120 * 60 * 1000;
 let mockState = { active: false, qids: [], startedAt: 0, progress: {}, timerHandle: null };
+let retrySession = { active: false, qids: new Set() };
 
 function startMockExam() {
   if (mockState.active) return;
@@ -11536,7 +11549,8 @@ function renderQuestion(q, idx) {
   const card = document.createElement("div");
   card.className = "card";
   const inMock = mockState.active;
-  const p = inMock ? mockState.progress[q.id] : progress[q.id];
+  const inRetry = retrySession.active && retrySession.qids.has(q.id);
+  const p = inMock ? mockState.progress[q.id] : (inRetry ? null : progress[q.id]);
   const locked = !!p;
   const showVerdict = locked && !inMock;
   const showAnswerHighlight = locked && !inMock;
@@ -11660,10 +11674,21 @@ const __ss = (() => {
   };
 })();
 
+function updateRetryBanner() {
+  const banner = document.getElementById('retry-banner');
+  if (!banner) return;
+  if (retrySession.active) {
+    banner.style.display = 'flex';
+    document.getElementById('retry-remaining').textContent = retrySession.qids.size;
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
 function renderDailyPlan() {
   const panel = document.getElementById('daily-plan');
   if (!panel) return;
-  if (mockState.active) { panel.style.display = 'none'; return; }
+  if (mockState.active || retrySession.active) { panel.style.display = 'none'; return; }
   if (__ss.getItem('plan-dismissed')) { panel.style.display = 'none'; return; }
 
   // P2: count only IDs still present in QUESTIONS (ignores stale progress from deleted dupes)
@@ -11800,6 +11825,18 @@ document.addEventListener("click", (e) => {
       mockState.progress[qid] = { chosen, correct, confidence };
       updateMockAnswered();
       render();
+    } else if (retrySession.active) {
+      progress[qid] = { chosen, correct, confidence, ts: Date.now() };
+      saveProgress();
+      retrySession.qids.delete(qid);
+      updateRetryBanner();
+      if (retrySession.qids.size === 0) {
+        retrySession = { active: false, qids: new Set() };
+        updateRetryBanner();
+        render();
+      } else {
+        replaceCard(qid);
+      }
     } else {
       progress[qid] = { chosen, correct, confidence, ts: Date.now() };
       saveProgress();
@@ -11862,6 +11899,11 @@ document.getElementById('mock-briefing-overlay').addEventListener("click", (e) =
 });
 document.getElementById("mock-submit").addEventListener("click", () => endMockExam(false));
 document.getElementById("mock-abort").addEventListener("click", abortMockExam);
+document.getElementById("retry-abort-btn").addEventListener("click", () => {
+  retrySession = { active: false, qids: new Set() };
+  updateRetryBanner();
+  render();
+});
 document.getElementById("reset").addEventListener("click", () => {
   if (confirm("Reset ALL progress?")) {
     progress = {};
@@ -11955,7 +11997,7 @@ document.querySelectorAll('.progress-sub').forEach(btn => {
   toggle.addEventListener('click', () => {
     collapsed = !collapsed;
     scopeBody.style.display = collapsed ? 'none' : '';
-    toggle.textContent = collapsed ? '▸' : '▾';
+    document.getElementById('scope-caret').textContent = collapsed ? '▸' : '▾';
   });
 })();
 
@@ -12291,39 +12333,81 @@ function renderCheatsheetActive() {
   });
   container.appendChild(catRow);
 
-  // Filtered chip bar
+  // Filtered sections for this category
   const activeCat = CHEATSHEET_CATS.find(c => c.id === state.activeCat) || CHEATSHEET_CATS[1];
   const filteredSections = sections.filter(s => s.label && activeCat.test(s.label));
 
-  const chipBar = document.createElement('div');
-  chipBar.className = 'notes-toc';
-  const lbl = document.createElement('span');
-  lbl.className = 'notes-toc-label';
-  lbl.textContent = chipLabel;
-  chipBar.appendChild(lbl);
+  // Find active index within filtered set
+  let filtActiveIdx = filteredSections.findIndex(s => sections.indexOf(s) === state.activeIdx);
+  if (filtActiveIdx < 0) filtActiveIdx = 0;
 
-  filteredSections.forEach(section => {
-    const i = sections.indexOf(section);
-    const a = document.createElement('a');
-    a.href = '#';
-    a.textContent = section.label;
-    if (i === state.activeIdx) a.classList.add('active');
-    a.addEventListener('click', e => {
-      e.preventDefault();
-      state.activeIdx = i;
-      renderCheatsheetActive();
-      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-    chipBar.appendChild(a);
+  // 1 block — no navigation needed, render content directly
+  if (filteredSections.length <= 1) {
+    const content = document.createElement('div');
+    const renderSection = filteredSections[0];
+    if (renderSection) renderSection.nodes.forEach(n => content.appendChild(n.cloneNode(true)));
+    container.appendChild(content);
+    return;
+  }
+
+  // Multiple blocks — use slider navigation (same pattern as Q&A)
+  const nav = document.createElement('div');
+  nav.className = 'assess-nav';
+
+  const prevBtn = document.createElement('button');
+  prevBtn.className = 'assess-nav-btn';
+  prevBtn.textContent = '‹';
+  prevBtn.disabled = filtActiveIdx === 0;
+  prevBtn.setAttribute('aria-label', 'Previous block');
+
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.className = 'assess-slider';
+  slider.min = 0;
+  slider.max = filteredSections.length - 1;
+  slider.value = filtActiveIdx;
+  slider.setAttribute('aria-label', 'Block selector');
+
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'assess-nav-btn';
+  nextBtn.textContent = '›';
+  nextBtn.disabled = filtActiveIdx === filteredSections.length - 1;
+  nextBtn.setAttribute('aria-label', 'Next block');
+
+  const navLabel = document.createElement('span');
+  navLabel.className = 'assess-nav-label';
+  navLabel.textContent = filteredSections[filtActiveIdx]?.label || '';
+
+  const counter = document.createElement('span');
+  counter.className = 'assess-nav-counter';
+  counter.textContent = `${filtActiveIdx + 1} of ${filteredSections.length}`;
+
+  function gotoBlock(i) {
+    const clamped = Math.max(0, Math.min(filteredSections.length - 1, i));
+    state.activeIdx = sections.indexOf(filteredSections[clamped]);
+    renderCheatsheetActive();
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  slider.addEventListener('input', () => {
+    const idx = +slider.value;
+    navLabel.textContent = filteredSections[idx]?.label || '';
+    counter.textContent = `${idx + 1} of ${filteredSections.length}`;
   });
-  container.appendChild(chipBar);
+  slider.addEventListener('change', () => gotoBlock(+slider.value));
+  prevBtn.addEventListener('click', () => gotoBlock(filtActiveIdx - 1));
+  nextBtn.addEventListener('click', () => gotoBlock(filtActiveIdx + 1));
 
-  // Content — use active section if it belongs to current category, else first in category
+  nav.appendChild(prevBtn);
+  nav.appendChild(slider);
+  nav.appendChild(nextBtn);
+  nav.appendChild(navLabel);
+  nav.appendChild(counter);
+  container.appendChild(nav);
+
+  // Content
   const content = document.createElement('div');
-  const activeSection = sections[state.activeIdx];
-  const renderSection = (activeSection && activeCat.test(activeSection.label || ''))
-    ? activeSection
-    : filteredSections[0];
+  const renderSection = filteredSections[filtActiveIdx];
   if (renderSection) renderSection.nodes.forEach(n => content.appendChild(n.cloneNode(true)));
   container.appendChild(content);
 }
@@ -12717,16 +12801,19 @@ function renderProgressReview({ wrongIds, answered }) {
 }
 
 function retryAllWrong() {
+  const wrongIds = QUESTIONS
+    .filter(q => progress[q.id] && !progress[q.id].correct)
+    .map(q => q.id);
+  if (!wrongIds.length) return;
+  retrySession = { active: true, qids: new Set(wrongIds) };
   document.querySelector('[data-tab="quiz"]').click();
   setTimeout(() => {
-    const tierSel = document.getElementById('filter-tier');
-    if (tierSel) tierSel.value = '';
-    const blockSel = document.getElementById('filter-block');
-    if (blockSel) blockSel.value = '';
-    const domSel = document.getElementById('filter-domain');
-    if (domSel) domSel.value = '';
-    const statusSel = document.getElementById('filter-status');
-    if (statusSel) statusSel.value = 'wrong';
+    // Clear scope filters so nothing interferes with getFiltered override
+    ['filter-tier','filter-block','filter-domain','filter-status'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    updateRetryBanner();
     render();
   }, 60);
 }
