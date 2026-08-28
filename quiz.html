@@ -11162,6 +11162,488 @@ const QUESTIONS = [
     ],
     answer: 0,
     explain: "Good toolsets are curated interfaces, not API mirrors: <b>few tools, each with one clear job</b>. Selection accuracy and context efficiency both follow from that restraint. Exposing every endpoint (B) and providing overlapping tools (D) create the ambiguity that degrades tool selection; stripping away the semantic signal that names provide (C) removes the very cue the model uses to distinguish tools."
+  },
+
+  // ── Block 30: Score Report Gaps — Scenario-Style (10 zero-percent objectives) ──
+  {
+    id: "b30-q1",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Orchestration safeguards",
+    domain: "D1",
+    tier: "exam",
+    q: "A customer support agent occasionally ends a session with 'I'm sorry I couldn't help' without resolving the issue or escalating. What architectural change best prevents this?",
+    choices: [
+      "Add a strong instruction in CLAUDE.md: never apologize without resolving first",
+      "Make <code>escalate_to_human</code> and <code>resolve_ticket</code> explicit tools and gate session completion in the harness so a session cannot close unless one was called",
+      "Set <code>max_turns</code> lower so the loop ends before the failure mode activates",
+      "Add a PostToolUse hook that logs unresolved sessions for manual review"
+    ],
+    answer: 1,
+    explain: "<b>Harness-level gating</b> is the only deterministic guarantee. Instructions and CLAUDE.md rely on model compliance — a model can always generate a closing message that bypasses them. A <b>terminal-state check in the orchestrator</b> (did this session call resolve or escalate before closing?) prevents any exit path that skips both outcomes. Lower max_turns (C) just ends sessions sooner, not better."
+  },
+  {
+    id: "b30-q2",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Orchestration safeguards",
+    domain: "D1",
+    tier: "exam",
+    q: "An orchestrator spawns a subagent to reconcile an invoice, but the subagent repeatedly says 'I cannot find the purchase order.' The root cause is most likely:",
+    choices: [
+      "The subagent's tool descriptions are insufficient",
+      "The subagent has exceeded its context window",
+      "The coordinator did not pass the PO number and authorization data in the task prompt — subagents do not inherit parent context",
+      "The MCP server is configured at user scope instead of project scope"
+    ],
+    answer: 2,
+    explain: "<b>Subagents start with a blank context.</b> They do not inherit the orchestrator's conversation history, tool results, or any accumulated state. The coordinator must serialize the required facts — PO number, approver authorization, relevant IDs — into the task prompt it passes when spawning. This is the 'structured handoff package' pattern."
+  },
+  {
+    id: "b30-q3",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Agentic loop / stop_reason",
+    domain: "D1",
+    tier: "exam",
+    q: "An agentic loop checks <code>stop_reason</code> after each API response. On which value should the loop continue executing tool calls?",
+    choices: [
+      "<code>end_turn</code>",
+      "<code>stop_sequence</code>",
+      "<code>tool_use</code>",
+      "<code>max_tokens</code>"
+    ],
+    answer: 2,
+    explain: "<code>stop_reason: 'tool_use'</code> means Claude wants to call a tool — execute the requested tools and send a new request with their results. <code>end_turn</code> means Claude finished and you return the response. <code>stop_sequence</code> means a stop string matched (usually also a terminal state). <code>max_tokens</code> means the output was truncated — you may need to handle continuation or error."
+  },
+  {
+    id: "b30-q4",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Config mechanism selection",
+    domain: "D3",
+    tier: "exam",
+    q: "A team wants test file guidance applied <em>only</em> when Claude edits <code>*.test.ts</code> files, not for all files. The correct configuration mechanism is:",
+    choices: [
+      "Add the guidance to CLAUDE.md at the repo root",
+      "Create a <code>.claude/rules/</code> file scoped with a glob matching <code>**/*.test.ts</code>",
+      "Add a system prompt instruction covering all edits",
+      "Create a Skill that runs when test files are detected"
+    ],
+    answer: 1,
+    explain: "<b>.claude/rules/ with a glob pattern</b> is the mechanism for path-scoped guidance — the rule only attaches when Claude reads or edits files whose paths match the glob. CLAUDE.md (A) applies globally. A system prompt (C) also applies globally. A Skill (D) is for explicit invocation, not automatic path-scoped injection."
+  },
+  {
+    id: "b30-q5",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Config mechanism selection",
+    domain: "D3",
+    tier: "exam",
+    q: "A developer wants a <code>/release-notes</code> command that can be explicitly invoked AND auto-detected when Claude recognizes the task. The correct mechanism is:",
+    choices: [
+      "Create a custom slash command in <code>.claude/commands/</code>",
+      "Author a Skill with a SKILL.md — Skills expose as slash commands and can also be auto-loaded",
+      "Add the command logic to CLAUDE.md with a trigger phrase",
+      "Configure a PostToolUse hook to detect release-note patterns"
+    ],
+    answer: 1,
+    explain: "<b>Skills</b> are the unified mechanism for commands that need both explicit invocation (as <code>/release-notes</code>) and auto-loading. Custom commands in <code>.claude/commands/</code> (A) are slash-command only. CLAUDE.md trigger phrases (C) are not a formal mechanism. Hooks (D) react to tool events, not task patterns."
+  },
+  {
+    id: "b30-q6",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Config mechanism selection",
+    domain: "D3",
+    tier: "exam",
+    q: "You've broadly allowed <code>Bash(npm:*)</code> but must prevent <code>npm publish</code> specifically. The correct approach:",
+    choices: [
+      "Override the allow with a narrower allow that explicitly excludes publish",
+      "Add a deny rule for <code>Bash(npm publish:*)</code> — deny always takes precedence over allow",
+      "Add an instruction in CLAUDE.md: never run npm publish",
+      "Create a PreToolUse hook that blocks publish commands"
+    ],
+    answer: 1,
+    explain: "<b>deny > allow</b> in Claude Code's settings permissions. A deny rule for <code>Bash(npm publish:*)</code> blocks that specific command while leaving all other <code>npm:*</code> commands allowed. Instructions (C) rely on model compliance. A PreToolUse hook (D) can also enforce this but it's a heavier mechanism — the settings deny rule is the native, correct choice."
+  },
+  {
+    id: "b30-q7",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "PostToolUse hooks",
+    domain: "D3",
+    tier: "exam",
+    q: "A team added a CLAUDE.md instruction to always run Prettier after edits, but unformatted code still ships occasionally. The strongest fix is:",
+    choices: [
+      "Repeat the formatting instruction more prominently at the top of CLAUDE.md",
+      "Move the instruction from CLAUDE.md into the system prompt",
+      "Configure a PostToolUse hook matching Edit/Write tools that runs Prettier deterministically",
+      "Ask Claude to format each file before writing it"
+    ],
+    answer: 2,
+    explain: "<b>Hooks guarantee enforcement; instructions rely on model compliance.</b> A PostToolUse hook fires deterministically after every Edit/Write tool call, regardless of what the model decides to do. The model may follow CLAUDE.md instructions inconsistently — especially under long contexts or complex tasks. The hook eliminates the dependency on model instruction-following entirely."
+  },
+  {
+    id: "b30-q8",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "PostToolUse hooks",
+    domain: "D3",
+    tier: "exam",
+    q: "Where is the PostToolUse hook that runs ESLint after every file edit defined?",
+    choices: [
+      "CLAUDE.md (project-level configuration file)",
+      "<code>.claude/skills/</code> directory",
+      "<code>settings.json</code> (project-level <code>.claude/settings.json</code> or global <code>~/.claude/settings.json</code>)",
+      "<code>.mcp.json</code> at the repo root"
+    ],
+    answer: 2,
+    explain: "Hooks are defined under the <code>hooks</code> key in <b>settings.json</b>. Project-level hooks go in <code>.claude/settings.json</code> (shared with the team via version control). Personal/global hooks go in <code>~/.claude/settings.json</code>. Neither CLAUDE.md nor .mcp.json contain hook definitions."
+  },
+  {
+    id: "b30-q9",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "PostToolUse hooks",
+    domain: "D3",
+    tier: "exam",
+    q: "A pricing tool returns mixed timestamp formats and debug noise, causing the model to mis-order events. Rather than expanding the system prompt, the best fix is:",
+    choices: [
+      "Add format normalization instructions to the tool's description field",
+      "Add a PostToolUse hook that normalizes timestamps to ISO 8601 and strips debug output before context re-entry",
+      "Add a PreToolUse hook that sanitizes tool inputs",
+      "Increase temperature so the model tolerates format variation"
+    ],
+    answer: 1,
+    explain: "A <b>PostToolUse hook normalizes tool output before it enters the model's context</b> — deterministic, not model-dependent. The model never sees the raw noise. Expanding the system prompt (A) asks the model to handle the mess after seeing it. PreToolUse (C) runs on inputs, not outputs. Temperature (D) addresses randomness, not format."
+  },
+  {
+    id: "b30-q10",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "MCP server scope",
+    domain: "D2",
+    tier: "exam",
+    q: "Your team needs a Postgres MCP server available to all developers, each using their own personal connection string (no shared credentials). The correct approach:",
+    choices: [
+      "Add to <code>~/.claude.json</code> (user-level) with a hardcoded shared connection string",
+      "Add to <code>.mcp.json</code> (project-level) using <code>${DATABASE_URL}</code> expansion — each developer sets their own env var locally",
+      "Add to <code>~/.claude.json</code> using <code>${DATABASE_URL}</code> expansion so each developer configures personally",
+      "Add to CLAUDE.md with instructions for each developer to run the server manually"
+    ],
+    answer: 1,
+    explain: "<b>Project-level .mcp.json + env-var expansion</b> is the standard pattern: the config is version-controlled and shared, but no secrets are committed. <code>${DATABASE_URL}</code> expands from each developer's local environment. User-level (C) would work technically but gives no shared config — each developer must configure independently with no centralized control."
+  },
+  {
+    id: "b30-q11",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "MCP server scope",
+    domain: "D2",
+    tier: "exam",
+    q: "A developer is testing a new experimental MCP server before proposing it to the team. Which scope should they use?",
+    choices: [
+      "<code>.mcp.json</code> at the project root (shared with all teammates)",
+      "<code>~/.claude.json</code> (user-level — personal, not version-controlled)",
+      "A new <code>.claude/servers/</code> directory at project level",
+      "The system-level settings file at <code>/etc/claude/settings.json</code>"
+    ],
+    answer: 1,
+    explain: "User-level configuration (<code>~/.claude.json</code>) is not version-controlled and only affects that developer's environment — the right scope for personal experiments. Project-level .mcp.json (A) immediately shares the server with all teammates, which is premature for an experiment. Options C and D don't exist as standard Claude Code scopes."
+  },
+  {
+    id: "b30-q12",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "MCP server scope",
+    domain: "D2",
+    tier: "exam",
+    q: "The same MCP server name appears in both <code>~/.claude.json</code> and the project's <code>.mcp.json</code>. What happens?",
+    choices: [
+      "Fields merge, with project-level values overriding conflicting user-level fields",
+      "User-level entry is silently ignored; project-level wins entirely",
+      "The project-level entry replaces the entire user-level server entry — no merging occurs",
+      "Claude Code throws a startup error requiring you to rename one entry"
+    ],
+    answer: 2,
+    explain: "When the same server name appears at both scopes, <b>project-level replaces the entire user-level entry</b> — there is no field-level merging. This is a known behavior (GitHub issue #62594). If your user-level entry has environment variables not in the project config, they will be lost. The safe pattern: use distinct server names at each scope if you need both."
+  },
+  {
+    id: "b30-q13",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Stateless API / conversation history",
+    domain: "D5",
+    tier: "exam",
+    q: "A user states a preference in turn 2. In turn 6, the model has forgotten it. The root cause is most likely:",
+    choices: [
+      "The model's context window has been exceeded",
+      "Turn 6's request sent only the latest user message instead of replaying the full messages array",
+      "The preference was not recorded in the system prompt",
+      "Temperature is too high, causing inconsistent recall"
+    ],
+    answer: 1,
+    explain: "The <b>Messages API is stateless</b>: each request is independent, with no server-side memory. If turn 6 only sends the new user message, Claude never saw turns 1–5 in that request. You must accumulate and resend the full messages array — all prior user, assistant, tool_use, and tool_result blocks — on every request."
+  },
+  {
+    id: "b30-q14",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Stateless API / conversation history",
+    domain: "D5",
+    tier: "exam",
+    q: "A team passes a <code>session_id</code> parameter expecting the API to persist conversation history server-side. Why does this not work?",
+    choices: [
+      "<code>session_id</code> requires paid tier access to activate",
+      "The Messages API is stateless — there is no server-side conversation memory; full history must be resent each request",
+      "<code>session_id</code> only works for single-turn requests",
+      "Session persistence requires the Batches API"
+    ],
+    answer: 1,
+    explain: "The Anthropic Messages API does <b>not persist conversation state</b>. There is no session_id mechanism — the API accepts no such parameter. Every request is independent. The full conversation history (alternating user/assistant messages, tool_use blocks, tool_result blocks) must be included in each request's <code>messages</code> array."
+  },
+  {
+    id: "b30-q15",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Stateless API / conversation history",
+    domain: "D5",
+    tier: "exam",
+    q: "When maintaining a multi-turn agentic conversation via the Messages API, which content blocks must be included in the messages array for correct continuation?",
+    choices: [
+      "Only user messages — assistant responses are regenerated automatically",
+      "Only the most recent user message and the system prompt",
+      "All prior messages including <code>tool_use</code> and <code>tool_result</code> blocks from every turn",
+      "All user messages but not assistant tool calls — those are regenerated"
+    ],
+    answer: 2,
+    explain: "For correct agentic continuation you must resend <b>the complete messages array</b>: every user message, every assistant response (including <code>tool_use</code> content blocks), and every <code>tool_result</code> block. Omitting tool_use/tool_result blocks will cause the API to error or produce incoherent responses, because the model cannot see what tools it called or what they returned."
+  },
+  {
+    id: "b30-q16",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Escalation criteria",
+    domain: "D1",
+    tier: "exam",
+    q: "An agent escalates based on self-reported confidence scores, but escalations are erratic and risky actions proceed unchecked. A sounder escalation design triggers handoff on:",
+    choices: [
+      "Confidence falling below a tunable threshold set in the system prompt",
+      "Rigid policy conditions: explicit human requests, policy gaps, irreversible actions, or no progress after N attempts",
+      "Consensus from two parallel agent instances",
+      "The number of tools called in the current turn"
+    ],
+    answer: 1,
+    explain: "<b>Model self-reported confidence is unreliable</b> for safety-critical escalation — models can be confidently wrong. Rigid, externally-defined policy conditions give deterministic, auditable escalation triggers: (1) user explicitly asks for a human, (2) no applicable policy rule exists, (3) the action is irreversible, (4) the agent is stuck after N attempts. These conditions cannot be influenced by model overconfidence."
+  },
+  {
+    id: "b30-q17",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Escalation criteria",
+    domain: "D1",
+    tier: "exam",
+    q: "A support agent should always honor an explicit 'I want to speak to a human' request immediately, without attempting further autonomous resolution. Where must this rule be enforced?",
+    choices: [
+      "In CLAUDE.md as a high-priority instruction",
+      "In the system prompt with <code>IMPORTANT:</code> prefix",
+      "In the orchestration harness — explicit human escalation requests must be honored unconditionally, independent of model discretion",
+      "In the tool description for the escalation tool"
+    ],
+    answer: 2,
+    explain: "Instructions in CLAUDE.md or system prompt rely on model compliance — a sufficiently persuasive user turn could override them. <b>Hard safety rules like honoring escalation requests belong in the harness</b>: the orchestrator inspects each turn for escalation signals before passing to the model, and routes immediately if detected. This enforcement is outside model control."
+  },
+  {
+    id: "b30-q18",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Escalation criteria",
+    domain: "D1",
+    tier: "exam",
+    q: "An autonomous research agent has been running for hours. Which condition most clearly warrants immediate escalation to a human rather than continued autonomous resolution?",
+    choices: [
+      "The agent encounters a tool it has not used before in this session",
+      "The agent is about to take an irreversible action it lacks explicit prior authorization for",
+      "The agent's confidence in its findings drops below 70%",
+      "The task has taken more turns than the estimated baseline"
+    ],
+    answer: 1,
+    explain: "<b>Irreversible actions without prior authorization</b> are the canonical escalation trigger. The agent cannot undo the action if it was wrong. This is a policy gap (no authorization exists) combined with irreversibility — both rigid escalation conditions. Encountering unfamiliar tools (A) is normal. Confidence percentage (C) is a model self-report. Exceeding turn estimates (D) may warrant checking in but not immediate escalation."
+  },
+  {
+    id: "b30-q19",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Messages API vs Batches API",
+    domain: "D5",
+    tier: "exam",
+    q: "You need to re-summarize 400,000 archived customer threads overnight. No user is waiting for results. The correct processing mode is:",
+    choices: [
+      "Messages API with parallel async calls using <code>Promise.all</code>",
+      "Message Batches API — designed for latency-insensitive, high-volume workloads with 50% cost savings and a 24-hour processing window",
+      "Messages API with streaming enabled to reduce per-request latency",
+      "Messages API with exponential backoff to handle rate limits"
+    ],
+    answer: 1,
+    explain: "The <b>Message Batches API</b> is purpose-built for exactly this scenario: async, high-volume, no user waiting. It offers a 50% cost discount versus the Messages API and a 24-hour window. The Messages API (A/C/D) is for synchronous workloads where latency matters — running 400k sequential or parallel Messages API calls would be far more expensive and complex."
+  },
+  {
+    id: "b30-q20",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Messages API vs Batches API",
+    domain: "D5",
+    tier: "exam",
+    q: "A team avoided the Batches API believing it cannot handle tool use. This belief is:",
+    choices: [
+      "Correct — the Batches API only supports simple text exchanges with no tools",
+      "Incorrect — the Batches API supports tool use and multi-turn; use it for latency-insensitive workloads and keep latency-sensitive chat on the synchronous API",
+      "Correct — tool schemas are supported but tool results cannot be included in the messages history",
+      "Partially correct — Batches API supports tool definitions but rejects requests containing more than one tool"
+    ],
+    answer: 1,
+    explain: "The Batches API <b>fully supports tool use and multi-turn conversations</b>. The only difference from the Messages API is the processing model: you submit a batch, wait up to 24 hours, and retrieve results by <code>custom_id</code>. The 50% cost discount applies. Use it for nightly enrichment, document processing, and any workload that doesn't block a user."
+  },
+  {
+    id: "b30-q21",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Messages API vs Batches API",
+    domain: "D5",
+    tier: "exam",
+    q: "Which characteristic is the deciding factor for choosing the Batches API over the synchronous Messages API?",
+    choices: [
+      "The request requires streaming output",
+      "The request uses more than 5 tools",
+      "The workflow is latency-insensitive and does not block a user or downstream pipeline step on an immediate response",
+      "The request needs prompt caching"
+    ],
+    answer: 2,
+    explain: "<b>Latency-insensitivity</b> is the key criterion. If nothing is waiting on an immediate response — no user, no blocking pipeline step — use Batches for the 50% discount and simpler rate-limit handling. If a user is waiting (chat, interactive tool, real-time pipeline), use the synchronous Messages API regardless of how many tools or whether caching is needed."
+  },
+  {
+    id: "b30-q22",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "tool_choice + JSON schema",
+    domain: "D4",
+    tier: "exam",
+    q: "A <code>classify_ticket</code> tool is skipped in ~8% of turns, causing downstream pipeline failures. The direct architectural fix is:",
+    choices: [
+      "Increase the tool description length to make it more prominent",
+      "Move the tool to position 0 in the tools array so it appears first",
+      "Set <code>tool_choice</code> to require the named tool, so the model cannot produce a conversational response instead",
+      "Add a PostToolUse hook that detects skipped classification and re-calls the tool"
+    ],
+    answer: 2,
+    explain: "<code>tool_choice: {type: \"tool\", name: \"classify_ticket\"}</code> <b>forces the model to call that specific tool</b> on that turn — it cannot return conversational text. This is the correct fix for 'model may skip the tool': make skipping architecturally impossible. Description length (A) and array position (B) are soft hints. A re-call hook (D) adds retry complexity and still depends on detecting the miss."
+  },
+  {
+    id: "b30-q23",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "tool_choice + JSON schema",
+    domain: "D4",
+    tier: "exam",
+    q: "A pipeline requires <code>generate_quote</code> but the tool first needs the customer's plan tier. Setting <code>tool_choice: {type: \"tool\", name: \"generate_quote\"}</code> on turn 1 fails. The correct approach:",
+    choices: [
+      "Always pass a default tier so <code>generate_quote</code> can self-correct on missing data",
+      "Begin with <code>tool_choice: \"auto\"</code> so the model can gather the tier first, then force <code>generate_quote</code> once prerequisite data is present",
+      "Use a single combined tool that performs tier lookup and quote generation in one call",
+      "Set <code>tool_choice: \"any\"</code> and let the model sequence all calls autonomously"
+    ],
+    answer: 1,
+    explain: "<b>Sequenced tool_choice</b> is the pattern for prerequisite dependencies: (1) let the model run freely to gather prerequisites (<code>tool_choice: auto</code>), then (2) force the dependent tool once data is available. Combining into a single tool (C) reduces composability. <code>tool_choice: any</code> (D) forces some tool call but doesn't guarantee ordering."
+  },
+  {
+    id: "b30-q24",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "tool_choice + JSON schema",
+    domain: "D4",
+    tier: "exam",
+    q: "Invoice extraction produces 3% malformed JSON (trailing commas, prose mixed in). The strongest architectural guarantee of valid structured output is:",
+    choices: [
+      "Add explicit JSON formatting instructions to the system prompt",
+      "Use prefill to start the model's response with <code>{</code>",
+      "Define the fields as a tool schema and configure tool_choice to force tool invocation — output is schema-validated JSON",
+      "Add a PostToolUse hook that runs <code>JSON.parse</code> and retries on failure"
+    ],
+    answer: 2,
+    explain: "<b>Tool use + forced tool_choice</b> is the strictest structured-output guarantee: the API validates the model's output against the JSON schema before returning it — malformed JSON cannot reach your application. Prompt-based formatting (A) reduces errors but doesn't eliminate them. Prefill (B) helps but model can still produce invalid JSON. Retry hook (D) corrects errors after they occur but still allows malformed output through until caught."
+  },
+  {
+    id: "b30-q25",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Feedback loop",
+    domain: "D4",
+    tier: "exam",
+    q: "An extraction pipeline retries failed validations, but retries fail at nearly the same rate. The retry message says 'invalid, try again.' What change most improves convergence?",
+    choices: [
+      "Increase <code>max_tokens</code> to give the model more room to self-correct",
+      "Return the specific validation errors — naming the offending fields and expected types — so the retry targets the actual defects",
+      "Switch to a higher-capability model for retry attempts",
+      "Add few-shot examples to the system prompt and retry with fresh context"
+    ],
+    answer: 1,
+    explain: "<b>Feedback specificity</b> is the lever. 'Invalid, try again' gives the model no new information — it will produce a similar response. Naming the offending fields and the expected format gives the model actionable correction targets. This is the core pattern of extraction feedback loops: structured error information → targeted retry → convergence."
+  },
+  {
+    id: "b30-q26",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Feedback loop",
+    domain: "D4",
+    tier: "exam",
+    q: "An MCP tool lets a raw Python stack trace propagate to the agent on failure. The agent retries blindly or abandons. The best remedy is:",
+    choices: [
+      "Catch exceptions server-side and return an empty result so the agent stops retrying",
+      "Increase the agent's <code>max_turns</code> to allow more retry headroom",
+      "Return a structured error object with a <code>type</code>, <code>isRetryable</code> flag, and suggested next action the model can reason over",
+      "Set <code>isError: true</code> with the raw exception text as content"
+    ],
+    answer: 2,
+    explain: "A <b>typed, actionable error structure</b> is what enables intelligent recovery: <code>type</code> tells the model what failed, <code>isRetryable</code> tells it whether to retry, and a suggested next action gives it a path forward. Raw stack traces (D) provide developer context but not model-actionable signals. Empty results (A) suppress information. More turns (B) doesn't fix the signal quality."
+  },
+  {
+    id: "b30-q27",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Feedback loop",
+    domain: "D2",
+    tier: "exam",
+    q: "A search tool returns <code>isError: false</code> with an empty array when no results are found. An agent retries five times treating this as a failure. The fix is:",
+    choices: [
+      "Change the tool to return <code>isError: true</code> when no results are found",
+      "Add exponential backoff suppression logic to the retry loop",
+      "Branch on the <code>isError</code> flag: <code>false</code> + empty array = valid no-matches result (handle gracefully); <code>isError: true</code> = transient failure worth retrying",
+      "Restructure the tool to throw an exception instead of returning empty arrays"
+    ],
+    answer: 2,
+    explain: "<code>isError: false</code> + empty content = <b>successful tool call that found nothing</b>. This is a valid, expected outcome, not a failure. The agent should proceed (try different search terms, report no results, etc.). <code>isError: true</code> = the tool itself failed and retry may help. Conflating 'no results' with 'tool error' (A) creates false signals. Exponential backoff (B) addresses rate limits, not semantics."
+  },
+  {
+    id: "b30-q28",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Tool description disambiguation",
+    domain: "D2",
+    tier: "exam",
+    q: "A routing agent's <code>customer_lookup</code> tool description mentions 'Postgres RDS' and 'GraphQL gateway.' The agent uses <code>web_search</code> instead for customer queries. The fix:",
+    choices: [
+      "Remove <code>web_search</code> from the toolset entirely",
+      "Rewrite <code>customer_lookup</code> around the user-facing capability — what it retrieves and when to prefer it over similar tools — removing infrastructure implementation details",
+      "Add <code>customer_lookup</code> as the first tool in the tools array",
+      "Increase <code>customer_lookup</code>'s description character count"
+    ],
+    answer: 1,
+    explain: "Tool descriptions should describe <b>what the tool does for the user, not how it works internally</b>. 'Postgres RDS' and 'GraphQL gateway' are implementation noise that doesn't help the model decide when to call the tool. A description like 'Look up a customer's orders and contact details by email or ID. Use this instead of web_search for all customer account queries' gives the model the selection signal it actually needs."
+  },
+  {
+    id: "b30-q29",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Tool description disambiguation",
+    domain: "D2",
+    tier: "exam",
+    q: "An agent with 40 tools defaults to <code>web_search</code> for internal policy questions instead of <code>internal_kb_search</code>. The highest-leverage fix is:",
+    choices: [
+      "Add a system prompt instruction: 'prefer internal_kb_search for policy questions'",
+      "Prune overlapping tools to a focused set AND sharpen <code>internal_kb_search</code>'s description to explicitly state its advantage for authoritative internal answers",
+      "Force <code>tool_choice: {type: \"tool\", name: \"internal_kb_search\"}</code> for all turns",
+      "Rename <code>web_search</code> to <code>external_web_search</code> to increase naming contrast"
+    ],
+    answer: 1,
+    explain: "<b>Two levers together</b>: (1) reduce the toolset so the model has fewer ambiguous choices, (2) sharpen the winning tool's description so it signals 'use me for X, not web_search.' A system prompt instruction (A) competes with 40 tool descriptions at inference time. Forced tool_choice (C) breaks general routing. Renaming alone (D) helps slightly but doesn't address the 40-tool overload."
+  },
+  {
+    id: "b30-q30",
+    block: "🔴 Scenario · 30 — Score Report Gaps",
+    topic: "Tool description disambiguation",
+    domain: "D2",
+    tier: "exam",
+    q: "Which element in a tool description most reliably improves selection accuracy when semantically similar tools exist?",
+    choices: [
+      "Detailed explanation of the tool's internal implementation and data sources",
+      "The tool's performance benchmarks and average latency",
+      "Explicit disambiguation guidance: when to use this tool versus each similar tool, with concrete use-case examples",
+      "The tool's version number and recent changelog"
+    ],
+    answer: 2,
+    explain: "<b>Explicit disambiguation</b> is the highest-signal element for selection accuracy. 'Use this tool when X; prefer tool_Y when Z instead' directly addresses the failure mode. Implementation details (A) and operational metadata (B/D) are noise for selection decisions — the model needs capability and use-case signals, not infrastructure or versioning information."
   }
 ];
 
@@ -11974,112 +12456,167 @@ function renderFinalCheck() {
   el.innerHTML = `
 <div style="max-width:760px;margin:0 auto;padding:8px 0;font-size:14px;line-height:1.7;">
 
-<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
-  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--accent);">🔴 C1 — Customer Support Agent Tool Patterns <span style="font-weight:400;font-size:12px;color:var(--muted)">(biggest gap)</span></div>
+<div style="background:#1a0a0a;border:2px solid var(--red);border-radius:10px;padding:14px 18px;margin-bottom:14px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--red);">📋 Score Report — Aug 28 2026 · 528/720 · FAIL</div>
+  <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Zero-percent objectives are the only things that matter for the retake. Block 30 has 30 scenario questions targeting each one.</div>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <tr style="color:var(--red);font-weight:700;"><td style="padding:3px 6px;">0%</td><td style="padding:3px 6px;">Orchestration-layer safeguards — session must end resolved or escalated</td></tr>
+    <tr style="color:var(--red);font-weight:700;"><td style="padding:3px 6px;">0%</td><td style="padding:3px 6px;">Config mechanism: CLAUDE.md vs .claude/rules/ glob vs Skills vs hooks vs permissions</td></tr>
+    <tr style="color:var(--red);font-weight:700;"><td style="padding:3px 6px;">0%</td><td style="padding:3px 6px;">PostToolUse hooks for code quality — deterministic, independent of model</td></tr>
+    <tr style="color:var(--red);font-weight:700;"><td style="padding:3px 6px;">0%</td><td style="padding:3px 6px;">MCP server scope — project-level .mcp.json vs user-level ~/.claude.json</td></tr>
+    <tr style="color:var(--red);font-weight:700;"><td style="padding:3px 6px;">0%</td><td style="padding:3px 6px;">Stateless API — full messages array must be resent every request</td></tr>
+    <tr style="color:var(--red);font-weight:700;"><td style="padding:3px 6px;">0%</td><td style="padding:3px 6px;">Escalation criteria — rigid policy conditions, not confidence self-reporting</td></tr>
+    <tr style="color:var(--red);font-weight:700;"><td style="padding:3px 6px;">0%</td><td style="padding:3px 6px;">API mode — synchronous Messages API vs async Message Batches API</td></tr>
+    <tr style="color:var(--red);font-weight:700;"><td style="padding:3px 6px;">0%</td><td style="padding:3px 6px;">tool_choice + JSON schema — force tool invocation for structured output</td></tr>
+    <tr style="color:var(--red);font-weight:700;"><td style="padding:3px 6px;">0%</td><td style="padding:3px 6px;">Feedback loop — structured error metadata, specific field-level errors</td></tr>
+    <tr style="color:var(--red);font-weight:700;"><td style="padding:3px 6px;">0%</td><td style="padding:3px 6px;">Tool description disambiguation — capability framing, not implementation details</td></tr>
+    <tr style="color:#fbbf24;"><td style="padding:3px 6px;">33%</td><td style="padding:3px 6px;">Extraction schemas — optional/nullable fields, enum for "not_stated"</td></tr>
+    <tr style="color:#fbbf24;"><td style="padding:3px 6px;">50%</td><td style="padding:3px 6px;">Dynamic subtask decomposition, stop_reason signals, iterative refinement, codebase exploration, context management, MCP error handling, MCP integration</td></tr>
+    <tr style="color:var(--green);"><td style="padding:3px 6px;">100%</td><td style="padding:3px 6px;">Handoff packages, hooks enforcing business rules, slash command directories, permissions vs CLAUDE.md, @ references, tool_choice sequencing</td></tr>
+  </table>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--red);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 S1 — Orchestration Safeguards (0%)</div>
   <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
-    <li><b>Wrong tool triggered by keyword</b> — expand tool descriptions with example queries, input formats, explicit <i>"do NOT use when…"</i> boundaries</li>
-    <li><b>4+ sequential loops per resolution</b> — prompt Claude to <b>bundle related tool requests</b> in a single turn</li>
-    <li><b>Specific amounts/dates lost</b> — extract precise facts into a <b>case facts block outside summarised history</b></li>
-    <li><b>Keyword-driven wrong routing</b> — look for explicit if/else routing in system prompt and remove it</li>
-    <li><b>Policy gap (no rule covers it)</b> — <b>escalate to human</b>; never invent policy</li>
-    <li><b>Contradictory sources</b> — <b>report both values with attribution</b> to coordinator; never average or pick</li>
-    <li><b>Subagent errors</b> — handle at <b>lowest level</b> capable of resolving; local retry before escalating</li>
-    <li><b>Tool scope creep</b> (general fetch used for search) — replace with <b>specific tool</b> that constrains capability at interface level</li>
-    <li><b>Multi-issue request slow</b> — decompose into issues, resolve <b>in parallel</b> with shared customer context</li>
+    <li><b>Agent ends with apology instead of resolving/escalating</b> → make <code>resolve</code> and <code>escalate_to_human</code> explicit tools; <b>gate session exit in the harness</b> — session cannot close unless one was called</li>
+    <li><b>Absolute policy</b> (e.g. never push on failing tests) → <b>deterministic pre-tool hook</b> that inspects test state and blocks the call — not instructions</li>
+    <li><b>Subagent can't find data coordinator has</b> → coordinator must serialize required facts (PO number, auth, IDs) into the task prompt — subagents do NOT inherit parent context</li>
+    <li><b>Loop should continue when</b> <code>stop_reason: 'tool_use'</code>; <b>stop when</b> <code>stop_reason: 'end_turn'</code></li>
+  </ul>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--red);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 S2 — Config Mechanism Selection (0%)</div>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <tr style="color:var(--muted);font-weight:600;"><td style="padding:4px 8px 4px 0;">Mechanism</td><td style="padding:4px 8px;">When to use</td></tr>
+    <tr style="border-top:1px solid var(--border);"><td style="padding:4px 8px 4px 0;"><b>CLAUDE.md</b></td><td style="padding:4px 8px;">Always-on project context &amp; instructions — every session, every file</td></tr>
+    <tr style="border-top:1px solid var(--border);"><td style="padding:4px 8px 4px 0;"><b>.claude/rules/ + glob</b></td><td style="padding:4px 8px;">Path-scoped guidance — e.g. <code>**/*.test.ts</code> → only attaches when editing test files</td></tr>
+    <tr style="border-top:1px solid var(--border);"><td style="padding:4px 8px 4px 0;"><b>Skills (SKILL.md)</b></td><td style="padding:4px 8px;">Explicit slash command + auto-loadable — unified mechanism for both invocation modes</td></tr>
+    <tr style="border-top:1px solid var(--border);"><td style="padding:4px 8px 4px 0;"><b>Hooks</b></td><td style="padding:4px 8px;">Deterministic enforcement independent of model — PreToolUse/PostToolUse triggers</td></tr>
+    <tr style="border-top:1px solid var(--border);"><td style="padding:4px 8px 4px 0;"><b>Permissions (deny/allow)</b></td><td style="padding:4px 8px;">Hard capability limits — <b>deny &gt; allow</b>; blocks specific Bash commands regardless of model intent</td></tr>
+  </table>
+  <div style="margin-top:8px;color:var(--muted);font-size:12px;">Key rule: instructions (CLAUDE.md/system prompt) rely on model compliance. Hooks and permissions are enforced outside model control.</div>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--red);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 S3 — PostToolUse Hooks (0%)</div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
+    <li><b>CLAUDE.md formatting instruction still lets unformatted code through</b> → <b>PostToolUse hook on Edit/Write runs Prettier deterministically</b> — hooks guarantee enforcement, instructions don't</li>
+    <li><b>Hook definition location</b> → <code>.claude/settings.json</code> (project-level) or <code>~/.claude/settings.json</code> (global) — NOT in CLAUDE.md or .mcp.json</li>
+    <li><b>Tool returns noisy output</b> (mixed timestamps, debug text) → PostToolUse hook normalizes before it enters model context — model never sees the noise</li>
+    <li><b>Matcher pattern</b> → <code>"matcher": "Write|Edit|MultiEdit"</code> to fire on every file change</li>
+  </ul>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--red);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 S4 — MCP Server Scope (0%)</div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
+    <li><b>Team needs shared MCP server</b> → <code>.mcp.json</code> at project root (version-controlled, shared on clone)</li>
+    <li><b>Personal/experimental MCP server</b> → <code>~/.claude.json</code> (user-level, not version-controlled)</li>
+    <li><b>Credentials in .mcp.json</b> → NEVER hardcode; use <code>${"{ENV_VAR}"}</code> expansion — each developer sets their own env var</li>
+    <li><b>Same server name at both scopes</b> → project-level <b>replaces entire</b> user-level entry (no field merging)</li>
+    <li><b>Tool discovery</b> → automatic at connection time; no manual activation needed</li>
+  </ul>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--red);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 S5 — Stateless API / Conversation History (0%)</div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
+    <li><b>The Messages API has NO server-side memory</b> — every request is independent</li>
+    <li><b>Model forgets earlier turns</b> → you sent only the latest message; resend the <b>full messages array</b> every request</li>
+    <li><b>There is no session_id parameter</b> — if a team thinks session IDs persist history, they are wrong</li>
+    <li><b>Full array includes</b>: all user messages + assistant responses + <code>tool_use</code> blocks + <code>tool_result</code> blocks from every prior turn</li>
+    <li>Omitting <code>tool_use</code>/<code>tool_result</code> blocks → API error or incoherent continuation</li>
+  </ul>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--red);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 S6 — Escalation Criteria (0%)</div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
+    <li><b>Model self-reported confidence = unreliable escalation trigger</b> — models can be confidently wrong</li>
+    <li><b>Rigid policy escalation conditions:</b> (1) user explicitly requests a human, (2) no applicable policy exists, (3) action is irreversible, (4) no progress after N attempts</li>
+    <li><b>Explicit "I want a human" request</b> → must be honored unconditionally in the harness, not model-decided</li>
+    <li><b>Irreversible action without prior authorization</b> → immediate escalation (policy gap + irreversibility)</li>
+    <li>Never let the model override an explicit human escalation request via "clever" autonomous resolution</li>
+  </ul>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--red);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 S7 — API Mode: Messages vs Batches (0%)</div>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <tr style="color:var(--muted);font-weight:600;"><td style="padding:4px 8px 4px 0;">API</td><td style="padding:4px 8px;">When</td><td style="padding:4px 8px;">Cost</td></tr>
+    <tr style="border-top:1px solid var(--border);"><td style="padding:4px 8px 4px 0;"><b>Messages API</b></td><td style="padding:4px 8px;">User is waiting, blocking pipeline, real-time chat</td><td style="padding:4px 8px;">Standard</td></tr>
+    <tr style="border-top:1px solid var(--border);"><td style="padding:4px 8px 4px 0;"><b>Batches API</b></td><td style="padding:4px 8px;">No one waiting, overnight jobs, high-volume offline</td><td style="padding:4px 8px;color:var(--green);">50% off</td></tr>
+  </table>
+  <ul style="margin:8px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:5px;">
+    <li>Batches API <b>does support tool use and multi-turn</b> — not limited to text-only</li>
+    <li>Batches API has a 24-hour processing window — never use for blocking flows</li>
+    <li><b>Deciding signal</b>: "Is anything blocked waiting on an immediate response?" Yes → Messages API. No → Batches API</li>
+  </ul>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--red);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 S8 — tool_choice + JSON Schema (0%)</div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
+    <li><b>Tool skipped in X% of turns</b> → set <code>tool_choice: {type: "tool", name: "tool_name"}</code> — model cannot skip</li>
+    <li><b>Tool needs prerequisite data</b> → use <code>tool_choice: "auto"</code> to gather prereqs first, then force the dependent tool</li>
+    <li><b>Strongest JSON output guarantee</b> → define tool schema + force <code>tool_choice</code> → API validates before returning</li>
+    <li><code>tool_choice: "any"</code> = must call some tool (don't specify which); <code>tool_choice: "auto"</code> = model decides</li>
+    <li><b>Model fabricates missing fields</b> → make fields <b>optional/nullable</b> + add <code>"not_stated"</code> enum value → model reports absence honestly</li>
+  </ul>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--red);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 S9 — Feedback Loop Design (0%)</div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
+    <li><b>"Invalid, try again" retries at same failure rate</b> → return <b>specific field-level errors</b> — name the offending field and expected type</li>
+    <li><b>Raw stack trace propagates to agent</b> → return structured error: <code>type</code> + <code>isRetryable</code> flag + suggested next action</li>
+    <li><b>isError: false + empty array</b> = valid no-results outcome (don't retry); <b>isError: true</b> = transient failure (retry with backoff)</li>
+    <li>400 validation error → <b>stop retrying</b> (non-retryable); 429 rate-limit → exponential backoff; 5xx → retry with backoff</li>
+  </ul>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--red);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 S10 — Tool Description Disambiguation (0%)</div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
+    <li><b>Agent uses wrong tool</b> (web_search instead of customer_lookup) → rewrite description around <b>user-facing capability</b>: what it retrieves, when to prefer it over similar tools</li>
+    <li><b>Remove implementation details</b> from descriptions ("Postgres RDS", "GraphQL gateway") — these are noise for tool selection</li>
+    <li><b>40 tools → model confused</b> → prune toolset to focused set + sharpen descriptions with explicit "use me for X, not tool_Y"</li>
+    <li><b>Most reliable element</b> → explicit disambiguation: "use this tool when X; prefer tool_Y when Z instead"</li>
   </ul>
 </div>
 
 <div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
-  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 C2 — Slash Commands &amp; Skills <span style="font-weight:400;font-size:12px;color:var(--muted)">(wrong 3× — same concept)</span></div>
-  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
-    <li><b>Team / shared command</b> → <code>.claude/commands/</code> — version-controlled, auto-available on clone</li>
-    <li><b>Personal command</b> → <code>~/.claude/commands/</code> — never shared via version control</li>
-    <li><code>CLAUDE.md</code> = instructions only — <b>not</b> where command definitions live</li>
-    <li><b>Verbose Skill output clutters context</b> → use <code>context: fork</code> — output stays in isolated sub-agent; only summary returns</li>
-    <li><b>Reference material accessed unreliably</b> → bundle the file into the Skill so Claude loads it on demand (Pattern 2)</li>
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--accent);">🟡 Retained strengths (100%) — don't lose these</div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px;">
+    <li><b>Handoff packages</b>: subagent task prompt must include PO number, auth state, all accumulated context</li>
+    <li><b>Hooks for business rules</b>: hard limits (e.g. git push requires tests green) → PreToolUse hook, not LLM instruction</li>
+    <li><b>Slash commands</b>: team → <code>.claude/commands/</code>; personal → <code>~/.claude/commands/</code></li>
+    <li><b>Permissions vs CLAUDE.md</b>: capability enforcement → settings permissions; guidance → CLAUDE.md</li>
+    <li><b>@ references vs CLAUDE.md</b>: reusable cross-session → CLAUDE.md; one-off specific → @ inline</li>
+    <li><b>tool_choice sequencing</b>: auto → gather prereqs → force named tool once prereqs present</li>
   </ul>
 </div>
 
 <div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
-  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 C3 — CLAUDE.md Config</div>
-  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
-    <li><b>@import max nesting = 5 levels</b> — 6th is silently ignored; flatten or restructure</li>
-    <li><b>Monorepo pattern</b> — @import shared rules in root + package-level CLAUDE.md per package</li>
-    <li><b>Path-specific rules</b> — use glob patterns directly in CLAUDE.md; no separate instances needed</li>
-  </ul>
-</div>
-
-<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
-  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 C4 — CI/CD Incremental Review</div>
-  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
-    <li><b>Re-flagging fixed issues</b> — inject prior review findings into context + instruct Claude to report only <b>new or still-unaddressed</b> issues</li>
-    <li><b>Pre-merge hook</b> (blocking, someone waiting) → <b>standard API</b></li>
-    <li><b>Post-merge batch job</b> (async, no SLA) → <b>Batches API</b></li>
-    <li>⚠️ <b>Never use Batches API on a blocking flow</b> — latency up to 24 hours</li>
-  </ul>
-</div>
-
-<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
-  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--accent);">🟡 C5 — Prompting / D4</div>
-  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
-    <li><b>Force a tool call (multiple valid tools)</b> → <code>tool_choice: "any"</code> (not <code>auto</code>, not named)</li>
-    <li><b>Inconsistent output format</b> → few-shot examples, not just format instructions</li>
-    <li><b>Required field → model fabricates</b> → make sparse fields <b>optional / nullable</b> — model returns null honestly</li>
-    <li><b>Long document (200+ pages)</b> → place your question <b>AFTER</b> the document (recency bias)</li>
-    <li><b>Markdown in plain-text pipeline</b> → fix in <b>system prompt</b>; regex post-processing is fragile</li>
-    <li><b>Agent can't format tool inputs</b> → put format / examples in <b>parameter descriptions</b>, not system prompt</li>
-    <li><b>High finding volume, low acceptance rate</b> → tighten criteria, raise threshold — don't increase volume</li>
-  </ul>
-</div>
-
-<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
-  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--accent);">🟡 C6 — Agentic Architecture / D1</div>
-  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
-    <li><b>Routing pattern</b> → classify input → send to specialised prompt (not orchestrator, not parallel agents)</li>
-    <li><b>Autonomous agent loop</b> → always set <code>maxTurns</code> / iteration limits</li>
-    <li><b>Business rule that cannot be bypassed</b> (e.g. &gt;$500 needs approval) → enforce in <b>tool backend code</b>, not LLM prompt</li>
-    <li><b>RATE_LIMITED error</b> → <b>exponential backoff</b> — not fail, not immediate retry, not prompt rewrite</li>
-    <li><b>Agent memory across sessions</b> → <b>external storage</b> (database / vector store), not in-context</li>
-    <li><b>Prompt injection via email</b> → treat all inbound content as data, never as instructions; validate before acting</li>
-  </ul>
-</div>
-
-<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
-  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--accent);">🟡 C7 — Tools &amp; MCP / D2</div>
-  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
-    <li><b>Two tools always called in sequence</b> → merge into one enriched tool (eliminate the round-trip)</li>
-    <li><b>Agent confuses similar tools</b> (archive vs delete) → add explicit <b>negative constraints</b> in descriptions</li>
-    <li><b>Tool completes but has nothing to return</b> → return <b>structured success confirmation</b>, not null / empty string</li>
-    <li><b>Share MCP config with team</b> → <code>.mcp.json</code> in repo root — version-controlled, env var expansion for credentials</li>
-    <li><b>Edit tool fails (non-unique anchor text)</b> → fallback = <b>Read + Write</b> the whole file</li>
-    <li><b>claude.ai prototype → API</b> → behaviour may differ; claude.ai uses system prompt scaffolding not available via API</li>
-    <li><b>MCP shared service</b> → one server, one owner, consumed by any MCP-capable client (Claude Desktop, Claude Code, API)</li>
-  </ul>
-</div>
-
-<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
-  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--accent);">🟡 C8 — Context &amp; Caching / D5</div>
-  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
-    <li><b>Context 82% full but still valid</b> → use <code>/compact</code> — not a fresh start</li>
-    <li><b>Context stale (references wrong data)</b> → fresh session</li>
-    <li><b>Too many tools bloat context</b> → trim tool list to only what's needed for current task</li>
-    <li><b>Prompt caching cost</b>: write = <b>slightly MORE</b> than normal input; read = <b>fraction</b> of normal — wins on repeated large stable prefixes</li>
-    <li><b>cache_read_input_tokens</b> = cache hit (tokens read FROM cache); <b>cache_creation_input_tokens</b> = cache write</li>
-  </ul>
-</div>
-
-<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
-  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--muted);">⚡ Quick-fire facts (Basics — B1/B2)</div>
-  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
-    <li><b>First message must be role: user</b> — starting with role: assistant throws an error</li>
-    <li><b>Deterministic output</b> → set <code>temperature: 0</code></li>
-    <li><b>cache_read_input_tokens</b> field = how many tokens were read from cache (cache hit count)</li>
-    <li><b>Guaranteed JSON, no preamble</b> → prefill assistant turn with <code>{</code> (not just a format instruction)</li>
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--muted);">⚡ Quick-fire / exam traps</div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px;">
+    <li>First message must be <code>role: user</code> — assistant-first throws error</li>
+    <li><code>stop_reason: 'tool_use'</code> → continue loop; <code>'end_turn'</code> → return response</li>
+    <li>Batches API = 50% cheaper, async 24h window, supports tools — NOT for blocking flows</li>
+    <li>MCP project scope = <code>.mcp.json</code>; user scope = <code>~/.claude.json</code>; never hardcode secrets in either</li>
+    <li>Hook definition lives in <code>settings.json</code>, NOT CLAUDE.md</li>
+    <li>Escalation → rigid conditions; never trust model self-reported confidence for safety-critical gates</li>
+    <li>Stateless API = resend full messages array every request including tool_use + tool_result blocks</li>
+    <li><code>isError: false</code> + empty = valid (no results); <code>isError: true</code> = transient failure</li>
+    <li>400 → stop retrying (bad input); 429 → exponential backoff; 5xx → backoff and retry</li>
+    <li>Disambiguation in tool descriptions → capability framing, not implementation details</li>
   </ul>
 </div>
 
 <div style="text-align:center;padding:10px 0 4px;color:var(--muted);font-size:12px;">
-  Built from your 72 wrong answers · exam Sun 31 Aug 2026 · good luck 🎯
+  Score report 528/720 · Block 30 = 30 new scenario questions targeting every 0% objective · retake when ready
 </div>
 
 </div>`;
