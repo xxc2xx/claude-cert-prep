@@ -9321,6 +9321,488 @@ const QUESTIONS = [
     ],
     answer: 2,
     explain: "<b>Explicit disambiguation</b> is the highest-signal element for selection accuracy. 'Use this tool when X; prefer tool_Y when Z instead' directly addresses the failure mode. Implementation details (A) and operational metadata (B/D) are noise for selection decisions — the model needs capability and use-case signals, not infrastructure or versioning information."
+  },
+
+  // ── Block 31: Exam Gaps — Grep/Glob/Edit + Rules Frontmatter ──
+  {
+    id: "b31-q01",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "Grep vs Glob",
+    domain: "D3",
+    tier: "exam",
+    q: "An agent needs to find every file in a monorepo that <em>calls</em> a deprecated function <code>legacyPayment()</code>. Which tool is correct?",
+    choices: [
+      "Glob with pattern <code>**/*.ts</code> to discover all TypeScript source files, then inspect each file for the call site",
+      "Grep for the string <code>legacyPayment</code> across all files, returning lines from files whose contents match the pattern",
+      "Read the project root directory listing to identify candidate modules, then Read each one individually for the function call",
+      "LS to enumerate all directories, then recursively search each subtree for TypeScript files containing the function name"
+    ],
+    answer: 1,
+    explain: "<b>Grep searches file contents for a pattern</b> — it is the right tool when you need to find which files contain a specific string, function call, or variable. Glob matches file <em>paths</em> by naming pattern; it cannot inspect file contents. Glob with <code>**/*.ts</code> (A) would return all TypeScript files but cannot tell you which ones actually call <code>legacyPayment()</code> — you'd then have to Read every single one, burning context. Grep returns exactly the files you care about."
+  },
+  {
+    id: "b31-q02",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "Grep vs Glob",
+    domain: "D3",
+    tier: "exam",
+    q: "An agent has found all callers of a deprecated function using Grep. Now it needs the corresponding test file for each caller. <code>OrderProcessor.ts</code> → <code>OrderProcessor.test.tsx</code>. Which tool handles this step?",
+    choices: [
+      "Grep for the word 'test' in each caller's directory to surface any file containing test imports or assertions",
+      "Glob with a naming pattern like <code>**/OrderProcessor.test.tsx</code> to match the sibling test file by path convention",
+      "Read the caller's directory listing to scan filenames visually for a file that matches the test naming convention",
+      "Grep for the caller's module name inside all existing test files to find where it is imported and tested"
+    ],
+    answer: 1,
+    explain: "<b>Glob matches file paths by naming pattern</b> — the right tool when you know the naming convention of what you're looking for (<code>*.test.tsx</code>, <code>*.spec.ts</code>) but need to locate where those files live. You don't need to search file contents — you need to find a file at a predictable path. Grep (A) would search test file contents for a string, not find the file by name. Grep→Glob is the canonical two-step: grep finds callers by content, glob finds test siblings by path."
+  },
+  {
+    id: "b31-q03",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "Grep vs Glob",
+    domain: "D3",
+    tier: "exam",
+    q: "Which statement correctly distinguishes Grep from Glob in Claude Code?",
+    choices: [
+      "Grep matches file paths using wildcards; Glob searches file contents using regular expressions for pattern matching",
+      "Grep searches file contents and returns matching lines; Glob matches file paths by naming pattern and returns file paths",
+      "Grep is faster for large repos and supports regex; Glob is slower but handles binary files and content searches",
+      "Grep finds exact string matches only; Glob supports both path patterns and full-text content searches within files"
+    ],
+    answer: 1,
+    explain: "<b>Core distinction to memorize:</b> Grep = content search (what's inside files), Glob = path pattern (which files exist by name/location). Grep returns matching lines; Glob returns matching file paths. The exam tests this repeatedly because they're easy to confuse: both 'search for something,' but they operate on completely different dimensions — contents vs. paths."
+  },
+  {
+    id: "b31-q04",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "Codebase exploration strategy",
+    domain: "D3",
+    tier: "exam",
+    q: "A Claude Code agent begins a refactor by loading all 200 TypeScript files in the project using Read before making any changes. What is the primary problem with this approach?",
+    choices: [
+      "Read does not support TypeScript files — the agent should use the Glob tool to load TypeScript source content",
+      "Loading all files upfront consumes the context budget on exploration, leaving insufficient token capacity for the actual editing work",
+      "Claude Code requires a minimum of 10% of context to be reserved for system messages, which bulk file loading violates",
+      "Read operations on multiple files must be sequential, causing significant latency before any editing can begin"
+    ],
+    answer: 1,
+    explain: "Exploration and editing <b>compete for the same context window.</b> Loading 200 files before editing may exhaust the token budget before a single change is made — the agent has no room left to think carefully about the refactor. The correct pattern is incremental: Grep to find relevant files → Read only those → edit in the same focused session. Never bulk-load; load on demand."
+  },
+  {
+    id: "b31-q05",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "Codebase exploration strategy",
+    domain: "D3",
+    tier: "exam",
+    q: "An agent must rename a deprecated API method across a 500,000-line monorepo and update all callers. What is the correct exploration strategy before making changes?",
+    choices: [
+      "Use Read on the root directory to get a complete file tree, then load each file to scan for the method name before renaming",
+      "Use Grep to find all files containing the old method name, Read only those files, then apply edits to the identified callers",
+      "Use Glob to match all source files by extension, load them all into context, then search for and replace the method name",
+      "Start editing the most likely files based on directory naming conventions, using context from each edit to find the next caller"
+    ],
+    answer: 1,
+    explain: "<b>Grep → Read → Edit</b> is the canonical incremental pattern. Grep surfaces only the files that contain the old name (small set). Read loads only those files (focused context). Edit applies changes. This uses minimal tokens because you never load irrelevant files. Glob (C) finds files by extension but cannot filter to only those containing the method — you'd load the entire 500k-line codebase into context."
+  },
+  {
+    id: "b31-q06",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "Codebase exploration strategy",
+    domain: "D3",
+    tier: "exam",
+    q: "An agent needs to deeply map a large subsystem's architecture before editing it. The mapping requires reading 40+ files. What is the correct pattern?",
+    choices: [
+      "Load all 40 files into context first, then perform the mapping analysis, then begin editing within the same session",
+      "Use /compact before starting exploration to clear context, then load all files, then edit before context fills again",
+      "Isolate exploration in a separate read-only subagent that produces a focused summary; pass only the summary to the editing session",
+      "Map and edit files one at a time to avoid loading too many simultaneously, committing after each file is processed"
+    ],
+    answer: 2,
+    explain: "<b>Subagent isolation separates exploration from editing.</b> A read-only exploratory subagent maps the architecture and produces a concise summary (e.g., 600 words). The parent editing session receives only that summary — not 40 files of raw content. This preserves the parent's full context window for careful edits. Mapping and editing in the same session (A) is the anti-pattern: exploration eats context that editing needs."
+  },
+  {
+    id: "b31-q07",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "Edit tool recovery",
+    domain: "D3",
+    tier: "exam",
+    q: "The Edit tool returns an error: the <code>old_string</code> provided does not uniquely identify a location in the file. What is the correct next step?",
+    choices: [
+      "Switch immediately to Read + Write to replace the full file contents with the intended change applied",
+      "Use Grep to find the exact line number, then retry the Edit call with the line number as an additional parameter",
+      "Widen the <code>old_string</code> to include more surrounding context lines, making the anchor text unique in the file",
+      "Use a Bash sed command to make the replacement at a specific line number, bypassing the Edit tool entirely"
+    ],
+    answer: 2,
+    explain: "<b>Edit recovery step 1: widen the anchor.</b> The non-unique error means the same string appears more than once. The fix is to include additional surrounding lines — enough that the combination is unique in the file. Read + Write (A) is the last resort, not the first response — it loads the entire file into context unnecessarily. The recovery sequence is: widen <code>old_string</code> → try <code>replace_all</code> → only then escalate to Read + Write."
+  },
+  {
+    id: "b31-q08",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "Edit tool recovery",
+    domain: "D3",
+    tier: "exam",
+    q: "After widening the <code>old_string</code>, Edit still fails because the same exact code block appears in three locations and all three should be updated. What is the correct next step?",
+    choices: [
+      "Escalate directly to Read + Write, loading the full file and applying the replacement manually in the written content",
+      "Use <code>replace_all: true</code> in the Edit call to replace all occurrences simultaneously without reading the full file",
+      "Run a Bash find-and-replace command using sed to handle multiple occurrences at specific line numbers",
+      "Read the file to identify the line numbers of each occurrence, then make three separate targeted Edit calls"
+    ],
+    answer: 1,
+    explain: "<b>Edit recovery step 2: <code>replace_all: true</code>.</b> When all instances of the pattern should receive the same change, <code>replace_all</code> handles multiple occurrences in one call without loading the entire file. This is the documented recovery path between widening the anchor and escalating to Read + Write. Read + Write (A) is only the last resort after both Edit options have been exhausted."
+  },
+  {
+    id: "b31-q09",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "Edit tool recovery",
+    domain: "D3",
+    tier: "exam",
+    q: "What is the correct escalation sequence when Edit fails to locate its target string?",
+    choices: [
+      "Grep for the exact string → Read the file → Use Bash sed to apply the change at the identified line number",
+      "Widen <code>old_string</code> for uniqueness → use <code>replace_all: true</code> if all occurrences should change → only then use Read + Write as last resort",
+      "Switch immediately to Read + Write — it is the most reliable method and Edit is only a performance optimization",
+      "Retry the same Edit call twice with exponential backoff before escalating to an alternative tool"
+    ],
+    answer: 1,
+    explain: "The documented Edit recovery sequence has three steps in order: (1) <b>widen <code>old_string</code></b> to make it unique; (2) <b><code>replace_all: true</code></b> if the same change should apply to all occurrences; (3) <b>Read + Write</b> as last resort. Jumping straight to Read + Write (C) is the exam anti-pattern — it unnecessarily loads the entire file into context. The exam specifically tests whether you know this ordered recovery path."
+  },
+  {
+    id: "b31-q10",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: ".claude/rules/ frontmatter",
+    domain: "D3",
+    tier: "exam",
+    q: "A team wants TypeScript interface conventions to load <em>only</em> when Claude edits <code>*.interface.ts</code> files — not for every session. The correct configuration is:",
+    choices: [
+      "A CLAUDE.md file at root with a section header <code># Interface Files</code> followed by the conventions and a note about file scope",
+      "A file at <code>.claude/rules/interfaces.md</code> with YAML frontmatter <code>paths: [\"**/*.interface.ts\"]</code> above the convention content",
+      "A file at <code>.claude/rules/interfaces.md</code> with no frontmatter, which loads only when Claude detects TypeScript interface syntax",
+      "A directory-level CLAUDE.md file placed inside each folder containing interface files, scoping conventions to that directory"
+    ],
+    answer: 1,
+    explain: "<b>.claude/rules/ + YAML frontmatter <code>paths:</code> key</b> is the mechanism for path-scoped loading. The frontmatter format is:<br><code>---<br>paths:<br>  - \"**/*.interface.ts\"<br>---</code><br>Rules with this frontmatter only enter the context window when Claude reads or edits a matching file — they never load otherwise. A rules file <em>without</em> frontmatter (C) loads at session startup like CLAUDE.md. Root CLAUDE.md (A) applies globally every session."
+  },
+  {
+    id: "b31-q11",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: ".claude/rules/ frontmatter",
+    domain: "D3",
+    tier: "exam",
+    q: "A <code>.claude/rules/migrations.md</code> file has frontmatter <code>paths: [\"**/migrations/**\"]</code>. The agent runs a session that only touches React components. When does this rule load?",
+    choices: [
+      "At session startup, because all files in .claude/rules/ load eagerly regardless of frontmatter content",
+      "When the agent first reads any TypeScript file, since migrations and components share the TypeScript extension",
+      "It does not load during this session — the rule only enters context when Claude reads or edits a file matching the glob pattern",
+      "After /compact is run, since compaction triggers a reload of all .claude/rules/ files with frontmatter"
+    ],
+    answer: 2,
+    explain: "Path-scoped rules <b>only load when a matching file is accessed</b>. If the agent never reads or edits a file under a <code>migrations/</code> directory, the rule never enters context. This is the key advantage over CLAUDE.md @ imports, which load eagerly at parse time. The practical result: sessions that don't touch migration files pay zero context cost for migration conventions."
+  },
+  {
+    id: "b31-q12",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: ".claude/rules/ frontmatter",
+    domain: "D3",
+    tier: "exam",
+    q: "After <code>/compact</code> runs, which configuration files reload automatically and which reload on demand?",
+    choices: [
+      "All CLAUDE.md files and all .claude/rules/ files reload immediately after compaction completes",
+      "Project-root CLAUDE.md reloads immediately; path-scoped .claude/rules/ files reload when Claude next accesses a matching file",
+      "Nothing reloads automatically — the developer must restart Claude Code to restore configuration after compaction",
+      "User-level ~/.claude/CLAUDE.md reloads immediately; project-level CLAUDE.md and rules files do not reload at all"
+    ],
+    answer: 1,
+    explain: "<b>Project-root CLAUDE.md reloads from disk after /compact.</b> Directory-level CLAUDE.md files and <code>.claude/rules/</code> files with <code>paths:</code> frontmatter do <em>not</em> automatically return — they reload next time Claude accesses a file matching their path pattern. This is important for long sessions: after compaction, path-scoped rules are effectively invisible until Claude touches a matching file again."
+  },
+  {
+    id: "b31-q13",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: ".claude/rules/ frontmatter",
+    domain: "D3",
+    tier: "exam",
+    q: "A team has 8 rule files in <code>.claude/rules/</code>, each with path-scoped frontmatter. On average only 2–3 load per session. What is the primary benefit compared to splitting conventions via CLAUDE.md @ imports?",
+    choices: [
+      "Rule files support regex patterns in frontmatter, whereas CLAUDE.md @ imports only support exact file paths for inclusions",
+      "Rule files load on demand when matching files are accessed, avoiding context cost for conventions irrelevant to the current task",
+      "Rule files are version-controlled separately from CLAUDE.md, enabling independent rollback of individual convention changes",
+      "Rule files support priority ordering via frontmatter rank fields, whereas CLAUDE.md concatenates all imports without precedence"
+    ],
+    answer: 1,
+    explain: "CLAUDE.md @ imports load <b>eagerly at parse time</b> — all @-imported content enters context at session start regardless of what files will be edited. Path-scoped .claude/rules/ files load <b>only when a matching file is accessed</b>. In a monorepo with 8 convention categories (frontend, backend, migrations, tests, etc.), a frontend-only session pays zero cost for backend, migration, and test conventions. This selective loading is the key efficiency advantage."
+  },
+  {
+    id: "b31-q14",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "CLAUDE.md hierarchy",
+    domain: "D3",
+    tier: "exam",
+    q: "Developer A's coding conventions work perfectly. Developer B (new hire, same repo, same branch) gets inconsistent results from Claude. The most likely root cause is:",
+    choices: [
+      "Developer B has an older version of Claude Code installed with different default behavior for CLAUDE.md processing",
+      "Developer A stored personal conventions in <code>~/.claude/CLAUDE.md</code> (user-level), which is not version-controlled and not shared via git",
+      "The project-level CLAUDE.md has conflicting rules that Claude resolves in Developer A's favor due to session history",
+      "Developer B's local environment has a <code>.claude/rules/</code> file that overrides project-level conventions with empty rules"
+    ],
+    answer: 1,
+    explain: "<b>User-level CLAUDE.md (<code>~/.claude/CLAUDE.md</code>) is personal — it never travels via git.</b> If Developer A configured their conventions there instead of in the project-level <code>.claude/CLAUDE.md</code> (or repo-root <code>CLAUDE.md</code>), new team members cloning the repo get none of those conventions. Project conventions belong in version-controlled project-level config that every developer receives on clone."
+  },
+  {
+    id: "b31-q15",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "CLAUDE.md hierarchy",
+    domain: "D3",
+    tier: "exam",
+    q: "Two CLAUDE.md files in a project contain contradictory formatting rules. Project-root says 'use 2-space indentation'; a subdirectory CLAUDE.md says 'use 4-space indentation.' What is the guaranteed behavior?",
+    choices: [
+      "The more specific (subdirectory) rule always takes precedence following strict hierarchical override",
+      "The more recently modified CLAUDE.md wins, with Claude using file system timestamps to resolve conflicts",
+      "There is no guaranteed behavior — CLAUDE.md files are concatenated and Claude may resolve the conflict arbitrarily",
+      "Claude throws a configuration error and pauses, prompting the developer to resolve the conflict manually"
+    ],
+    answer: 2,
+    explain: "<b>CLAUDE.md has no conflict resolution guarantee.</b> Files are concatenated into context; if two rules contradict, Claude may pick either one. This is fundamentally different from <code>settings.json</code>, which enforces a strict precedence hierarchy (managed > local > project > user). For <em>enforced</em> constraints, use <code>settings.json</code>. For <em>guidance</em> that should degrade gracefully on conflict, CLAUDE.md is fine — but resolve contradictions explicitly."
+  },
+  {
+    id: "b31-q16",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "CLAUDE.md hierarchy",
+    domain: "D3",
+    tier: "exam",
+    q: "In <code>settings.json</code>, what is the precedence order when rules conflict across scopes?",
+    choices: [
+      "User > project > local > managed policy; the most specific personal setting always wins",
+      "Managed policy > local > project > user; managed policy always wins, user settings are overridden",
+      "Project > user > managed > local; project settings are the canonical source of truth",
+      "Last-loaded wins; files are merged in load order with later entries overriding earlier ones"
+    ],
+    answer: 1,
+    explain: "<b>settings.json enforces strict precedence: managed > local > project > user.</b> Managed policy (set by administrators or CI) always wins. User settings have the lowest precedence — they can be overridden by any higher scope. This is the opposite of CLAUDE.md, which has no guaranteed conflict resolution. The exam tests this contrast: CLAUDE.md = concatenated guidance with arbitrary conflict handling; settings.json = strict precedence enforcement."
+  },
+  {
+    id: "b31-q17",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "CLAUDE.md hierarchy",
+    domain: "D3",
+    tier: "exam",
+    q: "A developer runs <code>/memory</code> in Claude Code. What does this command do?",
+    choices: [
+      "Triggers a reload of all CLAUDE.md and .claude/rules/ files, refreshing configuration from disk into the active session",
+      "Lists all currently loaded CLAUDE.md and CLAUDE.local.md files and opens them in an editor for inspection",
+      "Displays the current token consumption broken down by CLAUDE.md file and rules file loaded this session",
+      "Clears outdated context from prior turns, compacting the session while preserving all loaded configuration files"
+    ],
+    answer: 1,
+    explain: "<code>/memory</code> is a <b>diagnostic tool — it lists and opens loaded configuration files for inspection.</b> It does NOT trigger loading of new files. Configuration loads automatically based on file location and path-matching, not via /memory. A common exam trap: assuming /memory or /context triggers configuration loading — they only show what's already there. Use /context to report what actually loaded this session."
+  },
+  {
+    id: "b31-q18",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "CLAUDE.md hierarchy",
+    domain: "D3",
+    tier: "exam",
+    q: "A team needs identical TypeScript conventions applied across all subdirectories in a monorepo, regardless of where the file lives. Which approach is correct?",
+    choices: [
+      "Create a directory-level CLAUDE.md in each subdirectory containing TypeScript files, duplicating the conventions across the tree",
+      "Use a .claude/rules/ file with <code>paths: [\"**/*.ts\"]</code> frontmatter — loads whenever any TypeScript file is accessed, anywhere in the tree",
+      "Add the conventions to each package's package.json under a 'claude' key for automatic discovery during project initialization",
+      "Create a shared CLAUDE.md in the root and use @ imports pointing to each subdirectory's convention file"
+    ],
+    answer: 1,
+    explain: "<b><code>**/*.ts</code> in a .claude/rules/ frontmatter matches TypeScript files anywhere in the tree</b> — regardless of directory depth or location. This is the correct tool when conventions follow file type, not directory structure. Directory-level CLAUDE.md (A) applies to files in that directory only; to cover the whole tree you'd need to duplicate the file everywhere. Glob patterns in rules frontmatter eliminate that duplication."
+  },
+  {
+    id: "b31-q19",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "Context window management",
+    domain: "D3",
+    tier: "exam",
+    q: "A Claude Code session is at 82% context capacity but the work is still valid and the agent has not made mistakes. What is the correct action?",
+    choices: [
+      "Start a fresh session immediately to avoid any risk of context degradation affecting the quality of remaining work",
+      "Use <code>/compact</code> to summarize and compress prior conversation, freeing context for continued work in the same session",
+      "Save work to a scratchpad file, close the session, and start fresh with the scratchpad contents as context",
+      "Continue without intervention — Claude Code automatically compresses old turns when the limit is approached"
+    ],
+    answer: 1,
+    explain: "<b>/compact</b> is the right tool when context is high but the session is still healthy. It summarizes prior turns without abandoning the work. A <em>fresh start</em> is warranted when context has become stale (wrong data, outdated references) — not just when it's full. Starting fresh at 82% (A) discards valid state unnecessarily. /compact preserves session continuity while recovering token budget."
+  },
+  {
+    id: "b31-q20",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "Context window management",
+    domain: "D3",
+    tier: "exam",
+    q: "A 2,000-line style guide is @-imported in CLAUDE.md. It's only relevant when Claude writes new components, not in the 80% of sessions that involve bug fixes. What is the most context-efficient fix?",
+    choices: [
+      "Split the style guide into smaller files and @-import each one separately, reducing parse time per import",
+      "Move the style guide to a .claude/rules/ file with <code>paths: [\"**/components/**\"]</code> frontmatter so it loads only when component files are accessed",
+      "Keep the @-import but instruct Claude in CLAUDE.md to ignore the style guide for non-component sessions",
+      "Store the style guide in an MCP resource so Claude fetches it on demand when needed for component work"
+    ],
+    answer: 1,
+    explain: "@-imports load <b>eagerly every session</b> — 2,000 lines of style guide burns context on every bug-fix session where it's irrelevant. Moving it to a path-scoped rule (<code>paths: [\"**/components/**\"]</code>) means it only loads when Claude actually touches component files. For 80% of sessions, zero cost. For component sessions, full context. This is the core use case for .claude/rules/ over CLAUDE.md @ imports."
+  },
+  {
+    id: "b31-q21",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "MCP tool design",
+    domain: "D2",
+    tier: "exam",
+    q: "An MCP tool <code>search_tickets</code> accepts a single free-text <code>query</code> parameter. In production, Claude passes vague queries and makes 4–6 tool calls per resolution because results are imprecise. The fix:",
+    choices: [
+      "Rename the tool to <code>find_tickets</code> and add example queries to the description to guide Claude toward more precise inputs",
+      "Replace the free-text parameter with a structured schema: separate <code>status</code>, <code>assignee</code>, <code>date_range</code>, and <code>keywords</code> typed fields",
+      "Add a PostToolUse hook that detects vague queries and re-calls the tool with a reformulated query automatically",
+      "Increase the tool's <code>max_results</code> parameter so each call returns more items, reducing the number of calls needed"
+    ],
+    answer: 1,
+    explain: "<b>Typed structured schemas replace free-text ambiguity with precision at the API level.</b> A single vague string forces Claude to guess; explicit <code>status</code>, <code>assignee</code>, <code>date_range</code>, and <code>keywords</code> fields let Claude communicate intent clearly in one structured call. The tool can then construct an efficient query from precise parameters. Renaming (A) changes the label, not the imprecision. PostToolUse retry (C) adds latency without fixing the root cause."
+  },
+  {
+    id: "b31-q22",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "MCP tool design",
+    domain: "D2",
+    tier: "exam",
+    q: "An MCP tool's description reads: 'Uses Postgres RDS via a GraphQL gateway to look up customer records.' Claude routes 35% of customer queries to a generic web_search tool instead. The fix:",
+    choices: [
+      "Add the tool's database URL and schema details to the description so Claude understands the full data model it can access",
+      "Rewrite the description around the user-facing capability: what it retrieves, what input it accepts, and when to use it instead of similar tools",
+      "Increase the tool's priority score in the MCP server configuration to bias Claude toward selecting it for customer queries",
+      "Add a PreToolUse hook that intercepts web_search calls for customer-related queries and redirects them to this tool automatically"
+    ],
+    answer: 1,
+    explain: "<b>Tool descriptions should describe user-facing capability, not internal implementation.</b> 'Postgres RDS via GraphQL gateway' is infrastructure noise that doesn't help Claude decide when to call this tool. A description like 'Look up a customer's orders, contact details, and account status by email or ID. Use this — not web_search — for all customer account queries.' gives Claude the selection signal it actually needs: what it returns, what input it needs, and explicit disambiguation."
+  },
+  {
+    id: "b31-q23",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "MCP tool design",
+    domain: "D2",
+    tier: "exam",
+    q: "An MCP tool for deleting records returns <code>null</code> on success with no other content. The orchestrating agent retries the deletion five times because it interprets the null as a failure signal. The fix:",
+    choices: [
+      "Change the tool to return <code>isError: false</code> with the null content so the agent knows the call succeeded without data",
+      "Return a structured success confirmation — e.g., <code>{deleted: true, id: '...', timestamp: '...'}</code> — so the agent has a positive signal to branch on",
+      "Add a PostToolUse hook that converts null responses to 'success' strings before the result reaches the agent",
+      "Add a description note: 'null return value means the operation completed successfully, not that it failed'"
+    ],
+    answer: 1,
+    explain: "<b>Tool completions should return a positive, readable confirmation</b> — not null, not empty string. The agent cannot distinguish 'success with no data' from 'failure with no data' when both return null. A structured response like <code>{deleted: true, id, timestamp}</code> gives the agent an unambiguous success signal it can branch on without retrying. This is a fundamental MCP tool design principle: always return something meaningful."
+  },
+  {
+    id: "b31-q24",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "Grep vs Glob exam traps",
+    domain: "D3",
+    tier: "exam",
+    q: "An agent uses Glob with pattern <code>**/*.ts</code> to find all TypeScript files, then uses Grep on the resulting file list to find which ones call <code>createOrder()</code>. Is this sequence correct?",
+    choices: [
+      "Yes — using Glob first to scope the file set, then Grep to filter by content, is a valid and efficient two-tool pattern",
+      "No — Grep alone is sufficient; it searches file contents directly across all files without needing Glob to pre-filter by extension",
+      "No — the correct sequence is Grep first to find all matches, then Glob to filter to only TypeScript files from that result set",
+      "Yes — but only if the project has more than 10,000 TypeScript files; for smaller projects Grep alone is always faster"
+    ],
+    answer: 1,
+    explain: "<b>Grep already handles file extension filtering natively</b> — you can Grep for <code>createOrder</code> in <code>**/*.ts</code> files in one call. Pre-filtering with Glob is redundant. However, the Glob→Grep pattern described in (A) works and isn't wrong — it's just unnecessary for this use case. The sharper exam point: Glob cannot replace Grep's content search, and Grep doesn't need Glob's pre-filtering for this task. Know when each adds value vs. when one is sufficient."
+  },
+  {
+    id: "b31-q25",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "Config mechanism selection",
+    domain: "D3",
+    tier: "exam",
+    q: "A rule in <code>.claude/rules/api-conventions.md</code> has no YAML frontmatter. When does this rule load?",
+    choices: [
+      "Never — rules files without frontmatter are ignored by Claude Code until frontmatter is added defining their scope",
+      "Only when Claude reads a file named <code>api-conventions</code> or containing the string 'api-conventions' in its path",
+      "At session startup for every session, behaving like CLAUDE.md since it has no path-scoping to limit its loading",
+      "On demand when the developer explicitly runs /rules to load all unscoped rules from the .claude/rules/ directory"
+    ],
+    answer: 2,
+    explain: "<b>Rules files without <code>paths:</code> frontmatter load unconditionally at session startup</b> — they behave exactly like CLAUDE.md content. Frontmatter with a <code>paths:</code> key is what enables conditional, path-scoped loading. Without it, every session gets the rule regardless of what files are being edited. The exam tests this because it's counterintuitive: you might expect rules files to always be path-scoped, but frontmatter is optional."
+  },
+  {
+    id: "b31-q26",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "Config mechanism selection",
+    domain: "D3",
+    tier: "exam",
+    q: "A security policy requires blocking <code>git push --force</code> regardless of what Claude is instructed to do in any message. Which mechanism enforces this reliably?",
+    choices: [
+      "A rule in .claude/rules/security.md with no frontmatter stating 'never run git push --force under any circumstances'",
+      "A CLAUDE.md entry with <code>CRITICAL:</code> prefix and high-priority language instructing Claude not to force-push",
+      "A deny rule in <code>settings.json</code> for <code>Bash(git push --force:*)</code>, enforced outside model discretion",
+      "A PreToolUse hook that inspects Bash commands and logs force-push attempts for the security team to review"
+    ],
+    answer: 2,
+    explain: "<b>settings.json deny rules are enforced outside model control.</b> No instruction in a user message, system prompt, or CLAUDE.md can override a deny rule — it is a capability constraint, not guidance. CLAUDE.md (A/B) and rules files rely on model compliance — a sufficiently persuasive instruction could override them. The PreToolUse hook (D) can log or block, but settings.json deny rules are the canonical mechanism for hard capability restrictions. deny > allow > CLAUDE.md guidance."
+  },
+  {
+    id: "b31-q27",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "Exploration + context trap",
+    domain: "D3",
+    tier: "exam",
+    q: "A context window reaches 95% full during codebase exploration. The agent has gathered all needed information but has not yet made any changes. What is the correct next action?",
+    choices: [
+      "Use /compact to summarize prior turns, then continue editing in the same session with the freed context budget",
+      "Start a fresh session immediately, since 95% context means any edits will be of low quality due to truncation risk",
+      "Make all planned edits immediately in sequence before the context window closes, accepting reduced quality to finish",
+      "Write a scratchpad summary of findings, start a fresh session, and load the scratchpad as the starting context"
+    ],
+    answer: 0,
+    explain: "<b>/compact is the correct tool when context is high but session state is still valid.</b> It compresses prior exploration turns into a summary while preserving the agent's current understanding. At 95% with all information gathered, /compact frees significant budget for the editing phase. A fresh session (B/D) is warranted when context has become stale or the agent has made errors — not just when it's full. The session is healthy; compact and continue."
+  },
+  {
+    id: "b31-q28",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "Grep vs Glob exam traps",
+    domain: "D3",
+    tier: "exam",
+    q: "Which task requires Glob — and would be incorrectly solved by using Grep instead?",
+    choices: [
+      "Finding all files that import a specific React hook across the entire project source tree",
+      "Locating all migration files by path convention, such as files under any <code>migrations/</code> directory anywhere in the tree",
+      "Identifying every location where a deprecated class method is referenced in TypeScript source files",
+      "Finding all error message strings that match a specific pattern in the project's translation files"
+    ],
+    answer: 1,
+    explain: "<b>Glob is correct when you're locating files by their path or naming convention</b> — not their contents. 'All files under any migrations/ directory' is a path pattern question: you know where migration files live structurally, not by what they contain. Glob with <code>**/migrations/**</code> handles this precisely. The other options (A, C, D) all require searching file <em>contents</em> — which is Grep's job. The exam traps: using Glob to search contents (it can't), or using Grep for pure path discovery (Glob is more efficient)."
+  },
+  {
+    id: "b31-q29",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "MCP server scope",
+    domain: "D2",
+    tier: "exam",
+    q: "A team commits <code>.mcp.json</code> with credentials hardcoded as literal strings. What is the security problem and the correct fix?",
+    choices: [
+      "No problem — .mcp.json is excluded from git by default and credentials are never pushed to remote repositories",
+      "The literal credential strings are committed to git history and visible to anyone with repo access; fix by using <code>${ENV_VAR}</code> expansion and storing actual values in local environment only",
+      "The problem is using .mcp.json for team-shared configuration; personal credentials should be in ~/.claude.json instead",
+      "Credentials in .mcp.json are encrypted at rest by Claude Code and are safe to commit as long as the repo is private"
+    ],
+    answer: 1,
+    explain: "<b>.mcp.json is version-controlled and commits to git history.</b> Hardcoded credentials are visible to everyone with repo access and persist in git history even after deletion. The fix: use <code>${DATABASE_URL}</code> syntax — Claude Code expands environment variables at connection time. Each developer sets their own value in their local environment; the config file contains only the variable reference, making it safe to commit. This is the canonical pattern for team-shared MCP config with per-developer credentials."
+  },
+  {
+    id: "b31-q30",
+    block: "🔴 Scenario · 31 — Grep·Glob·Rules·Edit Gaps",
+    topic: "Config mechanism selection",
+    domain: "D3",
+    tier: "exam",
+    q: "Which statement correctly maps each configuration mechanism to its enforcement model?",
+    choices: [
+      "CLAUDE.md enforces rules strictly; settings.json provides guidance; hooks are optional and advisory; .claude/rules/ is deprecated in favor of CLAUDE.md @ imports",
+      "CLAUDE.md provides guidance (arbitrary conflict resolution); settings.json enforces strict precedence; hooks enforce deterministically at tool lifecycle events; .claude/rules/ provides path-scoped guidance",
+      "All four mechanisms enforce identically — the difference is only in where the configuration file lives and which developer manages it",
+      "Hooks enforce most strictly, followed by settings.json, then .claude/rules/, then CLAUDE.md; outer layers override inner ones in all conflict scenarios"
+    ],
+    answer: 1,
+    explain: "The four mechanisms have fundamentally different enforcement models: <b>CLAUDE.md</b> = guidance, concatenated, arbitrary conflict resolution. <b>settings.json</b> = strict precedence chain (managed > local > project > user), enforced regardless of model decisions. <b>Hooks</b> = deterministic lifecycle enforcement (PreToolUse / PostToolUse fire unconditionally). <b>.claude/rules/</b> = path-scoped guidance, loads on demand, same conflict behavior as CLAUDE.md. Instructions = guidance. Hooks and settings = enforcement."
   }
 ];
 
@@ -10276,6 +10758,45 @@ function renderFinalCheck() {
   </ul>
 </div>
 
+<div style="background:var(--panel-2);border:1px solid var(--red);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 S11 — Grep · Glob · Edit Recovery (seen in actual exam, Block 31)</div>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px;">
+    <tr style="color:var(--muted);font-weight:600;"><td style="padding:4px 8px 4px 0;width:30%">Scenario</td><td style="padding:4px 8px;">Correct tool / action</td></tr>
+    <tr style="border-top:1px solid var(--border);"><td style="padding:4px 8px 4px 0;"><b>Find all callers of a function</b></td><td style="padding:4px 8px;"><b>Grep</b> — searches file contents</td></tr>
+    <tr style="border-top:1px solid var(--border);"><td style="padding:4px 8px 4px 0;"><b>Find all test files by name pattern</b></td><td style="padding:4px 8px;"><b>Glob</b> — matches file paths (e.g. <code>**/*.test.tsx</code>)</td></tr>
+    <tr style="border-top:1px solid var(--border);"><td style="padding:4px 8px 4px 0;"><b>Find deprecated callers + their tests</b></td><td style="padding:4px 8px;"><b>Grep → Glob</b> — grep finds callers by content, glob finds test siblings by path</td></tr>
+    <tr style="border-top:1px solid var(--border);"><td style="padding:4px 8px 4px 0;"><b>Find all migration files by directory</b></td><td style="padding:4px 8px;"><b>Glob</b> with <code>**/migrations/**</code> — path structure, not content</td></tr>
+  </table>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px;">
+    <li><b>Edit fails "not unique"</b> → widen <code>old_string</code> → try <code>replace_all: true</code> → only then Read+Write</li>
+    <li><b>Never jump straight to Read+Write</b> — it's last resort, not first response to Edit failure</li>
+    <li><b>Exploration eats context</b> → isolate mapping in a read-only subagent → pass summary to editing session</li>
+    <li><b>Context 82–95% but healthy</b> → <code>/compact</code>; context stale or wrong data → fresh session</li>
+    <li><b>Bulk-loading all files upfront</b> before editing = the anti-pattern (burns context for editing phase)</li>
+    <li><b>Incremental sequence</b>: Grep to find relevant files → Read only those → Edit in same session</li>
+  </ul>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--red);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 S12 — .claude/rules/ Frontmatter + CLAUDE.md Hierarchy (Block 31)</div>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px;">
+    <tr style="color:var(--muted);font-weight:600;"><td style="padding:4px 6px 4px 0;width:35%">Mechanism</td><td style="padding:4px 6px;">When it loads</td><td style="padding:4px 6px;">Enforcement</td></tr>
+    <tr style="border-top:1px solid var(--border);"><td style="padding:3px 6px 3px 0;"><b>CLAUDE.md</b></td><td style="padding:3px 6px;">Every session (directory-based)</td><td style="padding:3px 6px;">Guidance — arbitrary on conflict</td></tr>
+    <tr style="border-top:1px solid var(--border);"><td style="padding:3px 6px 3px 0;"><b>.claude/rules/ (no frontmatter)</b></td><td style="padding:3px 6px;">Every session (same as CLAUDE.md)</td><td style="padding:3px 6px;">Guidance</td></tr>
+    <tr style="border-top:1px solid var(--border);"><td style="padding:3px 6px 3px 0;"><b>.claude/rules/ + <code>paths:</code></b></td><td style="padding:3px 6px;">Only when matching file accessed</td><td style="padding:3px 6px;">Guidance (path-scoped)</td></tr>
+    <tr style="border-top:1px solid var(--border);"><td style="padding:3px 6px 3px 0;"><b>settings.json</b></td><td style="padding:3px 6px;">Always (managed&gt;local&gt;project&gt;user)</td><td style="padding:3px 6px;"><b>Strict enforcement</b></td></tr>
+    <tr style="border-top:1px solid var(--border);"><td style="padding:3px 6px 3px 0;"><b>Hooks</b></td><td style="padding:3px 6px;">At tool lifecycle events</td><td style="padding:3px 6px;"><b>Deterministic enforcement</b></td></tr>
+  </table>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px;">
+    <li><b>Frontmatter syntax</b>: <code>---\npaths:\n  - "**/*.test.ts"\n---</code> above rule markdown content</li>
+    <li><b>After /compact</b>: project-root CLAUDE.md reloads; path-scoped rules reload only when next matching file is accessed</li>
+    <li><b>User-level ~/.claude/CLAUDE.md</b> = personal, never travels via git — team conventions must be project-level</li>
+    <li><b>CLAUDE.md conflict</b> = arbitrary resolution; <b>settings.json conflict</b> = strict precedence (managed wins)</li>
+    <li><b>/memory and /context</b> = diagnostic only — they list what loaded, they do NOT trigger loading</li>
+    <li><b>@ imports</b> = eager at parse time (all sessions pay the cost); <code>paths:</code> rules = on-demand only</li>
+  </ul>
+</div>
+
 <div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
   <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--muted);">⚡ Quick-fire / exam traps</div>
   <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px;">
@@ -10293,7 +10814,7 @@ function renderFinalCheck() {
 </div>
 
 <div style="text-align:center;padding:10px 0 4px;color:var(--muted);font-size:12px;">
-  Score report 528/720 · Block 30 = 30 new scenario questions targeting every 0% objective · retake when ready
+  Score report 528/720 · Block 30 = zero-percent objectives · Block 31 = Grep/Glob/Edit/Rules gaps seen in actual exam
 </div>
 
 </div>`;
