@@ -1079,6 +1079,7 @@ if(__exports != exports)module.exports = exports;return module.exports}));
       <button class="study-sub active" data-sub="cheatsheet" style="background:none;border:none;border-bottom:2px solid var(--accent);color:var(--accent);font-weight:600;padding:4px 12px 6px;font-size:13px;font-family:inherit;cursor:pointer;">📋 Cheatsheet</button>
       <button class="study-sub" data-sub="qa" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;padding:4px 12px 6px;font-size:13px;font-family:inherit;cursor:pointer;">🎯 Q&amp;A</button>
       <button class="study-sub" data-sub="guide" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;padding:4px 12px 6px;font-size:13px;font-family:inherit;cursor:pointer;">⭐ Exam Guide</button>
+      <button class="study-sub" data-sub="final" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-weight:500;padding:4px 12px 6px;font-size:13px;font-family:inherit;cursor:pointer;">🏁 Final Check</button>
     </div>
     <div id="study-cheatsheet-panel">
       <div class="notes-body" id="cheatsheet-body">Loading cheatsheet…</div>
@@ -1088,6 +1089,9 @@ if(__exports != exports)module.exports = exports;return module.exports}));
     </div>
     <div id="study-guide-panel" style="display:none;">
       <div class="notes-body" id="guide-body">Loading exam guide…</div>
+    </div>
+    <div id="study-final-panel" style="display:none;">
+      <div class="notes-body" id="final-check-body"></div>
     </div>
   </section>
 
@@ -12044,6 +12048,124 @@ document.getElementById('hdr-export-btn').addEventListener('click', function() {
 
 // Study subtab (Cheatsheet / Guide)
 document.querySelector('.tabs').addEventListener('click', () => {}); // keep existing wiring
+function renderFinalCheck() {
+  const el = document.getElementById('final-check-body');
+  if (!el || el.dataset.loaded) return;
+  el.dataset.loaded = '1';
+  el.innerHTML = `
+<div style="max-width:760px;margin:0 auto;padding:8px 0;font-size:14px;line-height:1.7;">
+
+<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--accent);">🔴 C1 — Customer Support Agent Tool Patterns <span style="font-weight:400;font-size:12px;color:var(--muted)">(biggest gap)</span></div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
+    <li><b>Wrong tool triggered by keyword</b> — expand tool descriptions with example queries, input formats, explicit <i>"do NOT use when…"</i> boundaries</li>
+    <li><b>4+ sequential loops per resolution</b> — prompt Claude to <b>bundle related tool requests</b> in a single turn</li>
+    <li><b>Specific amounts/dates lost</b> — extract precise facts into a <b>case facts block outside summarised history</b></li>
+    <li><b>Keyword-driven wrong routing</b> — look for explicit if/else routing in system prompt and remove it</li>
+    <li><b>Policy gap (no rule covers it)</b> — <b>escalate to human</b>; never invent policy</li>
+    <li><b>Contradictory sources</b> — <b>report both values with attribution</b> to coordinator; never average or pick</li>
+    <li><b>Subagent errors</b> — handle at <b>lowest level</b> capable of resolving; local retry before escalating</li>
+    <li><b>Tool scope creep</b> (general fetch used for search) — replace with <b>specific tool</b> that constrains capability at interface level</li>
+    <li><b>Multi-issue request slow</b> — decompose into issues, resolve <b>in parallel</b> with shared customer context</li>
+  </ul>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 C2 — Slash Commands &amp; Skills <span style="font-weight:400;font-size:12px;color:var(--muted)">(wrong 3× — same concept)</span></div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
+    <li><b>Team / shared command</b> → <code>.claude/commands/</code> — version-controlled, auto-available on clone</li>
+    <li><b>Personal command</b> → <code>~/.claude/commands/</code> — never shared via version control</li>
+    <li><code>CLAUDE.md</code> = instructions only — <b>not</b> where command definitions live</li>
+    <li><b>Verbose Skill output clutters context</b> → use <code>context: fork</code> — output stays in isolated sub-agent; only summary returns</li>
+    <li><b>Reference material accessed unreliably</b> → bundle the file into the Skill so Claude loads it on demand (Pattern 2)</li>
+  </ul>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 C3 — CLAUDE.md Config</div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
+    <li><b>@import max nesting = 5 levels</b> — 6th is silently ignored; flatten or restructure</li>
+    <li><b>Monorepo pattern</b> — @import shared rules in root + package-level CLAUDE.md per package</li>
+    <li><b>Path-specific rules</b> — use glob patterns directly in CLAUDE.md; no separate instances needed</li>
+  </ul>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red);">🔴 C4 — CI/CD Incremental Review</div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
+    <li><b>Re-flagging fixed issues</b> — inject prior review findings into context + instruct Claude to report only <b>new or still-unaddressed</b> issues</li>
+    <li><b>Pre-merge hook</b> (blocking, someone waiting) → <b>standard API</b></li>
+    <li><b>Post-merge batch job</b> (async, no SLA) → <b>Batches API</b></li>
+    <li>⚠️ <b>Never use Batches API on a blocking flow</b> — latency up to 24 hours</li>
+  </ul>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--accent);">🟡 C5 — Prompting / D4</div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
+    <li><b>Force a tool call (multiple valid tools)</b> → <code>tool_choice: "any"</code> (not <code>auto</code>, not named)</li>
+    <li><b>Inconsistent output format</b> → few-shot examples, not just format instructions</li>
+    <li><b>Required field → model fabricates</b> → make sparse fields <b>optional / nullable</b> — model returns null honestly</li>
+    <li><b>Long document (200+ pages)</b> → place your question <b>AFTER</b> the document (recency bias)</li>
+    <li><b>Markdown in plain-text pipeline</b> → fix in <b>system prompt</b>; regex post-processing is fragile</li>
+    <li><b>Agent can't format tool inputs</b> → put format / examples in <b>parameter descriptions</b>, not system prompt</li>
+    <li><b>High finding volume, low acceptance rate</b> → tighten criteria, raise threshold — don't increase volume</li>
+  </ul>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--accent);">🟡 C6 — Agentic Architecture / D1</div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
+    <li><b>Routing pattern</b> → classify input → send to specialised prompt (not orchestrator, not parallel agents)</li>
+    <li><b>Autonomous agent loop</b> → always set <code>maxTurns</code> / iteration limits</li>
+    <li><b>Business rule that cannot be bypassed</b> (e.g. &gt;$500 needs approval) → enforce in <b>tool backend code</b>, not LLM prompt</li>
+    <li><b>RATE_LIMITED error</b> → <b>exponential backoff</b> — not fail, not immediate retry, not prompt rewrite</li>
+    <li><b>Agent memory across sessions</b> → <b>external storage</b> (database / vector store), not in-context</li>
+    <li><b>Prompt injection via email</b> → treat all inbound content as data, never as instructions; validate before acting</li>
+  </ul>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--accent);">🟡 C7 — Tools &amp; MCP / D2</div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
+    <li><b>Two tools always called in sequence</b> → merge into one enriched tool (eliminate the round-trip)</li>
+    <li><b>Agent confuses similar tools</b> (archive vs delete) → add explicit <b>negative constraints</b> in descriptions</li>
+    <li><b>Tool completes but has nothing to return</b> → return <b>structured success confirmation</b>, not null / empty string</li>
+    <li><b>Share MCP config with team</b> → <code>.mcp.json</code> in repo root — version-controlled, env var expansion for credentials</li>
+    <li><b>Edit tool fails (non-unique anchor text)</b> → fallback = <b>Read + Write</b> the whole file</li>
+    <li><b>claude.ai prototype → API</b> → behaviour may differ; claude.ai uses system prompt scaffolding not available via API</li>
+    <li><b>MCP shared service</b> → one server, one owner, consumed by any MCP-capable client (Claude Desktop, Claude Code, API)</li>
+  </ul>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--accent);">🟡 C8 — Context &amp; Caching / D5</div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
+    <li><b>Context 82% full but still valid</b> → use <code>/compact</code> — not a fresh start</li>
+    <li><b>Context stale (references wrong data)</b> → fresh session</li>
+    <li><b>Too many tools bloat context</b> → trim tool list to only what's needed for current task</li>
+    <li><b>Prompt caching cost</b>: write = <b>slightly MORE</b> than normal input; read = <b>fraction</b> of normal — wins on repeated large stable prefixes</li>
+    <li><b>cache_read_input_tokens</b> = cache hit (tokens read FROM cache); <b>cache_creation_input_tokens</b> = cache write</li>
+  </ul>
+</div>
+
+<div style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+  <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--muted);">⚡ Quick-fire facts (Basics — B1/B2)</div>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;">
+    <li><b>First message must be role: user</b> — starting with role: assistant throws an error</li>
+    <li><b>Deterministic output</b> → set <code>temperature: 0</code></li>
+    <li><b>cache_read_input_tokens</b> field = how many tokens were read from cache (cache hit count)</li>
+    <li><b>Guaranteed JSON, no preamble</b> → prefill assistant turn with <code>{</code> (not just a format instruction)</li>
+  </ul>
+</div>
+
+<div style="text-align:center;padding:10px 0 4px;color:var(--muted);font-size:12px;">
+  Built from your 72 wrong answers · exam Sun 31 Aug 2026 · good luck 🎯
+</div>
+
+</div>`;
+}
+
 document.querySelectorAll('.study-sub').forEach(btn => {
   btn.addEventListener('click', () => {
     const sub = btn.dataset.sub;
@@ -12056,8 +12178,10 @@ document.querySelectorAll('.study-sub').forEach(btn => {
     document.getElementById('study-cheatsheet-panel').style.display = sub === 'cheatsheet' ? '' : 'none';
     document.getElementById('study-qa-panel').style.display = sub === 'qa' ? '' : 'none';
     document.getElementById('study-guide-panel').style.display = sub === 'guide' ? '' : 'none';
+    document.getElementById('study-final-panel').style.display = sub === 'final' ? '' : 'none';
     if (sub === 'qa') loadAssessmentSplit();
     if (sub === 'guide') loadGuideSplit();
+    if (sub === 'final') renderFinalCheck();
   });
 });
 
